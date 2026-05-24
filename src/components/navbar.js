@@ -4,8 +4,13 @@ export async function renderNavbar(activeTab) {
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
-        if (!window.location.pathname.includes('login.html')) {
-            window.location.href = 'login.html';
+        // GitHub Pages'de tam path gerekli
+        const currentPath = window.location.pathname;
+        const isLoginPage = currentPath.endsWith('login.html');
+        if (!isLoginPage) {
+            // Mevcut URL'den base path'i çıkar (ör: /ExportPro/)
+            const base = window.location.pathname.split('/').slice(0, -1).join('/') + '/';
+            window.location.href = base + 'login.html';
             return;
         }
     }
@@ -13,7 +18,7 @@ export async function renderNavbar(activeTab) {
     const navbarTarget = document.getElementById('navbar-target');
     if (!navbarTarget) return;
 
-    const userEmail = session && session.user ? session.user.email : 'Giriş Yapılmadı';
+    const userEmail = session && session.user ? session.user.email : '';
 
     const tabs = [
         { id: 'dashboard',     label: 'Dashboard',       icon: 'fa-chart-pie',           href: 'index.html' },
@@ -58,6 +63,7 @@ export async function renderNavbar(activeTab) {
 
     document.getElementById('btn-logout')?.addEventListener('click', async () => {
         await supabase.auth.signOut();
-        window.location.href = 'login.html';
+        const base = window.location.pathname.split('/').slice(0, -1).join('/') + '/';
+        window.location.href = base + 'login.html';
     });
 }
