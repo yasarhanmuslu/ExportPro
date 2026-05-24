@@ -16,11 +16,12 @@ export async function renderNavbar(activeTab) {
     const userEmail = session && session.user ? session.user.email : 'Giriş Yapılmadı';
 
     const tabs = [
-        { id: 'dashboard',    label: 'Dashboard',      icon: 'fa-chart-pie',        href: 'index.html' },
-        { id: 'orders',       label: 'Siparişler',      icon: 'fa-boxes-stacked',    href: 'orders.html' },
-        { id: 'customers',    label: 'Müşteriler',      icon: 'fa-users',            href: 'customers.html' },
-        { id: 'prices',       label: 'Fiyat Robotu',    icon: 'fa-calculator',       href: 'prices.html' },
-        { id: 'credit-notes', label: 'Credit Notes',    icon: 'fa-file-invoice',     href: 'credit-notes.html' },
+        { id: 'dashboard',     label: 'Dashboard',       icon: 'fa-chart-pie',           href: 'index.html' },
+        { id: 'orders',        label: 'Siparişler',       icon: 'fa-boxes-stacked',       href: 'orders.html' },
+        { id: 'customers',     label: 'Müşteriler',       icon: 'fa-users',               href: 'customers.html' },
+        { id: 'prices',        label: 'Fiyat Robotu',     icon: 'fa-calculator',          href: 'prices.html' },
+        { id: 'client-prices', label: 'Müşteri Fiyat',    icon: 'fa-tags',                href: 'client-prices.html' },
+        { id: 'credit-notes',  label: 'Credit Notes',     icon: 'fa-file-invoice',        href: 'credit-notes.html' },
     ];
 
     const menuItems = tabs.map(tab => {
