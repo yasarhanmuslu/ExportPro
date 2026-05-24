@@ -2,30 +2,23 @@ import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
 
-// Global Müşteri Hafızası (Arama ve filtreleme işlemlerinde performansı korumak için)
+// Global Müşteri Hafızası
 let globalCustomers = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
-    // 1. Ortak Navbar'ı Yükle ('customers' aktif)
     await renderNavbar('customers');
-
-    // 2. İlk Veri Çekimini Yap
     await fetchCustomers();
-
-    // 3. Olay Dinleyicilerini (Event Listeners) Tanımla
     initEventListeners();
 });
 
-// --- VERİ ÇEKME FONKSİYONU ---
+// --- VERİ ÇEKME ---
 async function fetchCustomers() {
     try {
-        // Oturum açan kullanıcının ID'sini çek
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
 
-        // Supabase'den müşterileri getir (RLS otomatik olarak sadece kullanıcıya ait verileri döner)
         const { data: customers, error } = await supabase
             .from('customers')
             .select('*')
@@ -35,11 +28,7 @@ async function fetchCustomers() {
         if (error) throw error;
 
         globalCustomers = customers;
-
-        // Filtre kutularındaki ülke seçeneklerini dinamik güncelle
         populateCountryFilter(customers);
-
-        // Arayüzü Çiz
         renderCustomersList(customers);
 
     } catch (error) {
@@ -48,7 +37,7 @@ async function fetchCustomers() {
     }
 }
 
-// --- ARAYÜZ LİSTELEME VE ÜLKE GRUPLAMA FONKSİYONU ---
+// --- LİSTELEME ---
 function renderCustomersList(customersList) {
     const container = document.getElementById('customers-list-container');
     container.innerHTML = '';
@@ -62,7 +51,6 @@ function renderCustomersList(customersList) {
         return;
     }
 
-    // Ülkelere göre grupla (Örn: {"Almanya": [...], "Fransa": [...]})
     const grouped = {};
     customersList.forEach(cust => {
         const countryKey = cust.country.trim();
@@ -70,13 +58,11 @@ function renderCustomersList(customersList) {
         grouped[countryKey].push(cust);
     });
 
-    // Her ülke grubu için akordeon arayüz kartı oluştur
     Object.keys(grouped).forEach(country => {
         const itemCount = grouped[country].length;
-        
         const groupCard = document.createElement('div');
         groupCard.className = "bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-md";
-        
+
         groupCard.innerHTML = `
             <div class="bg-slate-900/80 px-6 py-4 flex items-center justify-between cursor-pointer border-b border-slate-800/60 select-none toggle-group-btn">
                 <div class="flex items-center gap-3">
@@ -90,7 +76,10 @@ function renderCustomersList(customersList) {
                     <thead>
                         <tr>
                             <th>Firma Ünvanı</th>
-                            <th>Müşteri Grubu</th>
+                            <th>Yetkili</th>
+                            <th>E-Posta / Telefon</th>
+                            <th>Müşteri Tipi</th>
+                            <th>Durum</th>
                             <th>Kayıt Tarihi</th>
                             <th class="text-right">İşlem</th>
                         </tr>
@@ -99,9 +88,19 @@ function renderCustomersList(customersList) {
                         ${grouped[country].map(cust => `
                             <tr>
                                 <td class="font-medium text-slate-200">${escapeHtml(cust.company_name)}</td>
+                                <td class="text-slate-300">${escapeHtml(cust.contact_name || '—')}</td>
+                                <td>
+                                    <div class="text-xs">${escapeHtml(cust.email || '—')}</div>
+                                    <div class="text-xs text-slate-500">${escapeHtml(cust.phone || '')}</div>
+                                </td>
                                 <td>
                                     <span class="px-2.5 py-1 rounded-md text-xs font-medium border ${getGroupBadgeClass(cust.client_group)}">
                                         ${cust.client_group || 'Standart'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="px-2 py-0.5 rounded text-xs font-semibold ${getStatusBadgeClass(cust.status)}">
+                                        ${cust.status || 'Aktif'}
                                     </span>
                                 </td>
                                 <td class="text-slate-400 text-xs">${new Date(cust.created_at).toLocaleDateString('tr-TR')}</td>
@@ -116,11 +115,10 @@ function renderCustomersList(customersList) {
                 </table>
             </div>
         `;
-        
+
         container.appendChild(groupCard);
     });
 
-    // Akordeon Açma/Kapama İşlevselliği
     container.querySelectorAll('.toggle-group-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const content = btn.nextElementSibling;
@@ -130,7 +128,6 @@ function renderCustomersList(customersList) {
         });
     });
 
-    // Satır içi düzenle butonlarını tetikle
     container.querySelectorAll('.btn-edit-trigger').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const id = e.currentTarget.getAttribute('data-id');
@@ -139,25 +136,16 @@ function renderCustomersList(customersList) {
     });
 }
 
-// --- OLAY DİNLEYİCİLER (EVENTS) ---
+// --- OLAY DİNLEYİCİLER ---
 function initEventListeners() {
-    // Modal Açma/Kapama
     document.getElementById('btn-open-modal').addEventListener('click', () => openModalForCreate());
     document.getElementById('btn-close-modal').addEventListener('click', closeModal);
     document.getElementById('btn-cancel').addEventListener('click', closeModal);
-
-    // Form Gönderimi (Ekleme ve Güncelleme)
     document.getElementById('customer-form').addEventListener('submit', handleFormSubmit);
-
-    // Kayıt Silme Olayı
     document.getElementById('btn-delete-customer').addEventListener('click', handleDeleteCustomer);
-
-    // Canlı Arama ve Filtreleme Filtreleri
     document.getElementById('search-input').addEventListener('input', applyFilters);
     document.getElementById('filter-country').addEventListener('change', applyFilters);
     document.getElementById('filter-group').addEventListener('change', applyFilters);
-
-    // Excel Export
     document.getElementById('btn-export-excel').addEventListener('click', exportToCSV);
 }
 
@@ -175,9 +163,22 @@ function openModalForEdit(id) {
     if (!customer) return;
 
     document.getElementById('customer-id').value = customer.id;
-    document.getElementById('company_name').value = customer.company_name;
-    document.getElementById('country').value = customer.country;
+    document.getElementById('company_name').value = customer.company_name || '';
+    document.getElementById('country').value = customer.country || '';
+    document.getElementById('contact_name').value = customer.contact_name || '';
+    document.getElementById('email').value = customer.email || '';
+    document.getElementById('phone').value = customer.phone || '';
+    document.getElementById('website').value = customer.website || '';
     document.getElementById('client_group').value = customer.client_group || 'Standart';
+    document.getElementById('status').value = customer.status || 'Aktif';
+
+    // Geçmiş alanları
+    document.getElementById('history_date_1').value = customer.history_date_1 || '';
+    document.getElementById('history_note_1').value = customer.history_note_1 || '';
+    document.getElementById('history_date_2').value = customer.history_date_2 || '';
+    document.getElementById('history_note_2').value = customer.history_note_2 || '';
+    document.getElementById('history_date_3').value = customer.history_date_3 || '';
+    document.getElementById('history_note_3').value = customer.history_note_3 || '';
 
     document.getElementById('modal-title').innerHTML = `<i class="fa-solid fa-pen-to-square text-amber-500"></i> Müşteri Kaydını Düzenle`;
     document.getElementById('btn-delete-customer').classList.remove('hidden');
@@ -191,38 +192,48 @@ function closeModal() {
 // --- FORM GÖNDERİMİ (INSERT / UPDATE) ---
 async function handleFormSubmit(e) {
     e.preventDefault();
-    
+
     const id = document.getElementById('customer-id').value;
-    const company_name = document.getElementById('company_name').value.trim();
-    const country = document.getElementById('country').value.trim();
-    const client_group = document.getElementById('client_group').value;
+
+    const payload = {
+        company_name: document.getElementById('company_name').value.trim(),
+        country:      document.getElementById('country').value.trim(),
+        contact_name: document.getElementById('contact_name').value.trim() || null,
+        email:        document.getElementById('email').value.trim() || null,
+        phone:        document.getElementById('phone').value.trim() || null,
+        website:      document.getElementById('website').value.trim() || null,
+        client_group: document.getElementById('client_group').value,
+        status:       document.getElementById('status').value,
+        history_date_1: document.getElementById('history_date_1').value || null,
+        history_note_1: document.getElementById('history_note_1').value.trim() || null,
+        history_date_2: document.getElementById('history_date_2').value || null,
+        history_note_2: document.getElementById('history_note_2').value.trim() || null,
+        history_date_3: document.getElementById('history_date_3').value || null,
+        history_note_3: document.getElementById('history_note_3').value.trim() || null,
+        updated_at:   new Date().toISOString(),
+    };
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error("Oturum bulunamadı.");
-
         const userId = session.user.id;
 
         if (id) {
-            // GÜNCELLEME İŞLEMİ (UPDATE)
             const { error } = await supabase
                 .from('customers')
-                .update({ company_name, country, client_group, updated_at: new Date().toISOString() })
+                .update(payload)
                 .eq('id', id)
-                .eq('user_id', userId); // RLS Ek Güvenlik Önlemi
-
+                .eq('user_id', userId);
             if (error) throw error;
         } else {
-            // EKLEME İŞLEMİ (INSERT)
             const { error } = await supabase
                 .from('customers')
-                .insert([{ user_id: userId, company_name, country, client_group }]);
-
+                .insert([{ ...payload, user_id: userId }]);
             if (error) throw error;
         }
 
         closeModal();
-        await fetchCustomers(); // Listeyi yenile
+        await fetchCustomers();
 
     } catch (error) {
         console.error("Müşteri kaydedilemedi:", error.message);
@@ -230,7 +241,7 @@ async function handleFormSubmit(e) {
     }
 }
 
-// --- KAYIT SİLME İŞLEMİ (DELETE) ---
+// --- KAYIT SİLME ---
 async function handleDeleteCustomer() {
     const id = document.getElementById('customer-id').value;
     if (!id) return;
@@ -243,12 +254,9 @@ async function handleDeleteCustomer() {
                 .delete()
                 .eq('id', id)
                 .eq('user_id', session.user.id);
-
             if (error) throw error;
-
             closeModal();
             await fetchCustomers();
-
         } catch (error) {
             console.error("Müşteri silinemedi:", error.message);
             alert("Silme işlemi başarısız oldu.");
@@ -256,14 +264,17 @@ async function handleDeleteCustomer() {
     }
 }
 
-// --- FİLTRELEME MANTIĞI ---
+// --- FİLTRELEME ---
 function applyFilters() {
     const searchVal = document.getElementById('search-input').value.toLowerCase();
     const countryVal = document.getElementById('filter-country').value;
     const groupVal = document.getElementById('filter-group').value;
 
     const filtered = globalCustomers.filter(c => {
-        const matchSearch = c.company_name.toLowerCase().includes(searchVal) || c.country.toLowerCase().includes(searchVal);
+        const matchSearch =
+            c.company_name.toLowerCase().includes(searchVal) ||
+            c.country.toLowerCase().includes(searchVal) ||
+            (c.contact_name || '').toLowerCase().includes(searchVal);
         const matchCountry = countryVal === "" || c.country === countryVal;
         const matchGroup = groupVal === "" || c.client_group === groupVal;
         return matchSearch && matchCountry && matchGroup;
@@ -276,10 +287,7 @@ function applyFilters() {
 function populateCountryFilter(customers) {
     const filterSelect = document.getElementById('filter-country');
     const savedValue = filterSelect.value;
-    
-    // Benzersiz ülkeleri ayıkla
     const countries = [...new Set(customers.map(c => c.country))].sort();
-    
     filterSelect.innerHTML = '<option value="">Tüm Ülkeler (Filtrele)</option>';
     countries.forEach(c => {
         const opt = document.createElement('option');
@@ -287,7 +295,6 @@ function populateCountryFilter(customers) {
         opt.textContent = c;
         filterSelect.appendChild(opt);
     });
-
     filterSelect.value = savedValue;
 }
 
@@ -300,24 +307,38 @@ function getGroupBadgeClass(group) {
     }
 }
 
+function getStatusBadgeClass(status) {
+    switch(status) {
+        case 'Aktif': return 'bg-emerald-950/50 text-emerald-400';
+        case 'Pasif': return 'bg-slate-800 text-slate-500';
+        case 'Potansiyel': return 'bg-amber-950/40 text-amber-400';
+        default: return 'bg-emerald-950/50 text-emerald-400';
+    }
+}
+
 function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
-// --- EXCEL/CSV METNİNE AKTARMA SÜRECİ ---
+// --- EXCEL/CSV AKTARMA ---
 function exportToCSV() {
     if (globalCustomers.length === 0) {
         alert("Dışa aktarılacak veri bulunamadı.");
         return;
     }
 
-    let csvContent = "data:text/csv;charset=utf-8,\\uFEFF";
-    csvContent += "Firma Adi;Ulke;Musteri Grubu;Kayit Tarihi\n";
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    csvContent += "Firma Adı;Ülke;Yetkili;E-Posta;Telefon;Web;Müşteri Tipi;Durum;Kayıt Tarihi\n";
 
     globalCustomers.forEach(c => {
         const regDate = new Date(c.created_at).toLocaleDateString('tr-TR');
-        csvContent += `"${c.company_name.replace(/"/g, '""')}";"${c.country.replace(/"/g, '""')}";"${c.client_group || 'Standart'}";"${regDate}"\n`;
+        const q = v => `"${(v || '').toString().replace(/"/g, '""')}"`;
+        csvContent += [
+            q(c.company_name), q(c.country), q(c.contact_name),
+            q(c.email), q(c.phone), q(c.website),
+            q(c.client_group || 'Standart'), q(c.status || 'Aktif'), q(regDate)
+        ].join(';') + '\n';
     });
 
     const encodedUri = encodeURI(csvContent);
