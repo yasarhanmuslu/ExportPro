@@ -6,8 +6,33 @@ let monthlyChartInstance = null;
 let currencyChartInstance = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    const session = await requireAuth();
-    if (!session) return;
+    // DEBUG: Session ve localStorage durumu
+    console.log('=== DEBUG START ===');
+    console.log('window.supabase:', typeof window.supabase);
+    console.log('window._sb:', typeof window._sb);
+    
+    // localStorage'daki tüm supabase key'leri
+    const lsKeys = Object.keys(localStorage);
+    console.log('All localStorage keys:', lsKeys);
+    const sbKeys = lsKeys.filter(k => k.includes('supabase') || k.includes('sb-') || k.includes('auth'));
+    console.log('Auth-related keys:', sbKeys);
+    sbKeys.forEach(k => {
+        try {
+            const val = JSON.parse(localStorage.getItem(k));
+            console.log(`${k}:`, val?.access_token ? `token: ${val.access_token.slice(0,30)}...` : val);
+        } catch(e) {
+            console.log(`${k}:`, localStorage.getItem(k)?.slice(0,50));
+        }
+    });
+    
+    // getSession sonucu
+    const { data: { session }, error } = await supabase.auth.getSession();
+    console.log('getSession result:', session ? `user: ${session.user.email}` : 'NULL');
+    console.log('getSession error:', error);
+    console.log('=== DEBUG END ===');
+
+    const authSession = await requireAuth();
+    if (!authSession) return;
     await renderNavbar('dashboard');
     initYearSelector();
 });
@@ -75,7 +100,6 @@ function calculateKPIs(orders) {
     currencies.forEach(curr => {
         const symbol = currencySymbols[curr] || curr;
         const fmt = (v) => v.toLocaleString('tr-TR', { minimumFractionDigits: 2 });
-
         ciroContainer.innerHTML += `<div class="flex justify-between"><span>${fmt(summary[curr].total)}</span><span class="text-xs text-purple-400 font-semibold">${symbol}</span></div>`;
         avansContainer.innerHTML += `<div class="flex justify-between"><span>${fmt(summary[curr].advance)}</span><span class="text-xs text-emerald-400 font-semibold">${symbol}</span></div>`;
         bakiyeContainer.innerHTML += `<div class="flex justify-between"><span>${fmt(summary[curr].remaining)}</span><span class="text-xs text-amber-400 font-semibold">${symbol}</span></div>`;
