@@ -1,18 +1,9 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/+esm';
+// Supabase UMD olarak HTML'de yükleniyor (window.supabase)
+// Bu dosya sadece export sağlar - tüm modüller buradan import eder
 
-const supabaseUrl = 'https://rotquydzejivrhhkjkps.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvdHF1eWR6ZWppdnJoaGtqa3BzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MjI4NzksImV4cCI6MjA5NTE5ODg3OX0.iSnCVTuIObT7G3hWfEyJ-kXEBumRbHSIV7QDN-WWWes';
+const { createClient } = window.supabase;
 
-// Singleton pattern: tüm modüller aynı instance'ı kullanır
-if (!window._supabaseInstance) {
-    window._supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
-        auth: {
-            persistSession: true,
-            autoRefreshToken: true,
-            detectSessionInUrl: true,
-            storageKey: 'exportpro-auth'
-        }
-    });
-}
-
-export const supabase = window._supabaseInstance;
+export const supabase = createClient(
+    'https://rotquydzejivrhhkjkps.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvdHF1eWR6ZWppdnJoaGtqa3BzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MjI4NzksImV4cCI6MjA5NTE5ODg3OX0.iSnCVTuIObT7G3hWfEyJ-kXEBumRbHSIV7QDN-WWWes'
+);
