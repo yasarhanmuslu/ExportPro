@@ -1,6 +1,6 @@
 // ============================================================
 // src/products.js — Ürün Tanımlama Kartı
-// Export Pro V: 1.0.21
+// Export Pro V: 1.0.22
 // ============================================================
 
 import { renderNavbar } from './components/navbar.js';
@@ -15,6 +15,7 @@ let currentPage       = 1;
 const PAGE_SIZE       = 20;
 let deletingId        = null;
 let editingPriceProductId = null;
+let missingCurrency   = null;   // 'EUR' | 'USD' | 'TRY' | null
 
 // ── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -65,17 +66,45 @@ async function fetchProducts() {
   }
 }
 
+// ── Eksik Fiyat Buton Stilleri ────────────────────────────────
+function updateMissingBtnStyles() {
+  const colorMap = {
+    EUR: { ring: 'ring-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/60' },
+    USD: { ring: 'ring-amber-500',   bg: 'bg-amber-500/10',   border: 'border-amber-500/60'   },
+    TRY: { ring: 'ring-sky-500',     bg: 'bg-sky-500/10',     border: 'border-sky-500/60'     },
+  };
+  document.querySelectorAll('.stat-missing-btn').forEach(btn => {
+    const currency = btn.dataset.currency;
+    const cls = colorMap[currency];
+    if (missingCurrency === currency) {
+      btn.classList.add('ring-2', cls.ring, cls.bg, cls.border);
+      btn.classList.remove('border-[var(--border)]');
+      // İkon her zaman görünür
+      const icon = btn.querySelector('.fa-triangle-exclamation');
+      if (icon) icon.classList.remove('opacity-0');
+    } else {
+      btn.classList.remove('ring-2', cls.ring, cls.bg, cls.border);
+      btn.classList.add('border-[var(--border)]');
+      const icon = btn.querySelector('.fa-triangle-exclamation');
+      if (icon) icon.classList.add('opacity-0');
+    }
+  });
+}
+
 // ── İstatistikler ─────────────────────────────────────────────
 function updateStats() {
+  const year = new Date().getFullYear();
   document.getElementById('stat-total').textContent  = globalProducts.length;
   const groups = new Set(globalProducts.map(p => p.product_group).filter(Boolean));
   document.getElementById('stat-groups').textContent = groups.size;
-  const withEur = globalProducts.filter(p => p.prices.some(pr => pr.currency === 'EUR')).length;
-  const withUsd = globalProducts.filter(p => p.prices.some(pr => pr.currency === 'USD')).length;
-  const withTry = globalProducts.filter(p => p.prices.some(pr => pr.currency === 'TRY')).length;
-  document.getElementById('stat-eur').textContent = withEur;
-  document.getElementById('stat-usd').textContent = withUsd;
-  document.getElementById('stat-try').textContent = withTry;
+
+  // Eksik fiyat sayıları (cari yıl için)
+  const missingEur = globalProducts.filter(p => !p.prices.some(pr => pr.currency === 'EUR' && pr.price_year === year)).length;
+  const missingUsd = globalProducts.filter(p => !p.prices.some(pr => pr.currency === 'USD' && pr.price_year === year)).length;
+  const missingTry = globalProducts.filter(p => !p.prices.some(pr => pr.currency === 'TRY' && pr.price_year === year)).length;
+  document.getElementById('stat-eur').textContent = missingEur;
+  document.getElementById('stat-usd').textContent = missingUsd;
+  document.getElementById('stat-try').textContent = missingTry;
 }
 
 // ── Grup Filtresi ─────────────────────────────────────────────
@@ -97,6 +126,7 @@ function populateGroupFilter() {
 function applyFilters() {
   const search = document.getElementById('search-input').value.trim().toLowerCase();
   const group  = document.getElementById('filter-group').value;
+  const year   = new Date().getFullYear();
 
   // Clear butonu görünürlüğü
   const clearBtn = document.getElementById('btn-search-clear');
@@ -108,7 +138,9 @@ function applyFilters() {
         p.product_name.toLowerCase().includes(search) ||
         p.product_code.toLowerCase().includes(search);
       const matchGroup = !group || p.product_group === group;
-      return matchSearch && matchGroup;
+      const matchMissing = !missingCurrency ||
+        !p.prices.some(pr => pr.currency === missingCurrency && pr.price_year === year);
+      return matchSearch && matchGroup && matchMissing;
     })
     .sort((a, b) => {
       const gA = (a.product_group || '').toLowerCase();
@@ -121,13 +153,15 @@ function applyFilters() {
     });
 
   // Sonuç badge'i
-  const badge = document.getElementById('search-result-badge');
+  const badge   = document.getElementById('search-result-badge');
   const countEl = document.getElementById('search-result-count');
   if (badge && countEl) {
-    if (search || group) {
+    const isFiltered = search || group || missingCurrency;
+    if (isFiltered) {
       badge.classList.remove('hidden');
       badge.classList.add('flex');
-      countEl.textContent = `${filteredProducts.length} sonuç`;
+      const label = missingCurrency ? `${missingCurrency} fiyatı eksik` : 'sonuç';
+      countEl.textContent = `${filteredProducts.length} ${label}`;
     } else {
       badge.classList.add('hidden');
       badge.classList.remove('flex');
@@ -495,6 +529,16 @@ function bindEvents() {
     document.getElementById('search-input').focus();
   };
   document.getElementById('filter-group').onchange             = applyFilters;
+
+  // Eksik fiyat filtre kartları
+  document.querySelectorAll('.stat-missing-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const currency = btn.dataset.currency;
+      missingCurrency = missingCurrency === currency ? null : currency;
+      updateMissingBtnStyles();
+      applyFilters();
+    });
+  });
   document.getElementById('btn-prev').onclick = () => { currentPage--; renderTable(); };
   document.getElementById('btn-next').onclick = () => { currentPage++; renderTable(); };
 
