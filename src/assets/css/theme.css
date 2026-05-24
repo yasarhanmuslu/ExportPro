@@ -1,0 +1,197 @@
+/* ═══════════════════════════════════════════════
+   EXPORT PRO - THEME SYSTEM
+   Dark mode (default) + Light mode
+   ═══════════════════════════════════════════════ */
+
+/* ── CSS Variables ── */
+:root {
+    --bg-primary:     #020617;   /* slate-950 */
+    --bg-secondary:   #0f172a;   /* slate-900 */
+    --bg-tertiary:    #1e293b;   /* slate-800 */
+    --bg-card:        rgba(15,23,42,0.6);
+    --border-color:   #1e293b;
+    --text-primary:   #f1f5f9;   /* slate-100 */
+    --text-secondary: #94a3b8;   /* slate-400 */
+    --text-muted:     #64748b;   /* slate-500 */
+    --input-bg:       #020617;
+    --input-border:   #334155;
+    --modal-bg:       #0f172a;
+    --modal-border:   #1e293b;
+    --table-th-color: #64748b;
+    --table-td-color: #94a3b8;
+    --table-hover:    rgba(30,41,59,0.5);
+    --table-border:   #020617;
+    --sidebar-bg:     #0f172a;
+    --sidebar-border: #1e293b;
+    --sidebar-footer: rgba(2,6,23,0.8);
+}
+
+html.light {
+    --bg-primary:     #f8fafc;   /* slate-50 */
+    --bg-secondary:   #ffffff;
+    --bg-tertiary:    #f1f5f9;   /* slate-100 */
+    --bg-card:        rgba(255,255,255,0.9);
+    --border-color:   #e2e8f0;   /* slate-200 */
+    --text-primary:   #0f172a;   /* slate-900 */
+    --text-secondary: #475569;   /* slate-600 */
+    --text-muted:     #94a3b8;   /* slate-400 */
+    --input-bg:       #ffffff;
+    --input-border:   #cbd5e1;   /* slate-300 */
+    --modal-bg:       #ffffff;
+    --modal-border:   #e2e8f0;
+    --table-th-color: #64748b;
+    --table-td-color: #374151;
+    --table-hover:    rgba(241,245,249,0.8);
+    --table-border:   #f1f5f9;
+    --sidebar-bg:     #ffffff;
+    --sidebar-border: #e2e8f0;
+    --sidebar-footer: rgba(248,250,252,0.95);
+}
+
+/* ── Base ── */
+body {
+    background-color: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ── Sidebar ── */
+#main-sidebar {
+    background-color: var(--sidebar-bg) !important;
+    border-color: var(--sidebar-border) !important;
+}
+
+html.light #main-sidebar .text-white {
+    color: var(--text-primary) !important;
+}
+
+html.light #main-sidebar a.text-slate-400 {
+    color: var(--text-secondary) !important;
+}
+
+html.light #main-sidebar a:hover {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+}
+
+html.light #main-sidebar .bg-slate-950\/50,
+html.light #main-sidebar .bg-slate-950\/80 {
+    background-color: var(--sidebar-footer) !important;
+}
+
+html.light #main-sidebar .border-slate-800 {
+    border-color: var(--sidebar-border) !important;
+}
+
+html.light #main-sidebar .text-slate-400,
+html.light #main-sidebar .text-slate-500,
+html.light #main-sidebar .text-slate-600 {
+    color: var(--text-secondary) !important;
+}
+
+html.light #main-sidebar .bg-slate-800 {
+    background-color: var(--bg-tertiary) !important;
+}
+
+html.light #main-sidebar .hover\:bg-slate-700:hover {
+    background-color: #e2e8f0 !important;
+}
+
+/* ── Main content ── */
+main {
+    background-color: var(--bg-primary) !important;
+}
+
+/* ── Headers & borders ── */
+html.light .border-slate-800 { border-color: var(--border-color) !important; }
+html.light .border-slate-700 { border-color: #cbd5e1 !important; }
+html.light .bg-slate-950 { background-color: #f8fafc !important; }
+html.light .bg-slate-900 { background-color: #ffffff !important; }
+html.light .bg-slate-900\/40 { background-color: rgba(255,255,255,0.9) !important; }
+html.light .bg-slate-900\/50 { background-color: rgba(248,250,252,0.9) !important; }
+html.light .bg-slate-800 { background-color: #f1f5f9 !important; }
+html.light .bg-slate-950\/40 { background-color: rgba(248,250,252,0.8) !important; }
+
+/* ── Text ── */
+html.light .text-white { color: #0f172a !important; }
+html.light .text-slate-100 { color: #1e293b !important; }
+html.light .text-slate-200 { color: #334155 !important; }
+html.light .text-slate-300 { color: #475569 !important; }
+html.light .text-slate-400 { color: #64748b !important; }
+html.light .text-slate-500 { color: #94a3b8 !important; }
+
+/* ── Inputs ── */
+input, select, textarea {
+    background-color: var(--input-bg) !important;
+    border-color: var(--input-border) !important;
+    color: var(--text-primary) !important;
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+html.light input,
+html.light select,
+html.light textarea {
+    background-color: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+    color: #94a3b8 !important;
+}
+
+/* ── Tables ── */
+.custom-table th { color: var(--table-th-color) !important; border-color: var(--border-color) !important; }
+.custom-table td { color: var(--table-td-color) !important; border-color: var(--table-border) !important; }
+.custom-table tbody tr:hover { background: var(--table-hover) !important; }
+.custom-table-container { background: var(--bg-card) !important; border-color: var(--border-color) !important; }
+
+/* ── Modals ── */
+.modal-content {
+    background-color: var(--modal-bg) !important;
+    border-color: var(--modal-border) !important;
+}
+
+html.light .modal-backdrop {
+    background: rgba(0,0,0,0.4) !important;
+}
+
+/* ── KPI Cards (dashboard) ── */
+html.light .kpi-card {
+    background: rgba(255,255,255,0.95) !important;
+    border-color: #e2e8f0 !important;
+}
+
+/* ── Accordion cards ── */
+html.light .bg-slate-900\/40.border.border-slate-800 {
+    background: rgba(255,255,255,0.9) !important;
+    border-color: #e2e8f0 !important;
+}
+
+html.light .bg-slate-900\/80 {
+    background: rgba(248,250,252,0.95) !important;
+}
+
+/* ── Buttons (secondary) ── */
+html.light .bg-slate-900.hover\:bg-slate-800 {
+    background-color: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: #374151 !important;
+}
+
+html.light .border-slate-700 { border-color: #cbd5e1 !important; }
+html.light .text-slate-300 { color: #475569 !important; }
+
+/* ── Section cards ── */
+html.light .section-card {
+    background: rgba(241,245,249,0.6) !important;
+    border-color: #e2e8f0 !important;
+}
+
+/* ── Smooth transition ── */
+*, *::before, *::after {
+    transition-property: background-color, border-color, color;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
+}
