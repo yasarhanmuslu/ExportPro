@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giriş Yap - Export Manager Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .whitespace-nowrap { white-space: nowrap; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-indigo-400 tracking-tight">Export Manager Pro</h1>
+            <p class="text-slate-400 mt-2 text-sm">Kurumsal İhracat Yönetim Sistemi</p>
+        </div>
+
+        <form id="authForm" class="space-y-5">
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">E-posta Adresi</label>
+                <input type="email" id="email" required 
+                    class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-100 text-sm" 
+                    placeholder="ornek@firma.com">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">Şifre</label>
+                <input type="password" id="password" required 
+                    class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-100 text-sm" 
+                    placeholder="••••••••">
+            </div>
+
+            <div id="messageArea" class="hidden text-sm p-3 rounded-lg text-center font-medium"></div>
+
+            <button type="submit" id="mainBtn" 
+                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 px-4 rounded-lg transition duration-200 shadow-lg text-sm cursor-pointer">
+                Giriş Yap
+            </button>
+        </form>
+
+        <div class="mt-6 text-center text-sm">
+            <span class="text-slate-400" id="toggleText">Hesabınız yok mu?</span>
+            <button id="toggleBtn" class="text-indigo-400 hover:text-indigo-300 font-medium ml-1 underline cursor-pointer">
+                Kayıt Olun
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { supabase } from './src/utils/supabaseClient.js';
+
+        const authForm = document.getElementById('authForm');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const mainBtn = document.getElementById('mainBtn');
+        const toggleBtn = document.getElementById('toggleBtn');
+        const toggleText = document.getElementById('toggleText');
+        const messageArea = document.getElementById('messageArea');
+
+        // Sayfa Modu: true ise "Giriş", false ise "Kayıt" modundadır
+        let isLoginMode = true;
+
+        // Mesaj gösterme fonksiyonu (Kırmızı: Hata, Yeşil: Başarı)
+        function showMessage(text, isSuccess = false) {
+            messageArea.innerText = text;
+            messageArea.className = `text-sm p-3 rounded-lg text-center font-medium ${isSuccess ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-800' : 'bg-rose-950/50 text-rose-400 border border-rose-800'}`;
+            messageArea.classList.remove('hidden');
+        }
+
+        // Giriş ve Kayıt modları arasında geçiş yapma
+        toggleBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            isLoginMode = !isLoginMode;
+            messageArea.classList.add('hidden'); // Eski mesajları temizle
+
+            if (isLoginMode) {
+                document.title = "Giriş Yap - Export Manager Pro";
+                mainBtn.innerText = "Giriş Yap";
+                toggleText.innerText = "Hesabınız yok mu?";
+                toggleBtn.innerText = "Kayıt Olun";
+            } else {
+                document.title = "Kayıt Ol - Export Manager Pro";
+                mainBtn.innerText = "Yeni Hesap Oluştur";
+                toggleText.innerText = "Zaten hesabınız var mı?";
+                toggleBtn.innerText = "Giriş Yapın";
+            }
+        });
+
+        // Form Gönderildiğinde Çalışacak Ana Fonksiyon
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            messageArea.classList.add('hidden');
+            
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+
+            // Güvenlik Kuralı: İstemci tarafında hiçbir service_role veya hassas kontrol yok, direkt anon API çağrısı
+            if (isLoginMode) {
+                // Giriş Yapma İşlemi
+                mainBtn.disabled = true;
+                mainBtn.innerText = "Giriş Yapılıyor...";
+                
+                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                
+                if (error) {
+                    showMessage(error.message, false);
+                    mainBtn.disabled = false;
+                    mainBtn.innerText = "Giriş Yap";
+                } else {
+                    showMessage("Giriş başarılı! Yönlendiriliyorsunuz...", true);
+                    setTimeout(() => {
+                        window.location.href = 'index.html'; // Başarılıysa Dashboard'a yönlendir
+                    }, 1000);
+                }
+            } else {
+                // Yeni Hesap Oluşturma İşlemi
+                mainBtn.disabled = true;
+                mainBtn.innerText = "Hesap Oluşturuluyor...";
+                
+                const { data, error } = await supabase.auth.signUp({ email, password });
+                
+                if (error) {
+                    showMessage(error.message, false);
+                    mainBtn.disabled = false;
+                    mainBtn.innerText = "Yeni Hesap Oluştur";
+                } else {
+                    showMessage("Kayıt başarılı! E-posta adresinize gelen onay linkini kontrol edin veya direkt giriş yapmayı deneyin.", true);
+                    mainBtn.disabled = false;
+                    mainBtn.innerText = "Yeni Hesap Oluştur";
+                }
+            }
+        });
+
+        // Eğer kullanıcı zaten giriş yapmışsa, login sayfasına girmesini engelleyip index'e atalım
+        async function checkExistingSession() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                window.location.href = 'index.html';
+            }
+        }
+        checkExistingSession();
+    </script>
+</body>
+</html>

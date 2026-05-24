@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Export Manager Pro - Credit Note Takip</title>
+    <link rel="stylesheet" href="/src/assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-950 text-slate-100">
+
+    <div id="navbar-target"></div>
+
+    <main class="ml-64 p-8 min-h-screen">
+        
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b border-slate-800">
+            <div>
+                <h2 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                    <i class="fa-solid fa-file-invoice-dollar text-rose-500"></i> Credit Note (Şikayet & Mahsup) Takibi
+                </h2>
+                <p class="text-sm text-slate-400 mt-1">Müşteri şikayetleri, kalite kararları, hedef sipariş eşleştirmeleri ve finansal statü takipleri.</p>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button id="btn-export-cn" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-lg text-sm font-semibold flex items-center gap-2 text-slate-300">
+                    <i class="fa-solid fa-file-excel text-emerald-500"></i> Dosyaları Dışa Aktar
+                </button>
+                <button id="btn-open-cn-modal" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-sm font-semibold flex items-center gap-2 shadow-lg shadow-rose-600/20">
+                    <i class="fa-solid fa-circle-plus"></i> Yeni Credit Note Dosyası Aç
+                </button>
+            </div>
+        </header>
+
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-500 text-sm"></i>
+                <input type="text" id="cn-search-input" placeholder="Müşteri adına göre dosya ara..." class="w-full pl-10">
+            </div>
+            <div>
+                <select id="filter-cn-status" class="w-full">
+                    <option value="">Tüm Süreç Durumları (Filtrele)</option>
+                    <option value="İncelemede">İncelemede</option>
+                    <option value="Onaylandı">Onaylandı</option>
+                    <option value="Reddedildi">Reddedildi</option>
+                    <option value="Mahsup Edildi">Mahsup Edildi</option>
+                </select>
+            </div>
+            <div class="bg-slate-900/40 border border-slate-800 rounded-lg px-4 py-2 flex items-center justify-between text-xs text-slate-400 font-medium">
+                <span>Açık Şikayet/Dosya Adedi:</span>
+                <span id="total-cn-records" class="text-rose-400 font-bold text-sm">0 Dosya</span>
+            </div>
+        </section>
+
+        <section class="custom-table-container">
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Belge Tarihi</th>
+                        <th>Müşteri / Firma</th>
+                        <th>Şikayetçi Olunan Kalemler</th>
+                        <th>Süreç Durumu</th>
+                        <th class="text-center">İşlem</th>
+                    </tr>
+                </thead>
+                <tbody id="cn-table-body">
+                    <tr>
+                        <td colspan="5" class="text-center text-slate-500 py-8 animate-pulse">Credit Note verileri yükleniyor...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+    </main>
+
+    <div id="cn-modal" class="modal-backdrop hidden">
+        <div class="modal-content max-w-4xl max-h-[90vh] flex flex-col p-0">
+            <div class="flex items-center justify-between border-b border-slate-800 p-6">
+                <h3 id="cn-modal-title" class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-file-medical text-rose-500"></i> Yeni Credit Note Kayıt Formu
+                </h3>
+                <button id="btn-close-cn-modal" class="text-slate-500 hover:text-slate-300 transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form id="cn-form" class="flex-1 overflow-y-auto p-6 space-y-6">
+                <input type="hidden" id="cn-id">
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-900/30 p-4 border border-slate-800 rounded-xl">
+                    <div>
+                        <label for="cn-customer-select" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Müşteri Firma <span class="text-rose-500">*</span></label>
+                        <select id="cn-customer-select" required class="w-full bg-slate-950">
+                            <option value="">-- Müşteri Seçiniz --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="cn_date" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Dosya/Belge Tarihi <span class="text-rose-500">*</span></label>
+                        <input type="date" id="cn_date" required class="w-full">
+                    </div>
+                    <div>
+                        <label for="process_status" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Süreç Durumu</label>
+                        <select id="process_status" class="w-full">
+                            <option value="İncelemede">İncelemede</option>
+                            <option value="Onaylandı">Onaylandı</option>
+                            <option value="Reddedildi">Reddedildi</option>
+                            <option value="Mahsup Edildi">Mahsup Edildi</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <h4 class="text-xs font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                            <i class="fa-solid fa-boxes-stacked"></i> Şikayet ve Ürün Detay Kalemleri
+                        </h4>
+                        <button type="button" id="btn-add-item-row" class="text-xs bg-indigo-950 hover:bg-indigo-900 border border-indigo-900 hover:border-indigo-700 text-indigo-400 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+                            <i class="fa-solid fa-plus text-[10px]"></i> Yeni Satır Ekle
+                        </button>
+                    </div>
+
+                    <div id="cn-items-container" class="space-y-4">
+                        </div>
+                </div>
+            </form>
+
+            <div class="flex items-center justify-between border-t border-slate-800 p-6 bg-slate-950/60">
+                <button type="button" id="btn-delete-cn" class="px-4 py-2 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/50 hover:border-rose-700 text-rose-400 text-sm font-semibold rounded-lg hidden flex items-center gap-2">
+                    <i class="fa-solid fa-trash-can"></i> Dosyayı Tamamen Sil
+                </button>
+                <div class="flex items-center gap-3 ml-auto">
+                    <button type="button" id="btn-cn-cancel" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm font-semibold text-slate-300">İptal / Kapat</button>
+                    <button type="submit" form="cn-form" class="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-sm font-semibold shadow-lg shadow-rose-600/20">Değişiklikleri Kaydet</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/src/credit-notes.js"></script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Export Manager Pro - Dashboard</title>
+    <link rel="stylesheet" href="/src/assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100">
+
+    <div id="navbar-target"></div>
+
+    <main class="ml-64 p-8 min-h-screen">
+        
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b border-slate-800">
+            <div>
+                <h2 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-purple-500"></i> Yönetici Analiz Paneli
+                </h2>
+                <p class="text-sm text-slate-400 mt-1">Şirketinizin ihracat performansına ve finansal özetlerine anlık genel bakış.</p>
+            </div>
+            
+            <div class="flex items-center gap-3 bg-slate-900/50 px-4 py-2 rounded-xl border border-slate-800">
+                <label for="year-select" class="text-xs font-semibold text-slate-400 tracking-wider uppercase">Analiz Yılı:</label>
+                <select id="year-select" class="bg-slate-950 border-slate-800 py-1 px-3 text-sm font-medium focus:ring-purple-500 rounded-lg">
+                    </select>
+            </div>
+        </header>
+
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="kpi-card relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 text-purple-500/10 text-8xl font-black transition-transform duration-300 group-hover:scale-110">
+                    <i class="fa-solid fa-wallet"></i>
+                </div>
+                <p class="text-xs font-semibold text-slate-400 tracking-wider uppercase mb-2">Toplam Brüt Ciro</p>
+                <div id="kpi-ciro-container" class="space-y-1 text-2xl font-bold text-white tracking-tight">
+                    <div class="text-slate-500 text-sm font-normal animate-pulse">Veriler yükleniyor...</div>
+                </div>
+            </div>
+
+            <div class="kpi-card relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 text-emerald-500/10 text-8xl font-black transition-transform duration-300 group-hover:scale-110">
+                    <i class="fa-solid fa-hand-holding-dollar"></i>
+                </div>
+                <p class="text-xs font-semibold text-slate-400 tracking-wider uppercase mb-2">Tahsil Edilen Avanslar</p>
+                <div id="kpi-avans-container" class="space-y-1 text-2xl font-bold text-emerald-400 tracking-tight">
+                    <div class="text-slate-500 text-sm font-normal">--</div>
+                </div>
+            </div>
+
+            <div class="kpi-card relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 text-amber-500/10 text-8xl font-black transition-transform duration-300 group-hover:scale-110">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                </div>
+                <p class="text-xs font-semibold text-slate-400 tracking-wider uppercase mb-2">Kalan Vadeli Bakiye</p>
+                <div id="kpi-bakiye-container" class="space-y-1 text-2xl font-bold text-amber-400 tracking-tight">
+                    <div class="text-slate-500 text-sm font-normal">--</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-6 shadow-xl">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-semibold text-slate-300 tracking-wide uppercase flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-indigo-400"></i> Aylık Sipariş Hacmi Dağılımı
+                    </h3>
+                </div>
+                <div class="h-80 relative">
+                    <canvas id="chart-monthly-performance"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-6 shadow-xl">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-semibold text-slate-300 tracking-wide uppercase flex items-center gap-2">
+                        <i class="fa-solid fa-chart-pie text-emerald-400"></i> Döviz Cinsine Göre Sipariş Oranları
+                    </h3>
+                </div>
+                <div class="h-80 relative flex items-center justify-center">
+                    <canvas id="chart-currency-distribution"></canvas>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script type="module" src="/src/dashboard.js"></script>
+</body>
+</html>
