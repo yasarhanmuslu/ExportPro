@@ -1,26 +1,24 @@
 // ============================================================
 // src/products.js — Ürün Tanımlama Kartı
-// Export Pro V: 1.0.16
+// Export Pro V: 1.0.19
 // ============================================================
 
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth }  from './auth/auth.js';
-import { getSupabase }  from './utils/supabaseClient.js';
+import { supabase }     from './utils/supabaseClient.js';
 
 // ── State ────────────────────────────────────────────────────
-let session        = null;
-let supabase       = null;
-let globalProducts = [];   // { ...product, prices: [] }
-let filteredProducts = [];
-let currentPage    = 1;
-const PAGE_SIZE    = 20;
-let deletingId     = null;
+let session           = null;
+let globalProducts    = [];
+let filteredProducts  = [];
+let currentPage       = 1;
+const PAGE_SIZE       = 20;
+let deletingId        = null;
 let editingPriceProductId = null;
 
 // ── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-  session  = await requireAuth();
-  supabase = getSupabase();
+  session = await requireAuth();
   renderNavbar('products');
   bindEvents();
   await fetchProducts();
@@ -38,7 +36,6 @@ async function fetchProducts() {
 
     if (pErr) throw pErr;
 
-    // Fiyatları tek sorguda çek
     const { data: prices, error: prErr } = await supabase
       .from('product_prices')
       .select('*')
@@ -46,7 +43,6 @@ async function fetchProducts() {
 
     if (prErr) throw prErr;
 
-    // Ürünlere fiyatları bağla
     const priceMap = {};
     (prices || []).forEach(p => {
       if (!priceMap[p.product_id]) priceMap[p.product_id] = [];
@@ -73,7 +69,6 @@ function updateStats() {
   document.getElementById('stat-total').textContent  = globalProducts.length;
   const groups = new Set(globalProducts.map(p => p.product_group).filter(Boolean));
   document.getElementById('stat-groups').textContent = groups.size;
-
   const withEur = globalProducts.filter(p => p.prices.some(pr => pr.currency === 'EUR')).length;
   const withUsd = globalProducts.filter(p => p.prices.some(pr => pr.currency === 'USD')).length;
   document.getElementById('stat-eur').textContent = withEur;
@@ -185,15 +180,13 @@ function updatePagination() {
   const pages = Math.ceil(total / PAGE_SIZE);
   const start = (currentPage - 1) * PAGE_SIZE + 1;
   const end   = Math.min(currentPage * PAGE_SIZE, total);
-
   document.getElementById('pagination-info').textContent =
     total === 0 ? '' : `${start}–${end} / ${total} ürün`;
-
   document.getElementById('btn-prev').disabled = currentPage <= 1;
   document.getElementById('btn-next').disabled = currentPage >= pages;
 }
 
-// ── Ürün Modal (Ekle / Düzenle) ───────────────────────────────
+// ── Ürün Modal ────────────────────────────────────────────────
 function openAddProduct() {
   document.getElementById('product-id').value          = '';
   document.getElementById('product-code').value        = '';
@@ -231,7 +224,7 @@ async function saveProduct() {
       user_id:       session.user.id,
       product_code:  code,
       product_name:  name,
-      product_group: grp || null,
+      product_group: grp  || null,
       description:   desc || null,
     };
 
@@ -276,11 +269,9 @@ async function confirmDelete() {
       .eq('id', deletingId)
       .eq('user_id', session.user.id);
     if (error) throw error;
-
     hideModal('modal-delete');
     deletingId = null;
     await fetchProducts();
-
   } catch (err) {
     console.error('deleteProduct error:', err);
     alert('Silme hatası: ' + err.message);
@@ -304,18 +295,13 @@ function renderPriceList(prices) {
     container.innerHTML = `<p class="text-sm text-[var(--text-secondary)] text-center py-4">Henüz fiyat kaydı yok.</p>`;
     return;
   }
-
   const sorted = [...prices].sort((a, b) =>
     b.price_year - a.price_year || a.currency.localeCompare(b.currency)
   );
-
   container.innerHTML = sorted.map(pr => {
-    const disc = pr.discount_rate != null
-      ? `%${Number(pr.discount_rate).toFixed(2)}`
-      : '—';
-    const sym  = pr.currency === 'EUR' ? '€' : '$';
+    const disc    = pr.discount_rate != null ? `%${Number(pr.discount_rate).toFixed(2)}` : '—';
+    const sym     = pr.currency === 'EUR' ? '€' : '$';
     const colorCls = pr.currency === 'EUR' ? 'text-emerald-400' : 'text-amber-400';
-
     return `
       <div class="flex items-center justify-between bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl px-4 py-3 gap-3">
         <div class="flex items-center gap-3 min-w-0">
@@ -346,17 +332,15 @@ function renderPriceList(prices) {
 }
 
 window.startEditPrice = function(priceId) {
-  const p = globalProducts.find(x => x.id === editingPriceProductId);
+  const p  = globalProducts.find(x => x.id === editingPriceProductId);
   const pr = p?.prices.find(x => x.id === priceId);
   if (!pr) return;
-
   document.getElementById('price-edit-id').value    = pr.id;
   document.getElementById('price-year').value       = pr.price_year;
   document.getElementById('price-currency').value   = pr.currency;
   document.getElementById('price-list').value       = pr.list_price || '';
   document.getElementById('price-net').value        = pr.net_price  || '';
   calcDiscount();
-
   document.getElementById('btn-price-save-label').textContent = 'Güncelle';
   document.getElementById('btn-price-cancel-edit').classList.remove('hidden');
 };
@@ -376,8 +360,7 @@ function calcDiscount() {
   const list = parseFloat(document.getElementById('price-list').value);
   const net  = parseFloat(document.getElementById('price-net').value);
   if (list > 0 && net >= 0) {
-    const disc = ((1 - net / list) * 100).toFixed(2);
-    document.getElementById('price-discount').value = disc;
+    document.getElementById('price-discount').value = ((1 - net / list) * 100).toFixed(2);
   } else {
     document.getElementById('price-discount').value = '';
   }
@@ -438,11 +421,9 @@ window.deletePrice = async function(priceId) {
       .eq('id', priceId)
       .eq('user_id', session.user.id);
     if (error) throw error;
-
     await fetchProducts();
     const updated = globalProducts.find(x => x.id === editingPriceProductId);
     renderPriceList(updated.prices);
-
   } catch (err) {
     console.error('deletePrice error:', err);
     alert('Silme hatası: ' + err.message);
@@ -451,36 +432,22 @@ window.deletePrice = async function(priceId) {
 
 // ── Event Binding ─────────────────────────────────────────────
 function bindEvents() {
-  // Ürün ekle butonu
-  document.getElementById('btn-add-product').onclick = openAddProduct;
-
-  // Ürün modal
-  document.getElementById('modal-product-save').onclick   = saveProduct;
-  document.getElementById('modal-product-cancel').onclick = () => hideModal('modal-product');
-  document.getElementById('modal-product-close').onclick  = () => hideModal('modal-product');
-
-  // Fiyat modal
-  document.getElementById('modal-prices-close').onclick       = () => hideModal('modal-prices');
-  document.getElementById('btn-price-save').onclick           = savePrice;
-  document.getElementById('btn-price-cancel-edit').onclick    = resetPriceForm;
-
-  // İskonto otomatik hesaplama
-  document.getElementById('price-list').oninput = calcDiscount;
-  document.getElementById('price-net').oninput  = calcDiscount;
-
-  // Silme modal
-  document.getElementById('btn-delete-confirm').onclick = confirmDelete;
-  document.getElementById('btn-delete-cancel').onclick  = () => hideModal('modal-delete');
-
-  // Filtre & arama
-  document.getElementById('search-input').oninput = applyFilters;
-  document.getElementById('filter-group').onchange = applyFilters;
-
-  // Sayfalama
+  document.getElementById('btn-add-product').onclick           = openAddProduct;
+  document.getElementById('modal-product-save').onclick        = saveProduct;
+  document.getElementById('modal-product-cancel').onclick      = () => hideModal('modal-product');
+  document.getElementById('modal-product-close').onclick       = () => hideModal('modal-product');
+  document.getElementById('modal-prices-close').onclick        = () => hideModal('modal-prices');
+  document.getElementById('btn-price-save').onclick            = savePrice;
+  document.getElementById('btn-price-cancel-edit').onclick     = resetPriceForm;
+  document.getElementById('price-list').oninput                = calcDiscount;
+  document.getElementById('price-net').oninput                 = calcDiscount;
+  document.getElementById('btn-delete-confirm').onclick        = confirmDelete;
+  document.getElementById('btn-delete-cancel').onclick         = () => hideModal('modal-delete');
+  document.getElementById('search-input').oninput              = applyFilters;
+  document.getElementById('filter-group').onchange             = applyFilters;
   document.getElementById('btn-prev').onclick = () => { currentPage--; renderTable(); };
   document.getElementById('btn-next').onclick = () => { currentPage++; renderTable(); };
 
-  // Modal dışına tıklama
   ['modal-product', 'modal-prices', 'modal-delete'].forEach(id => {
     document.getElementById(id).addEventListener('click', e => {
       if (e.target.id === id) hideModal(id);
@@ -494,7 +461,6 @@ function showModal(id) {
   el.classList.remove('hidden');
   el.classList.add('flex');
 }
-
 function hideModal(id) {
   const el = document.getElementById(id);
   el.classList.add('hidden');
@@ -503,5 +469,7 @@ function hideModal(id) {
 
 // ── XSS Koruma ───────────────────────────────────────────────
 function escHtml(str) {
-  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(str ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
