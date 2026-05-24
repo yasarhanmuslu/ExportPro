@@ -147,6 +147,9 @@ function initEventListeners() {
     document.getElementById('filter-country').addEventListener('change', applyFilters);
     document.getElementById('filter-group').addEventListener('change', applyFilters);
     document.getElementById('btn-export-excel').addEventListener('click', exportToCSV);
+
+    // Metin alanlarına otomatik sentence-case uygula (email hariç)
+    applySentenceCaseListeners();
 }
 
 // --- MODAL YÖNETİMİ ---
@@ -195,21 +198,27 @@ async function handleFormSubmit(e) {
 
     const id = document.getElementById('customer-id').value;
 
+    // Yardımcı: string alanları trim + sentence-case uygula (email hariç)
+    const sc = (id) => {
+        const v = document.getElementById(id).value.trim();
+        return v ? toSentenceCase(v) : null;
+    };
+
     const payload = {
-        company_name: document.getElementById('company_name').value.trim(),
-        country:      document.getElementById('country').value.trim(),
-        contact_name: document.getElementById('contact_name').value.trim() || null,
+        company_name: sc('company_name'),
+        country:      sc('country'),
+        contact_name: sc('contact_name'),
         email:        document.getElementById('email').value.trim() || null,
-        phone:        document.getElementById('phone').value.trim() || null,
-        website:      document.getElementById('website').value.trim() || null,
+        phone:        sc('phone'),
+        website:      sc('website'),
         client_group: document.getElementById('client_group').value,
         status:       document.getElementById('status').value,
         history_date_1: document.getElementById('history_date_1').value || null,
-        history_note_1: document.getElementById('history_note_1').value.trim() || null,
+        history_note_1: sc('history_note_1'),
         history_date_2: document.getElementById('history_date_2').value || null,
-        history_note_2: document.getElementById('history_note_2').value.trim() || null,
+        history_note_2: sc('history_note_2'),
         history_date_3: document.getElementById('history_date_3').value || null,
-        history_note_3: document.getElementById('history_note_3').value.trim() || null,
+        history_note_3: sc('history_note_3'),
         updated_at:   new Date().toISOString(),
     };
 
@@ -319,6 +328,38 @@ function getStatusBadgeClass(status) {
 function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+// --- SENTENCE CASE (Türkçe uyumlu: i→İ değil, i küçük kalır) ---
+// İlk harf büyük, geri kalan olduğu gibi bırakılır.
+// Türkçe'de "i"nin büyüğü "İ" olmasına rağmen firm adları için
+// standart Latin davranışı (toUpperCase locale:'tr') tercih edilir.
+function toSentenceCase(str) {
+    if (!str) return str;
+    return str.charAt(0).toLocaleUpperCase('tr-TR') + str.slice(1);
+}
+
+// Belirtilen input ID'lerinde anlık sentence-case uygular.
+// Cursor pozisyonu korunur (ortadan silip yazarken bozulmasın).
+function applySentenceCaseListeners() {
+    const CAPITALIZE_IDS = ['company_name', 'country', 'contact_name', 'phone', 'website',
+                            'history_note_1', 'history_note_2', 'history_note_3'];
+
+    CAPITALIZE_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', function () {
+            const start = this.selectionStart;
+            const end   = this.selectionEnd;
+            const original = this.value;
+            const converted = toSentenceCase(original);
+            if (original !== converted) {
+                this.value = converted;
+                // Cursor'u eski pozisyona geri taşı
+                this.setSelectionRange(start, end);
+            }
+        });
+    });
 }
 
 // --- EXCEL/CSV AKTARMA ---
