@@ -330,13 +330,13 @@ function escapeHtml(str) {
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
-// --- SENTENCE CASE (Türkçe uyumlu: i→İ değil, i küçük kalır) ---
-// İlk harf büyük, geri kalan olduğu gibi bırakılır.
-// Türkçe'de "i"nin büyüğü "İ" olmasına rağmen firm adları için
-// standart Latin davranışı (toUpperCase locale:'tr') tercih edilir.
+// --- SENTENCE CASE (Türkçe uyumlu) ---
+// Tüm metni önce küçük harfe çevirir, sonra ilk harfi büyük yapar.
+// Bu sayede CAPS LOCK, copy-paste, tümü büyük girişler düzgün normalize edilir.
 function toSentenceCase(str) {
     if (!str) return str;
-    return str.charAt(0).toLocaleUpperCase('tr-TR') + str.slice(1);
+    const lower = str.toLocaleLowerCase('tr-TR');
+    return lower.charAt(0).toLocaleUpperCase('tr-TR') + lower.slice(1);
 }
 
 // Belirtilen input ID'lerinde anlık sentence-case uygular.
