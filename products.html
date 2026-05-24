@@ -70,6 +70,10 @@
         <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1">Fiyatlı (USD)</p>
         <p id="stat-usd" class="text-2xl font-bold text-rose-400">—</p>
       </div>
+      <div class="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4">
+        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1">Fiyatlı (TL)</p>
+        <p id="stat-try" class="text-2xl font-bold text-sky-400">—</p>
+      </div>
     </div>
 
     <!-- Ürün Tablosu -->
@@ -85,12 +89,14 @@
               <th class="text-right text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">2026 EUR Net</th>
               <th class="text-right text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">2026 USD Liste</th>
               <th class="text-right text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">2026 USD Net</th>
+              <th class="text-right text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">2026 TL Liste</th>
+              <th class="text-right text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">2026 TL Net</th>
               <th class="text-center text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">İşlem</th>
             </tr>
           </thead>
           <tbody id="product-table-body">
             <tr>
-              <td colspan="8" class="text-center text-[var(--text-secondary)] py-12">
+              <td colspan="10" class="text-center text-[var(--text-secondary)] py-12">
                 <i class="fa-solid fa-spinner fa-spin mr-2"></i>Yükleniyor…
               </td>
             </tr>
@@ -187,6 +193,7 @@
                 class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 <option value="EUR">EUR €</option>
                 <option value="USD">USD $</option>
+                <option value="TRY">TRY ₺</option>
               </select>
             </div>
           </div>

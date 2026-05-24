@@ -72,8 +72,10 @@ function updateStats() {
   document.getElementById('stat-groups').textContent = groups.size;
   const withEur = globalProducts.filter(p => p.prices.some(pr => pr.currency === 'EUR')).length;
   const withUsd = globalProducts.filter(p => p.prices.some(pr => pr.currency === 'USD')).length;
+  const withTry = globalProducts.filter(p => p.prices.some(pr => pr.currency === 'TRY')).length;
   document.getElementById('stat-eur').textContent = withEur;
   document.getElementById('stat-usd').textContent = withUsd;
+  document.getElementById('stat-try').textContent = withTry;
 }
 
 // ── Grup Filtresi ─────────────────────────────────────────────
@@ -129,8 +131,10 @@ function renderTable() {
   tbody.innerHTML = page.map(p => {
     const eur2026 = p.prices.find(pr => pr.currency === 'EUR' && pr.price_year === 2026);
     const usd2026 = p.prices.find(pr => pr.currency === 'USD' && pr.price_year === 2026);
+    const try2026 = p.prices.find(pr => pr.currency === 'TRY' && pr.price_year === 2026);
     const fmtEur  = v => v != null ? '€' + Number(v).toFixed(2) : '<span class="text-slate-500">—</span>';
     const fmtUsd  = v => v != null ? '$' + Number(v).toFixed(2) : '<span class="text-slate-500">—</span>';
+    const fmtTry  = v => v != null ? '₺' + Number(v).toFixed(2) : '<span class="text-slate-500">—</span>';
 
     return `
       <tr class="border-t border-[var(--border)] hover:bg-[var(--bg-hover)] transition-colors">
@@ -151,6 +155,8 @@ function renderTable() {
         <td class="px-4 py-3 text-right text-sm font-semibold text-emerald-400">${fmtEur(eur2026?.net_price)}</td>
         <td class="px-4 py-3 text-right text-sm text-[var(--text-primary)]">${fmtUsd(usd2026?.list_price)}</td>
         <td class="px-4 py-3 text-right text-sm font-semibold text-amber-400">${fmtUsd(usd2026?.net_price)}</td>
+        <td class="px-4 py-3 text-right text-sm text-[var(--text-primary)]">${fmtTry(try2026?.list_price)}</td>
+        <td class="px-4 py-3 text-right text-sm font-semibold text-sky-400">${fmtTry(try2026?.net_price)}</td>
         <td class="px-4 py-3 text-center">
           <div class="flex items-center justify-center gap-2">
             <button onclick="openPriceModal('${p.id}')"
@@ -301,12 +307,12 @@ function renderPriceList(prices) {
   );
   container.innerHTML = sorted.map(pr => {
     const disc    = pr.discount_rate != null ? `%${Number(pr.discount_rate).toFixed(2)}` : '—';
-    const sym     = pr.currency === 'EUR' ? '€' : '$';
-    const colorCls = pr.currency === 'EUR' ? 'text-emerald-400' : 'text-amber-400';
+    const sym      = pr.currency === 'EUR' ? '€' : pr.currency === 'USD' ? '$' : '₺';
+    const colorCls = pr.currency === 'EUR' ? 'text-emerald-400' : pr.currency === 'USD' ? 'text-amber-400' : 'text-sky-400';
     return `
       <div class="flex items-center justify-between bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl px-4 py-3 gap-3">
         <div class="flex items-center gap-3 min-w-0">
-          <span class="text-xs font-semibold px-2 py-0.5 rounded ${pr.currency === 'EUR' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}">
+          <span class="text-xs font-semibold px-2 py-0.5 rounded ${pr.currency === 'EUR' ? 'bg-emerald-500/10 text-emerald-400' : pr.currency === 'USD' ? 'bg-amber-500/10 text-amber-400' : 'bg-sky-500/10 text-sky-400'}">
             ${pr.price_year} ${pr.currency}
           </span>
           <div class="text-sm min-w-0">
