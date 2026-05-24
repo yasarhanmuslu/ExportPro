@@ -1,6 +1,6 @@
 // ============================================================
 // src/products.js — Ürün Tanımlama Kartı
-// Export Pro V: 1.0.20
+// Export Pro V: 1.0.21
 // ============================================================
 
 import { renderNavbar } from './components/navbar.js';
@@ -98,6 +98,10 @@ function applyFilters() {
   const search = document.getElementById('search-input').value.trim().toLowerCase();
   const group  = document.getElementById('filter-group').value;
 
+  // Clear butonu görünürlüğü
+  const clearBtn = document.getElementById('btn-search-clear');
+  if (clearBtn) clearBtn.classList.toggle('hidden', !search);
+
   filteredProducts = globalProducts
     .filter(p => {
       const matchSearch = !search ||
@@ -115,6 +119,20 @@ function applyFilters() {
       const nB = (b.product_name || '').toLowerCase();
       return nA < nB ? -1 : nA > nB ? 1 : 0;
     });
+
+  // Sonuç badge'i
+  const badge = document.getElementById('search-result-badge');
+  const countEl = document.getElementById('search-result-count');
+  if (badge && countEl) {
+    if (search || group) {
+      badge.classList.remove('hidden');
+      badge.classList.add('flex');
+      countEl.textContent = `${filteredProducts.length} sonuç`;
+    } else {
+      badge.classList.add('hidden');
+      badge.classList.remove('flex');
+    }
+  }
 
   currentPage = 1;
   renderTable();
@@ -471,6 +489,11 @@ function bindEvents() {
   document.getElementById('btn-delete-confirm').onclick        = confirmDelete;
   document.getElementById('btn-delete-cancel').onclick         = () => hideModal('modal-delete');
   document.getElementById('search-input').oninput              = applyFilters;
+  document.getElementById('btn-search-clear').onclick          = () => {
+    document.getElementById('search-input').value = '';
+    applyFilters();
+    document.getElementById('search-input').focus();
+  };
   document.getElementById('filter-group').onchange             = applyFilters;
   document.getElementById('btn-prev').onclick = () => { currentPage--; renderTable(); };
   document.getElementById('btn-next').onclick = () => { currentPage++; renderTable(); };
