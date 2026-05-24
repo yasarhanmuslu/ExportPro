@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Müşteri Debug</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
+</head>
+<body style="background:#0f172a;color:#e2e8f0;font-family:monospace;padding:2rem">
+    <h2>Supabase Bağlantı Testi</h2>
+    <pre id="out">Test başlıyor...</pre>
+    <script>
+        const { createClient } = window.supabase;
+        const sb = createClient(
+            'https://rotquydzejivrhhkjkps.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvdHF1eWR6ZWppdnJoaGtqa3BzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MjI4NzksImV4cCI6MjA5NTE5ODg3OX0.iSnCVTuIObT7G3hWfEyJ-kXEBumRbHSIV7QDN-WWWes'
+        );
+
+        async function test() {
+            const out = document.getElementById('out');
+            let log = '';
+
+            // 1. Session var mı?
+            const { data: { session } } = await sb.auth.getSession();
+            log += `Session: ${session ? session.user.email : 'YOK'}\n`;
+            log += `Token: ${session?.access_token?.slice(0,40) ?? 'YOK'}...\n\n`;
+
+            // 2. Customers sorgusu
+            const { data, error } = await sb.from('customers').select('*');
+            log += `Customers data: ${JSON.stringify(data)}\n`;
+            log += `Customers error: ${JSON.stringify(error)}\n`;
+
+            out.textContent = log;
+        }
+        test();
+    </script>
+</body>
+</html>
