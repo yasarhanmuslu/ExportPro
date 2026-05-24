@@ -1,13 +1,12 @@
 import { supabase } from '../utils/supabaseClient.js';
 
+const APP_VERSION = 'V: 1.0.14';
+
 export async function renderNavbar(activeTab) {
     const navbarTarget = document.getElementById('navbar-target');
     if (!navbarTarget) return;
 
     const { data: { session } } = await supabase.auth.getSession();
-
-    // Redirect yerine: session yoksa sadece navbar'ı boş bırak
-    // Her sayfanın kendi JS'i zaten session kontrolü yapıyor
     if (!session) return;
 
     const userEmail = session?.user?.email ?? '';
@@ -42,13 +41,18 @@ export async function renderNavbar(activeTab) {
                 </div>
                 <nav class="space-y-1">${menuItems}</nav>
             </div>
-            <div class="p-4 border-t border-slate-800 bg-slate-950/50 flex items-center justify-between text-xs text-slate-400">
-                <span class="truncate max-w-[140px]">
-                    <i class="fa-solid fa-user text-slate-500 mr-1"></i> ${userEmail}
-                </span>
-                <button id="btn-logout" class="text-rose-400 hover:text-rose-300 transition-colors" title="Çıkış Yap">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                </button>
+            <div class="flex flex-col border-t border-slate-800">
+                <div class="px-4 py-3 bg-slate-950/50 flex items-center justify-between text-xs text-slate-400">
+                    <span class="truncate max-w-[140px]">
+                        <i class="fa-solid fa-user text-slate-500 mr-1"></i> ${userEmail}
+                    </span>
+                    <button id="btn-logout" class="text-rose-400 hover:text-rose-300 transition-colors cursor-pointer" title="Çıkış Yap">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </div>
+                <div class="px-4 py-2 bg-slate-950/80 text-center">
+                    <span class="text-[10px] font-mono text-slate-600 tracking-widest">${APP_VERSION}</span>
+                </div>
             </div>
         </aside>`;
 
