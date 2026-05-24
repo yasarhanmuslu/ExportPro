@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <script>/* Flash önle */ (function(){var t=localStorage.getItem("ep-theme")||"dark";document.documentElement.classList.add(t==="light"?"light":"dark");})();</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giriş Yap - Export Manager Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        /* Login light theme overrides */
+        html.light body { background-color: #f1f5f9 !important; }
+        html.light .bg-slate-800 { background-color: #ffffff !important; }
+        html.light .bg-slate-950 { background-color: #f8fafc !important; }
+        html.light .border-slate-700 { border-color: #e2e8f0 !important; }
+        html.light .text-slate-300 { color: #374151 !important; }
+        html.light .text-slate-400 { color: #64748b !important; }
+        html.light input { background-color: #ffffff !important; border-color: #cbd5e1 !important; color: #0f172a !important; }
+        html.light .text-slate-100 { color: #1e293b !important; }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" crossorigin href="/assets/theme-CaRXNSM_.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4">
+
+    <!-- Theme Toggle -->
+    <div class="fixed top-4 right-4">
+        <button id="login-theme-btn" onclick="(function(){var t=localStorage.getItem('ep-theme')||'dark';var n=t==='dark'?'light':'dark';localStorage.setItem('ep-theme',n);document.documentElement.classList.remove('dark','light');document.documentElement.classList.add(n);document.getElementById('login-theme-btn').innerHTML=n==='dark'?'<i class=\'fa-solid fa-sun text-amber-400\'></i>':'<i class=\'fa-solid fa-moon text-indigo-400\'></i>';})()"
+            class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400 hover:text-white transition-all cursor-pointer shadow-lg">
+            <i class="fa-solid fa-sun text-amber-400" id="login-theme-icon"></i>
+        </button>
+    </div>
+    <script>
+        // İkon başlangıç durumu
+        (function(){
+            var t = localStorage.getItem('ep-theme') || 'dark';
+            var btn = document.getElementById('login-theme-btn');
+            if(btn) btn.innerHTML = t === 'dark' 
+                ? '<i class="fa-solid fa-sun text-amber-400"></i>'
+                : '<i class="fa-solid fa-moon text-indigo-400"></i>';
+        })();
+    </script>
+
+
+    <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700">
+        <div class="text-center mb-8">
+            <div class="flex items-center justify-center gap-3 mb-3">
+                <i class="fa-solid fa-earth-americas text-3xl text-orange-500"></i>
+            </div>
+            <h1 class="text-3xl font-bold text-indigo-400 tracking-tight">Export Manager Pro</h1>
+            <p class="text-slate-400 mt-2 text-sm">Kurumsal İhracat Yönetim Sistemi</p>
+        </div>
+
+        <form id="authForm" class="space-y-5">
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">E-posta Adresi</label>
+                <input type="email" id="email" required
+                    class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-100 text-sm"
+                    placeholder="ornek@firma.com">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">Şifre</label>
+                <input type="password" id="password" required
+                    class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-100 text-sm"
+                    placeholder="••••••••">
+            </div>
+            <div id="messageArea" class="hidden text-sm p-3 rounded-lg text-center font-medium"></div>
+            <button type="submit" id="mainBtn"
+                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 px-4 rounded-lg transition duration-200 shadow-lg text-sm cursor-pointer">
+                Giriş Yap
+            </button>
+        </form>
+        <div class="mt-6 text-center text-sm">
+            <span class="text-slate-400" id="toggleText">Hesabınız yok mu?</span>
+            <button id="toggleBtn" class="text-indigo-400 hover:text-indigo-300 font-medium ml-1 underline cursor-pointer">Kayıt Olun</button>
+        </div>
+    </div>
+
+    <script>
+        const { createClient } = window.supabase;
+        const sb = createClient(
+            'https://rotquydzejivrhhkjkps.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvdHF1eWR6ZWppdnJoaGtqa3BzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MjI4NzksImV4cCI6MjA5NTE5ODg3OX0.iSnCVTuIObT7G3hWfEyJ-kXEBumRbHSIV7QDN-WWWes',
+            { auth: { persistSession: true, storageKey: 'sb-rotquydzejivrhhkjkps-auth-token' } }
+        );
+
+        sb.auth.getSession().then(({ data: { session } }) => {
+            if (session) window.location.href = 'index.html';
+        });
+
+        const authForm      = document.getElementById('authForm');
+        const emailInput    = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const mainBtn       = document.getElementById('mainBtn');
+        const toggleBtn     = document.getElementById('toggleBtn');
+        const toggleText    = document.getElementById('toggleText');
+        const messageArea   = document.getElementById('messageArea');
+        let isLoginMode     = true;
+
+        function showMessage(text, isSuccess = false) {
+            messageArea.innerText = text;
+            messageArea.className = `text-sm p-3 rounded-lg text-center font-medium ${isSuccess
+                ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-800'
+                : 'bg-rose-950/50 text-rose-400 border border-rose-800'}`;
+            messageArea.classList.remove('hidden');
+        }
+
+        toggleBtn.addEventListener('click', () => {
+            isLoginMode = !isLoginMode;
+            messageArea.classList.add('hidden');
+            mainBtn.innerText    = isLoginMode ? 'Giriş Yap' : 'Yeni Hesap Oluştur';
+            toggleText.innerText = isLoginMode ? 'Hesabınız yok mu?' : 'Zaten hesabınız var mı?';
+            toggleBtn.innerText  = isLoginMode ? 'Kayıt Olun' : 'Giriş Yapın';
+        });
+
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            messageArea.classList.add('hidden');
+            const email    = emailInput.value.trim();
+            const password = passwordInput.value;
+            mainBtn.disabled = true;
+
+            if (isLoginMode) {
+                mainBtn.innerText = 'Giriş Yapılıyor...';
+                const { error } = await sb.auth.signInWithPassword({ email, password });
+                if (error) {
+                    showMessage(error.message, false);
+                    mainBtn.disabled  = false;
+                    mainBtn.innerText = 'Giriş Yap';
+                } else {
+                    showMessage('Giriş başarılı!', true);
+                    setTimeout(() => window.location.href = 'index.html', 800);
+                }
+            } else {
+                mainBtn.innerText = 'Hesap Oluşturuluyor...';
+                const { error } = await sb.auth.signUp({ email, password });
+                if (error) {
+                    showMessage(error.message, false);
+                } else {
+                    showMessage('Kayıt başarılı! E-posta adresinizi kontrol edin.', true);
+                }
+                mainBtn.disabled  = false;
+                mainBtn.innerText = 'Yeni Hesap Oluştur';
+            }
+        });
+    </script>
+</body>
+</html>
