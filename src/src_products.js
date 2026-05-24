@@ -18,8 +18,9 @@ let editingPriceProductId = null;
 
 // ── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-  session = await requireAuth();
   renderNavbar('products');
+  session = await requireAuth();
+  if (!session) return;
   bindEvents();
   await fetchProducts();
 });
