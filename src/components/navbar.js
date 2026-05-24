@@ -2,14 +2,11 @@ import { supabase } from '../utils/supabaseClient.js';
 
 export async function renderNavbar(activeTab) {
     const { data: { session } } = await supabase.auth.getSession();
-    
+
     if (!session) {
-        // GitHub Pages'de tam path gerekli
         const currentPath = window.location.pathname;
-        const isLoginPage = currentPath.endsWith('login.html');
-        if (!isLoginPage) {
-            // Mevcut URL'den base path'i çıkar (ör: /ExportPro/)
-            const base = window.location.pathname.split('/').slice(0, -1).join('/') + '/';
+        if (!currentPath.endsWith('login.html')) {
+            const base = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
             window.location.href = base + 'login.html';
             return;
         }
@@ -18,19 +15,19 @@ export async function renderNavbar(activeTab) {
     const navbarTarget = document.getElementById('navbar-target');
     if (!navbarTarget) return;
 
-    const userEmail = session && session.user ? session.user.email : '';
+    const userEmail = session?.user?.email ?? '';
 
     const tabs = [
-        { id: 'dashboard',     label: 'Dashboard',       icon: 'fa-chart-pie',           href: 'index.html' },
-        { id: 'orders',        label: 'Siparişler',       icon: 'fa-boxes-stacked',       href: 'orders.html' },
-        { id: 'customers',     label: 'Müşteriler',       icon: 'fa-users',               href: 'customers.html' },
-        { id: 'prices',        label: 'Fiyat Robotu',     icon: 'fa-calculator',          href: 'prices.html' },
-        { id: 'client-prices', label: 'Müşteri Fiyat',    icon: 'fa-tags',                href: 'client-prices.html' },
-        { id: 'credit-notes',  label: 'Credit Notes',     icon: 'fa-file-invoice',        href: 'credit-notes.html' },
+        { id: 'dashboard',     label: 'Dashboard',      icon: 'fa-chart-pie',            href: 'index.html' },
+        { id: 'orders',        label: 'Siparişler',      icon: 'fa-boxes-stacked',        href: 'orders.html' },
+        { id: 'customers',     label: 'Müşteriler',      icon: 'fa-users',                href: 'customers.html' },
+        { id: 'prices',        label: 'Fiyat Robotu',    icon: 'fa-calculator',           href: 'prices.html' },
+        { id: 'client-prices', label: 'Müşteri Fiyat',   icon: 'fa-tags',                 href: 'client-prices.html' },
+        { id: 'credit-notes',  label: 'Credit Notes',    icon: 'fa-file-invoice',         href: 'credit-notes.html' },
     ];
 
     const menuItems = tabs.map(tab => {
-        const isActive = tab.id === activeTab;
+        const isActive   = tab.id === activeTab;
         const activeClass = isActive
             ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30'
             : 'text-slate-400 hover:bg-slate-800 hover:text-white border border-transparent';
@@ -48,22 +45,21 @@ export async function renderNavbar(activeTab) {
                     <i class="fa-solid fa-earth-americas text-2xl text-orange-500"></i>
                     <span class="text-lg font-bold text-white tracking-wider">EXPORT PRO</span>
                 </div>
-                <nav class="space-y-1">
-                    ${menuItems}
-                </nav>
+                <nav class="space-y-1">${menuItems}</nav>
             </div>
             <div class="p-4 border-t border-slate-800 bg-slate-950/50 flex items-center justify-between text-xs text-slate-400">
-                <span class="truncate max-w-[140px]"><i class="fa-solid fa-user text-slate-500 mr-1"></i> ${userEmail}</span>
+                <span class="truncate max-w-[140px]">
+                    <i class="fa-solid fa-user text-slate-500 mr-1"></i> ${userEmail}
+                </span>
                 <button id="btn-logout" class="text-rose-400 hover:text-rose-300 transition-colors" title="Çıkış Yap">
                     <i class="fa-solid fa-right-from-bracket"></i>
                 </button>
             </div>
-        </aside>
-    `;
+        </aside>`;
 
     document.getElementById('btn-logout')?.addEventListener('click', async () => {
         await supabase.auth.signOut();
-        const base = window.location.pathname.split('/').slice(0, -1).join('/') + '/';
+        const base = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
         window.location.href = base + 'login.html';
     });
 }

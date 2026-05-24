@@ -25,16 +25,13 @@
                     class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-100 text-sm"
                     placeholder="ornek@firma.com">
             </div>
-
             <div>
                 <label class="block text-sm font-medium text-slate-300 mb-1">Şifre</label>
                 <input type="password" id="password" required
                     class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-100 text-sm"
                     placeholder="••••••••">
             </div>
-
             <div id="messageArea" class="hidden text-sm p-3 rounded-lg text-center font-medium"></div>
-
             <button type="submit" id="mainBtn"
                 class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 px-4 rounded-lg transition duration-200 shadow-lg text-sm cursor-pointer">
                 Giriş Yap
@@ -50,21 +47,26 @@
     </div>
 
     <script type="module">
-        import { supabase } from './src/utils/supabaseClient.js';
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/+esm';
+
+        const supabase = createClient(
+            'https://rotquydzejivrhhkjkps.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvdHF1eWR6ZWppdnJoaGtqa3BzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MjI4NzksImV4cCI6MjA5NTE5ODg3OX0.iSnCVTuIObT7G3hWfEyJ-kXEBumRbHSIV7QDN-WWWes',
+            { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'exportpro-auth' } }
+        );
 
         // Zaten giriş yapılmışsa direkt yönlendir
         const { data: { session } } = await supabase.auth.getSession();
         if (session) window.location.href = 'index.html';
 
-        const authForm = document.getElementById('authForm');
-        const emailInput = document.getElementById('email');
-        const passwordInput = document.getElementById('password');
-        const mainBtn = document.getElementById('mainBtn');
-        const toggleBtn = document.getElementById('toggleBtn');
-        const toggleText = document.getElementById('toggleText');
-        const messageArea = document.getElementById('messageArea');
-
-        let isLoginMode = true;
+        const authForm     = document.getElementById('authForm');
+        const emailInput   = document.getElementById('email');
+        const passwordInput= document.getElementById('password');
+        const mainBtn      = document.getElementById('mainBtn');
+        const toggleBtn    = document.getElementById('toggleBtn');
+        const toggleText   = document.getElementById('toggleText');
+        const messageArea  = document.getElementById('messageArea');
+        let isLoginMode    = true;
 
         function showMessage(text, isSuccess = false) {
             messageArea.innerText = text;
@@ -78,12 +80,12 @@
             isLoginMode = !isLoginMode;
             messageArea.classList.add('hidden');
             if (isLoginMode) {
-                mainBtn.innerText = 'Giriş Yap';
-                toggleText.innerText = 'Hesabınız yok mu?';
+                mainBtn.innerText   = 'Giriş Yap';
+                toggleText.innerText= 'Hesabınız yok mu?';
                 toggleBtn.innerText = 'Kayıt Olun';
             } else {
-                mainBtn.innerText = 'Yeni Hesap Oluştur';
-                toggleText.innerText = 'Zaten hesabınız var mı?';
+                mainBtn.innerText   = 'Yeni Hesap Oluştur';
+                toggleText.innerText= 'Zaten hesabınız var mı?';
                 toggleBtn.innerText = 'Giriş Yapın';
             }
         });
@@ -91,8 +93,7 @@
         authForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             messageArea.classList.add('hidden');
-
-            const email = emailInput.value.trim();
+            const email    = emailInput.value.trim();
             const password = passwordInput.value;
             mainBtn.disabled = true;
 
