@@ -1,6 +1,6 @@
 // ============================================================
 // src/products.js — Ürün Tanımlama Kartı
-// Export Pro V: 1.0.19
+// Export Pro V: 1.0.20
 // ============================================================
 
 import { renderNavbar } from './components/navbar.js';
@@ -98,13 +98,23 @@ function applyFilters() {
   const search = document.getElementById('search-input').value.trim().toLowerCase();
   const group  = document.getElementById('filter-group').value;
 
-  filteredProducts = globalProducts.filter(p => {
-    const matchSearch = !search ||
-      p.product_name.toLowerCase().includes(search) ||
-      p.product_code.toLowerCase().includes(search);
-    const matchGroup = !group || p.product_group === group;
-    return matchSearch && matchGroup;
-  });
+  filteredProducts = globalProducts
+    .filter(p => {
+      const matchSearch = !search ||
+        p.product_name.toLowerCase().includes(search) ||
+        p.product_code.toLowerCase().includes(search);
+      const matchGroup = !group || p.product_group === group;
+      return matchSearch && matchGroup;
+    })
+    .sort((a, b) => {
+      const gA = (a.product_group || '').toLowerCase();
+      const gB = (b.product_group || '').toLowerCase();
+      if (gA < gB) return -1;
+      if (gA > gB) return 1;
+      const nA = (a.product_name || '').toLowerCase();
+      const nB = (b.product_name || '').toLowerCase();
+      return nA < nB ? -1 : nA > nB ? 1 : 0;
+    });
 
   currentPage = 1;
   renderTable();
@@ -128,7 +138,17 @@ function renderTable() {
     return;
   }
 
+  let lastGroup = null;
   tbody.innerHTML = page.map(p => {
+    const groupHeader = p.product_group !== lastGroup
+      ? `<tr class="bg-[var(--bg-primary)]">
+           <td colspan="10" class="px-4 py-2 text-xs font-semibold text-indigo-400 uppercase tracking-widest border-t border-[var(--border)]">
+             <i class="fa-solid fa-layer-group mr-1.5 opacity-60"></i>${escHtml(p.product_group || 'Grupsuz')}
+           </td>
+         </tr>`
+      : '';
+    lastGroup = p.product_group;
+
     const eur2026 = p.prices.find(pr => pr.currency === 'EUR' && pr.price_year === 2026);
     const usd2026 = p.prices.find(pr => pr.currency === 'USD' && pr.price_year === 2026);
     const try2026 = p.prices.find(pr => pr.currency === 'TRY' && pr.price_year === 2026);
@@ -136,7 +156,7 @@ function renderTable() {
     const fmtUsd  = v => v != null ? '$' + Number(v).toFixed(2) : '<span class="text-slate-500">—</span>';
     const fmtTry  = v => v != null ? '₺' + Number(v).toFixed(2) : '<span class="text-slate-500">—</span>';
 
-    return `
+    return groupHeader + `
       <tr class="border-t border-[var(--border)] hover:bg-[var(--bg-hover)] transition-colors">
         <td class="px-4 py-3">
           <span class="font-mono text-xs bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded">
