@@ -13,6 +13,15 @@
     <style>
         .kpi-card { background: rgba(15,23,42,0.6); border: 1px solid rgb(30,41,59); border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 20px 25px -5px rgb(0 0 0/.1); transition: border-color .3s; }
         .kpi-card:hover { border-color: rgb(51,65,85); }
+
+        #fx-banner { animation: fx-fadein 0.5s ease; }
+        @keyframes fx-fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+        .fx-value { transition: opacity 0.3s; }
+        .fx-loading { opacity: 0.4; }
+
+        .fx-dot-open  { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #34d399; box-shadow: 0 0 6px #34d399; }
+        .fx-dot-close { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #94a3b8; }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100">
@@ -20,6 +29,48 @@
     <div id="navbar-target"></div>
 
     <main class="ml-64 p-8 min-h-screen">
+
+        <!-- ═══════════════════════════════════════════
+             TCMB DÖVİZ KURU BANNER
+        ════════════════════════════════════════════ -->
+        <div id="fx-banner" class="flex flex-wrap items-center gap-x-6 gap-y-2 mb-6 px-5 py-3 rounded-xl bg-slate-900/70 border border-slate-800">
+
+            <!-- Sol: Kaynak etiketi -->
+            <div class="flex items-center gap-2 shrink-0">
+                <i class="fa-solid fa-landmark text-slate-500 text-xs"></i>
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">TCMB</span>
+            </div>
+
+            <!-- Ayırıcı -->
+            <div class="w-px h-4 bg-slate-800 shrink-0"></div>
+
+            <!-- USD/TRY -->
+            <div class="flex items-center gap-2 shrink-0">
+                <span class="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">USD</span>
+                <i class="fa-solid fa-arrow-right-long text-slate-700 text-[10px]"></i>
+                <span class="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">TRY</span>
+                <span id="fx-usd-val" class="fx-value fx-loading text-sm font-bold text-emerald-400 font-mono tracking-tight ml-1">...</span>
+            </div>
+
+            <!-- EUR/TRY -->
+            <div class="flex items-center gap-2 shrink-0">
+                <span class="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">EUR</span>
+                <i class="fa-solid fa-arrow-right-long text-slate-700 text-[10px]"></i>
+                <span class="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">TRY</span>
+                <span id="fx-eur-val" class="fx-value fx-loading text-sm font-bold text-indigo-400 font-mono tracking-tight ml-1">...</span>
+            </div>
+
+            <!-- Sağ: Durum göstergesi -->
+            <div class="ml-auto flex items-center gap-2 shrink-0">
+                <span id="fx-dot" class="fx-dot-close"></span>
+                <span id="fx-status" class="text-[10px] text-slate-500 tracking-wide">Yükleniyor...</span>
+            </div>
+
+        </div>
+
+        <!-- ═══════════════════════════════════════════
+             SAYFA BAŞLIĞI
+        ════════════════════════════════════════════ -->
         <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b border-slate-800">
             <div>
                 <h2 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
@@ -33,6 +84,9 @@
             </div>
         </header>
 
+        <!-- ═══════════════════════════════════════════
+             KPI KARTLARI
+        ════════════════════════════════════════════ -->
         <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div class="kpi-card">
                 <p class="text-xs font-semibold text-slate-400 tracking-wider uppercase mb-2">Toplam Brüt Ciro</p>
@@ -54,6 +108,9 @@
             </div>
         </section>
 
+        <!-- ═══════════════════════════════════════════
+             GRAFİKLER
+        ════════════════════════════════════════════ -->
         <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-6 shadow-xl">
                 <h3 class="text-sm font-semibold text-slate-300 tracking-wide uppercase flex items-center gap-2 mb-4">
@@ -69,6 +126,115 @@
             </div>
         </section>
     </main>
+
+    <!-- ═══════════════════════════════════════════
+         TCMB DÖVİZ KURU SCRIPT
+         Kaynak: fawazahmed0/currency-api (CDN, CORS-free, günlük)
+         Mantık: TCMB çalışma saati 09:30-17:30 hft içi.
+                 Kapalı/tatil ise son iş günü kurunu göster.
+    ════════════════════════════════════════════ -->
+    <script type="module">
+    (async function loadFxRates() {
+        const usdEl    = document.getElementById('fx-usd-val');
+        const eurEl    = document.getElementById('fx-eur-val');
+        const statusEl = document.getElementById('fx-status');
+        const dotEl    = document.getElementById('fx-dot');
+
+        // Türkiye sabit resmi tatilleri (MM-DD)
+        const HOLIDAYS = ['01-01','04-23','05-01','05-19','07-15','08-30','10-29'];
+
+        function toMMDD(d) {
+            return String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        }
+
+        function toISO(d) {
+            return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        }
+
+        // Bir önceki iş gününü bul (geriye giderek)
+        function prevBusinessDay(d) {
+            const x = new Date(d);
+            do { x.setDate(x.getDate() - 1); }
+            while (x.getDay() === 0 || x.getDay() === 6 || HOLIDAYS.includes(toMMDD(x)));
+            return x;
+        }
+
+        // Bugün iş günü mü?
+        function isBusinessDay(d) {
+            return d.getDay() !== 0 && d.getDay() !== 6 && !HOLIDAYS.includes(toMMDD(d));
+        }
+
+        // TCMB piyasa açık mı? (09:30 – 17:30 hft içi)
+        function isTcmbOpen(d) {
+            if (!isBusinessDay(d)) return false;
+            const h = d.getHours(), m = d.getMinutes();
+            const mins = h * 60 + m;
+            return mins >= 9 * 60 + 30 && mins < 17 * 60 + 30;
+        }
+
+        async function fetchRates(dateISO) {
+            const url = `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${dateISO}/v1/currencies/try.json`;
+            const r = await fetch(url);
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const data = await r.json();
+            // API: 1 TRY = X birim → ters çevir → 1 birim = ? TRY
+            return {
+                usd: (1 / data.try.usd).toFixed(4),
+                eur: (1 / data.try.eur).toFixed(4)
+            };
+        }
+
+        function fmt(val) {
+            return parseFloat(val).toLocaleString('tr-TR', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+        }
+
+        const now   = new Date();
+        const open  = isTcmbOpen(now);
+        const today = isBusinessDay(now);
+
+        // Hangi tarihin verisini çekeceğiz?
+        // - Piyasa açıksa → bugün
+        // - Bugün iş günü ama mesai dışıysa → bugün (günün kapanış kuru)
+        // - Tatil/hafta sonu → önceki iş günü
+        let targetDate = today ? toISO(now) : toISO(prevBusinessDay(now));
+        let rates = null;
+
+        try {
+            rates = await fetchRates(targetDate);
+        } catch {
+            // Fallback: bir önceki iş günü
+            try {
+                const fallback = today ? prevBusinessDay(now) : prevBusinessDay(new Date(targetDate));
+                targetDate = toISO(fallback);
+                rates = await fetchRates(targetDate);
+            } catch {
+                usdEl.textContent = 'N/A';
+                eurEl.textContent = 'N/A';
+                statusEl.textContent = 'Veri alınamadı';
+                usdEl.classList.remove('fx-loading');
+                eurEl.classList.remove('fx-loading');
+                return;
+            }
+        }
+
+        // Değerleri göster
+        usdEl.textContent = fmt(rates.usd);
+        eurEl.textContent = fmt(rates.eur);
+        usdEl.classList.remove('fx-loading');
+        eurEl.classList.remove('fx-loading');
+
+        // Durum etiketi
+        if (open) {
+            dotEl.className = 'fx-dot-open';
+            statusEl.textContent = 'Canlı · ' + now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+        } else {
+            dotEl.className = 'fx-dot-close';
+            const d = new Date(targetDate + 'T12:00:00'); // noon — saat dilimi kaymasını önle
+            const label = d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            statusEl.textContent = 'Son Kur · ' + label;
+        }
+    })();
+    </script>
 
     <script type="module" src="./src/dashboard.js"></script>
 </body>
