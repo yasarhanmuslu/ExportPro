@@ -1,5 +1,6 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
+import { requireAuth } from './auth/auth.js';
 
 // Global veriler
 let globalCustomers = [];
@@ -7,6 +8,8 @@ let globalClientPrices = []; // { customer_id, company_name, products: [{product
 let tempProducts = []; // Modal içi geçici ürün listesi
 
 document.addEventListener('DOMContentLoaded', async () => {
+    const session = await requireAuth();
+    if (!session) return;
     await renderNavbar('client-prices');
     await Promise.all([fetchCustomers(), fetchClientPrices()]);
     initEventListeners();

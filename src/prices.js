@@ -1,11 +1,14 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
+import { requireAuth } from './auth/auth.js';
 
 // Global Hafıza Nesneleri
 let globalPrices = [];
 let globalCustomers = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
+    const session = await requireAuth();
+    if (!session) return;
     // 1. Ortak Navbar Modülünü Yükle ('prices' aktif)
     await renderNavbar('prices');
 

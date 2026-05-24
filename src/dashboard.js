@@ -1,10 +1,13 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
+import { requireAuth } from './auth/auth.js';
 
 let monthlyChartInstance = null;
 let currencyChartInstance = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
+    const session = await requireAuth();
+    if (!session) return;
     await renderNavbar('dashboard');
     initYearSelector();
 });

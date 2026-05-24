@@ -1,33 +1,28 @@
 import { supabase } from '../utils/supabaseClient.js';
 
 export async function renderNavbar(activeTab) {
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session) {
-        const currentPath = window.location.pathname;
-        if (!currentPath.endsWith('login.html')) {
-            const base = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
-            window.location.href = base + 'login.html';
-            return;
-        }
-    }
-
     const navbarTarget = document.getElementById('navbar-target');
     if (!navbarTarget) return;
+
+    const { data: { session } } = await supabase.auth.getSession();
+
+    // Redirect yerine: session yoksa sadece navbar'ı boş bırak
+    // Her sayfanın kendi JS'i zaten session kontrolü yapıyor
+    if (!session) return;
 
     const userEmail = session?.user?.email ?? '';
 
     const tabs = [
-        { id: 'dashboard',     label: 'Dashboard',      icon: 'fa-chart-pie',            href: 'index.html' },
-        { id: 'orders',        label: 'Siparişler',      icon: 'fa-boxes-stacked',        href: 'orders.html' },
-        { id: 'customers',     label: 'Müşteriler',      icon: 'fa-users',                href: 'customers.html' },
-        { id: 'prices',        label: 'Fiyat Robotu',    icon: 'fa-calculator',           href: 'prices.html' },
-        { id: 'client-prices', label: 'Müşteri Fiyat',   icon: 'fa-tags',                 href: 'client-prices.html' },
-        { id: 'credit-notes',  label: 'Credit Notes',    icon: 'fa-file-invoice',         href: 'credit-notes.html' },
+        { id: 'dashboard',     label: 'Dashboard',      icon: 'fa-chart-pie',    href: 'index.html' },
+        { id: 'orders',        label: 'Siparişler',      icon: 'fa-boxes-stacked',href: 'orders.html' },
+        { id: 'customers',     label: 'Müşteriler',      icon: 'fa-users',        href: 'customers.html' },
+        { id: 'prices',        label: 'Fiyat Robotu',    icon: 'fa-calculator',   href: 'prices.html' },
+        { id: 'client-prices', label: 'Müşteri Fiyat',   icon: 'fa-tags',         href: 'client-prices.html' },
+        { id: 'credit-notes',  label: 'Credit Notes',    icon: 'fa-file-invoice', href: 'credit-notes.html' },
     ];
 
     const menuItems = tabs.map(tab => {
-        const isActive   = tab.id === activeTab;
+        const isActive    = tab.id === activeTab;
         const activeClass = isActive
             ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30'
             : 'text-slate-400 hover:bg-slate-800 hover:text-white border border-transparent';
@@ -59,7 +54,6 @@ export async function renderNavbar(activeTab) {
 
     document.getElementById('btn-logout')?.addEventListener('click', async () => {
         await supabase.auth.signOut();
-        const base = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
-        window.location.href = base + 'login.html';
+        window.location.href = 'login.html';
     });
 }

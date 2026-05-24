@@ -1,11 +1,14 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
+import { requireAuth } from './auth/auth.js';
 
 // Global Hafıza Yapıları
 let globalCreditNotes = [];
 let globalCustomers = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
+    const session = await requireAuth();
+    if (!session) return;
     // 1. Ortak Navbar'ı Çalıştır ('credit-notes' aktif)
     await renderNavbar('credit-notes');
 

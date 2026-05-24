@@ -1,10 +1,13 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
+import { requireAuth } from './auth/auth.js';
 
 // Global Müşteri Hafızası (Arama ve filtreleme işlemlerinde performansı korumak için)
 let globalCustomers = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
+    const session = await requireAuth();
+    if (!session) return;
     // 1. Ortak Navbar'ı Yükle ('customers' aktif)
     await renderNavbar('customers');
 
