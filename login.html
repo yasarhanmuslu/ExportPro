@@ -42,51 +42,28 @@
             <span class="text-slate-400" id="toggleText">Hesabınız yok mu?</span>
             <button id="toggleBtn" class="text-indigo-400 hover:text-indigo-300 font-medium ml-1 underline cursor-pointer">Kayıt Olun</button>
         </div>
-        <!-- DEBUG: Session durumu -->
-        <div id="debugInfo" class="mt-4 p-3 bg-slate-900 rounded text-xs text-slate-500 font-mono hidden"></div>
     </div>
 
     <script>
         const { createClient } = window.supabase;
         const sb = createClient(
             'https://rotquydzejivrhhkjkps.supabase.co',
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvdHF1eWR6ZWppdnJoaGtqa3BzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MjI4NzksImV4cCI6MjA5NTE5ODg3OX0.iSnCVTuIObT7G3hWfEyJ-kXEBumRbHSIV7QDN-WWWes'
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvdHF1eWR6ZWppdnJoaGtqa3BzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MjI4NzksImV4cCI6MjA5NTE5ODg3OX0.iSnCVTuIObT7G3hWfEyJ-kXEBumRbHSIV7QDN-WWWes',
+            { auth: { persistSession: true, storageKey: 'sb-rotquydzejivrhhkjkps-auth-token' } }
         );
 
-        // Mevcut session'ı kontrol et ve debug göster
-        async function checkAndShowSession() {
-            const { data: { session } } = await sb.auth.getSession();
-            const debugDiv = document.getElementById('debugInfo');
-            debugDiv.classList.remove('hidden');
-            
-            if (session) {
-                // LocalStorage'da hangi key ile kaydedilmiş?
-                const lsKeys = Object.keys(localStorage).filter(k => k.includes('supabase') || k.includes('sb-'));
-                debugDiv.innerHTML = `
-                    ✅ Session VAR: ${session.user.email}<br>
-                    🔑 LS Keys: ${lsKeys.join(', ') || 'YOK'}<br>
-                    📋 Token: ${session.access_token.slice(0,20)}...
-                `;
-                setTimeout(() => window.location.href = 'index.html', 1500);
-            } else {
-                const lsKeys = Object.keys(localStorage).filter(k => k.includes('supabase') || k.includes('sb-'));
-                debugDiv.innerHTML = `
-                    ❌ Session YOK<br>
-                    🔑 LS Keys: ${lsKeys.join(', ') || 'YOK'}
-                `;
-            }
-        }
+        sb.auth.getSession().then(({ data: { session } }) => {
+            if (session) window.location.href = 'index.html';
+        });
 
-        checkAndShowSession();
-
-        const authForm = document.getElementById('authForm');
-        const emailInput = document.getElementById('email');
+        const authForm      = document.getElementById('authForm');
+        const emailInput    = document.getElementById('email');
         const passwordInput = document.getElementById('password');
-        const mainBtn = document.getElementById('mainBtn');
-        const toggleBtn = document.getElementById('toggleBtn');
-        const toggleText = document.getElementById('toggleText');
-        const messageArea = document.getElementById('messageArea');
-        let isLoginMode = true;
+        const mainBtn       = document.getElementById('mainBtn');
+        const toggleBtn     = document.getElementById('toggleBtn');
+        const toggleText    = document.getElementById('toggleText');
+        const messageArea   = document.getElementById('messageArea');
+        let isLoginMode     = true;
 
         function showMessage(text, isSuccess = false) {
             messageArea.innerText = text;
@@ -99,48 +76,40 @@
         toggleBtn.addEventListener('click', () => {
             isLoginMode = !isLoginMode;
             messageArea.classList.add('hidden');
-            if (isLoginMode) {
-                mainBtn.innerText = 'Giriş Yap';
-                toggleText.innerText = 'Hesabınız yok mu?';
-                toggleBtn.innerText = 'Kayıt Olun';
-            } else {
-                mainBtn.innerText = 'Yeni Hesap Oluştur';
-                toggleText.innerText = 'Zaten hesabınız var mı?';
-                toggleBtn.innerText = 'Giriş Yapın';
-            }
+            mainBtn.innerText    = isLoginMode ? 'Giriş Yap' : 'Yeni Hesap Oluştur';
+            toggleText.innerText = isLoginMode ? 'Hesabınız yok mu?' : 'Zaten hesabınız var mı?';
+            toggleBtn.innerText  = isLoginMode ? 'Kayıt Olun' : 'Giriş Yapın';
         });
 
         authForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             messageArea.classList.add('hidden');
-            const email = emailInput.value.trim();
+            const email    = emailInput.value.trim();
             const password = passwordInput.value;
             mainBtn.disabled = true;
-            mainBtn.innerText = 'Giriş Yapılıyor...';
 
-            const { data, error } = await sb.auth.signInWithPassword({ email, password });
-            
-            if (error) {
-                showMessage(error.message, false);
-                mainBtn.disabled = false;
-                mainBtn.innerText = 'Giriş Yap';
+            if (isLoginMode) {
+                mainBtn.innerText = 'Giriş Yapılıyor...';
+                const { error } = await sb.auth.signInWithPassword({ email, password });
+                if (error) {
+                    showMessage(error.message, false);
+                    mainBtn.disabled  = false;
+                    mainBtn.innerText = 'Giriş Yap';
+                } else {
+                    showMessage('Giriş başarılı!', true);
+                    setTimeout(() => window.location.href = 'index.html', 800);
+                }
             } else {
-                // Giriş başarılı - debug bilgisi göster
-                const lsKeys = Object.keys(localStorage).filter(k => k.includes('supabase') || k.includes('sb-'));
-                const debugDiv = document.getElementById('debugInfo');
-                debugDiv.classList.remove('hidden');
-                debugDiv.innerHTML = `
-                    ✅ Login OK: ${data.user.email}<br>
-                    🔑 LS Keys: ${lsKeys.join(', ') || 'YOK'}<br>
-                    🚀 Yönlendiriliyor...
-                `;
-                showMessage('Giriş başarılı!', true);
-                setTimeout(() => window.location.href = 'index.html', 2000);
+                mainBtn.innerText = 'Hesap Oluşturuluyor...';
+                const { error } = await sb.auth.signUp({ email, password });
+                if (error) {
+                    showMessage(error.message, false);
+                } else {
+                    showMessage('Kayıt başarılı! E-posta adresinizi kontrol edin.', true);
+                }
+                mainBtn.disabled  = false;
+                mainBtn.innerText = 'Yeni Hesap Oluştur';
             }
-        });
-
-        toggleBtn.addEventListener('click', () => {
-            isLoginMode = !isLoginMode;
         });
     </script>
 </body>

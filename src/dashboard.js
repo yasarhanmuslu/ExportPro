@@ -6,33 +6,8 @@ let monthlyChartInstance = null;
 let currencyChartInstance = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // DEBUG: Session ve localStorage durumu
-    console.log('=== DEBUG START ===');
-    console.log('window.supabase:', typeof window.supabase);
-    console.log('window._sb:', typeof window._sb);
-    
-    // localStorage'daki tüm supabase key'leri
-    const lsKeys = Object.keys(localStorage);
-    console.log('All localStorage keys:', lsKeys);
-    const sbKeys = lsKeys.filter(k => k.includes('supabase') || k.includes('sb-') || k.includes('auth'));
-    console.log('Auth-related keys:', sbKeys);
-    sbKeys.forEach(k => {
-        try {
-            const val = JSON.parse(localStorage.getItem(k));
-            console.log(`${k}:`, val?.access_token ? `token: ${val.access_token.slice(0,30)}...` : val);
-        } catch(e) {
-            console.log(`${k}:`, localStorage.getItem(k)?.slice(0,50));
-        }
-    });
-    
-    // getSession sonucu
-    const { data: { session }, error } = await supabase.auth.getSession();
-    console.log('getSession result:', session ? `user: ${session.user.email}` : 'NULL');
-    console.log('getSession error:', error);
-    console.log('=== DEBUG END ===');
-
-    const authSession = await requireAuth();
-    if (!authSession) return;
+    const session = await requireAuth();
+    if (!session) return;
     await renderNavbar('dashboard');
     initYearSelector();
 });
@@ -91,7 +66,7 @@ function calculateKPIs(orders) {
     const currencySymbols = { 'EUR': '€', 'USD': '$', 'TRY': '₺', 'GBP': '£' };
 
     if (currencies.length === 0) {
-        ciroContainer.innerHTML = `<div class="text-slate-500 text-sm">Kayıt bulunamadı</div>`;
+        ciroContainer.innerHTML = `<div class="text-slate-500 text-sm">Henüz sipariş yok</div>`;
         avansContainer.innerHTML = `<div class="text-slate-500 text-sm">--</div>`;
         bakiyeContainer.innerHTML = `<div class="text-slate-500 text-sm">--</div>`;
         return;
@@ -117,7 +92,7 @@ function renderCharts(orders) {
     monthlyChartInstance = new Chart(ctxMonthly, {
         type: 'line',
         data: {
-            labels: ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'],
+            labels: ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'],
             datasets: [{
                 label: 'Sipariş Adedi',
                 data: monthlyCounts,
