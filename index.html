@@ -13,142 +13,287 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* ── Porselen iç sayfa overrides ── */
         body { background: #F6F3EC !important; color: #1C1A17 !important; }
-        .modal-backdrop { background: rgba(28,26,23,0.50) !important; backdrop-filter: blur(4px); }
+
+        /* ── Compact card base ── */
+        .c-card {
+            background: #fff;
+            border: 1px solid #EFEAE0;
+            border-radius: 8px;
+            padding: 12px 14px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            transition: border-color .2s;
+        }
+        .c-card:hover { border-color: #E4DDCE; }
+        .c-card-link { cursor: pointer; }
+        .c-card-link:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+
+        /* ── Section label ── */
+        .sec-label {
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.20em;
+            text-transform: uppercase;
+            color: #968B7A;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* ── Op kart ── */
+        .op-card {
+            background: #fff;
+            border: 1px solid #EFEAE0;
+            border-radius: 8px;
+            padding: 10px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: border-color .2s, box-shadow .2s;
+        }
+        .op-card:hover { border-color: #D9D0C2; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
+
+        /* ── Table compact ── */
+        .dash-table { width: 100%; border-collapse: collapse; }
+        .dash-table td { padding: 5px 6px; }
+        .dash-table tr:last-child td { border-bottom: none; }
+
+        /* ── FX banner ── */
+        #fx-banner { animation: fx-fadein 0.4s ease; }
+        @keyframes fx-fadein { from { opacity:0; transform:translateY(-3px); } to { opacity:1; transform:translateY(0); } }
+        .fx-dot-open  { display:inline-block;width:5px;height:5px;border-radius:50%;background:#34d399;box-shadow:0 0 5px #34d399; }
+        .fx-dot-close { display:inline-block;width:5px;height:5px;border-radius:50%;background:#5a5855; }
+
         input, select, textarea {
-            background: #fff !important; border: 1px solid #E4DDCE !important;
-            border-radius: 6px !important; color: #1C1A17 !important;
-            font-family: 'DM Sans', sans-serif !important; font-size: 13px !important;
+            background:#fff !important; border:1px solid #E4DDCE !important;
+            border-radius:6px !important; color:#1C1A17 !important;
+            font-family:'DM Sans',sans-serif !important; font-size:13px !important;
         }
         input:focus, select:focus, textarea:focus {
-            outline: none !important; border-color: #2D4A3E !important;
-            box-shadow: 0 0 0 3px rgba(45,74,62,0.08) !important;
+            outline:none !important; border-color:#2D4A3E !important;
+            box-shadow:0 0 0 3px rgba(45,74,62,0.08) !important;
         }
-
-        .kpi-card { background: #fff; border: 1px solid #EFEAE0; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 20px 25px -5px rgb(0 0 0/.1); transition: border-color .3s; }
-        .kpi-card:hover { border-color: #E4DDCE; }
-
-        #fx-banner { animation: fx-fadein 0.5s ease; }
-        @keyframes fx-fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-
-        .fx-value { transition: opacity 0.3s; }
-        .fx-loading { opacity: 0.4; }
-
-        .fx-dot-open  { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #34d399; box-shadow: 0 0 6px #34d399; }
-        .fx-dot-close { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #5a5855; }
     </style>
 </head>
 <body class="min-h-screen">
 
     <div id="navbar-target"></div>
 
-    <main class="min-h-screen" style="margin-left:230px;padding:32px;">
+    <main style="margin-left:230px; padding:20px 24px;">
 
-        <!-- ═══════════════════════════════════════════
-             TCMB DÖVİZ KURU BANNER
-        ════════════════════════════════════════════ -->
-        <div id="fx-banner" class="flex flex-wrap items-center gap-x-6 gap-y-2 mb-6 px-5 py-3" style="background:#fff;border:1px solid #EFEAE0;border-radius:8px;">
-
-            <!-- Sol: Kaynak etiketi -->
-            <div class="flex items-center gap-2 shrink-0">
-                <i class="fa-solid fa-landmark text-slate-500 text-xs"></i>
-                <span style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;">TCMB</span>
+        <!-- ══ ROW 0: FX Banner ══ -->
+        <div id="fx-banner" class="flex flex-wrap items-center gap-x-5 gap-y-1 mb-4 px-4 py-2"
+             style="background:#fff;border:1px solid #EFEAE0;border-radius:7px;">
+            <div class="flex items-center gap-1.5 shrink-0">
+                <i class="fa-solid fa-landmark text-slate-400" style="font-size:9px;"></i>
+                <span style="font-size:9px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;">TCMB</span>
             </div>
-
-            <!-- Ayırıcı -->
-            <div class="w-px h-4 shrink-0" style="background:#EFEAE0;"></div>
-
-            <!-- USD/TRY -->
-            <div class="flex items-center gap-2 shrink-0">
-                <span class="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">USD</span>
-                <i class="fa-solid fa-arrow-right-long text-slate-700 text-[10px]"></i>
-                <span class="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">TRY</span>
-                <span id="fx-usd-val" class="fx-value fx-loading style="font-size:12px;font-weight:600;font-family:monospace;color:#3D6E50;margin-left:4px;">...</span>
+            <div class="w-px h-3 shrink-0" style="background:#EFEAE0;"></div>
+            <div class="flex items-center gap-1.5 shrink-0">
+                <span class="text-[9px] font-semibold text-slate-500 tracking-wider uppercase">USD/TRY</span>
+                <span id="fx-usd-val" style="font-size:11px;font-weight:600;font-family:monospace;color:#3D6E50;">...</span>
             </div>
-
-            <!-- EUR/TRY -->
-            <div class="flex items-center gap-2 shrink-0">
-                <span class="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">EUR</span>
-                <i class="fa-solid fa-arrow-right-long text-slate-700 text-[10px]"></i>
-                <span class="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">TRY</span>
-                <span id="fx-eur-val" class="fx-value fx-loading style="font-size:12px;font-weight:600;font-family:monospace;color:#3F5C7A;margin-left:4px;">...</span>
+            <div class="flex items-center gap-1.5 shrink-0">
+                <span class="text-[9px] font-semibold text-slate-500 tracking-wider uppercase">EUR/TRY</span>
+                <span id="fx-eur-val" style="font-size:11px;font-weight:600;font-family:monospace;color:#3F5C7A;">...</span>
             </div>
-
-            <!-- Sağ: Durum göstergesi -->
-            <div class="ml-auto flex items-center gap-2 shrink-0">
+            <div class="ml-auto flex items-center gap-1.5 shrink-0">
                 <span id="fx-dot" class="fx-dot-close"></span>
-                <span id="fx-status" class="text-[10px] text-slate-500 tracking-wide">Yükleniyor...</span>
+                <span id="fx-status" style="font-size:9px;color:#968B7A;">Yükleniyor...</span>
+            </div>
+        </div>
+
+        <!-- ══ Başlık + Yıl seçici ══ -->
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <div style="font-size:9px;font-weight:600;letter-spacing:0.22em;text-transform:uppercase;color:#B58858;margin-bottom:3px;">Analitik · Özet</div>
+                <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:26px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:7px;">
+                    <i class="fa-solid fa-chart-pie" style="color:#2D4A3E;font-size:15px;"></i> Genel Görünüm.
+                </h2>
+            </div>
+            <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#EFEAE0]" style="background:#fff;">
+                <label for="year-select" style="font-size:9px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#968B7A;">Yıl:</label>
+                <select id="year-select" style="background:#F6F3EC !important;border:none !important;box-shadow:none !important;padding:0 4px;font-size:12px;font-weight:600;color:#1C1A17 !important;"></select>
+            </div>
+        </div>
+
+        <!-- ══ ROW 1: Finans KPI (4 kart) ══ -->
+        <div class="grid grid-cols-4 gap-3 mb-3">
+
+            <div class="c-card">
+                <div class="sec-label"><i class="fa-solid fa-chart-bar text-purple-400"></i> Toplam Ciro</div>
+                <div id="kpi-ciro-container" style="color:#1C1A17;">
+                    <div class="text-[#968B7A] text-xs animate-pulse">Yükleniyor...</div>
+                </div>
+            </div>
+
+            <div class="c-card">
+                <div class="sec-label"><i class="fa-solid fa-circle-check text-[#3D6E50]"></i> Tahsil Edilen</div>
+                <div id="kpi-avans-container" style="color:#3D6E50;">
+                    <div class="text-[#968B7A] text-xs">—</div>
+                </div>
+            </div>
+
+            <div class="c-card">
+                <div class="sec-label"><i class="fa-solid fa-clock text-[#B26B33]"></i> Vadeli Bakiye</div>
+                <div id="kpi-bakiye-container" style="color:#B26B33;">
+                    <div class="text-[#968B7A] text-xs">—</div>
+                </div>
+            </div>
+
+            <div class="c-card">
+                <div class="sec-label"><i class="fa-solid fa-triangle-exclamation text-[#9F3D3D]"></i> Gecikmiş Borç</div>
+                <div id="kpi-pending-container" style="color:#9F3D3D;">
+                    <div class="text-[#968B7A] text-xs">—</div>
+                </div>
             </div>
 
         </div>
 
-        <!-- ═══════════════════════════════════════════
-             SAYFA BAŞLIĞI
-        ════════════════════════════════════════════ -->
-        <div style="font-size:10px;font-weight:600;letter-spacing:0.22em;text-transform:uppercase;color:#B58858;margin-bottom:8px;">Analitik · Özet</div>
-        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5" style="border-bottom:1px solid #EFEAE0;">
-            <div>
-                <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px;">
-                    <i class="fa-solid fa-chart-pie" style="color:#2D4A3E;font-size:18px;"></i> Genel Görünüm.
-                </h2>
-                <p style="font-size:13px;color:#6B655B;margin-top:6px;">Şirketinizin ihracat performansına anlık genel bakış.</p>
-            </div>
-            <div class="flex items-center gap-3 px-4 py-2 rounded-xl border border-slate-800">
-                <label for="year-select" class="text-xs font-semibold text-slate-400 tracking-wider uppercase">Analiz Yılı:</label>
-                <select id="year-select" class="bg-[#F6F3EC] border border-slate-800 py-1 px-3 text-sm font-medium rounded-lg text-slate-100 focus:ring-[#E45A80] focus:outline-none"></select>
-            </div>
-        </header>
+        <!-- ══ ROW 2: Operasyonel mini kartlar (4) ══ -->
+        <div class="grid grid-cols-4 gap-3 mb-3">
 
-        <!-- ═══════════════════════════════════════════
-             KPI KARTLARI
-        ════════════════════════════════════════════ -->
-        <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="kpi-card">
-                <p style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;margin-bottom:8px;">Toplam Brüt Ciro</p>
-                <div id="kpi-ciro-container" style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:500;color:#1C1A17;">
-                    <div class="text-[#968B7A] text-sm font-normal animate-pulse">Veriler yükleniyor...</div>
+            <a href="orders.html" class="op-card" style="text-decoration:none;">
+                <div style="width:30px;height:30px;border-radius:7px;background:#EBF4EF;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fa-solid fa-boxes-stacked" style="color:#2D4A3E;font-size:12px;"></i>
                 </div>
-            </div>
-            <div class="kpi-card">
-                <p style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;margin-bottom:8px;">Tahsil Edilen Avanslar</p>
-                <div id="kpi-avans-container" style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:500;color:#3D6E50;">
-                    <div class="text-[#968B7A] text-sm font-normal">--</div>
+                <div>
+                    <div id="op-active-orders" style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;color:#1C1A17;line-height:1;">—</div>
+                    <div style="font-size:9px;color:#968B7A;letter-spacing:0.06em;">Aktif Sipariş</div>
                 </div>
-            </div>
-            <div class="kpi-card">
-                <p style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;margin-bottom:8px;">Kalan Vadeli Bakiye</p>
-                <div id="kpi-bakiye-container" style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:500;color:#B26B33;">
-                    <div class="text-[#968B7A] text-sm font-normal">--</div>
-                </div>
-            </div>
-        </section>
+            </a>
 
-        <!-- ═══════════════════════════════════════════
-             GRAFİKLER
-        ════════════════════════════════════════════ -->
-        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div style="background:#fff;border:1px solid #EFEAE0;border-radius:8px;padding:24px;">
-                <h3 style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;display:flex;align-items:center;gap:6px;margin-bottom:16px;">
-                    <i class="fa-solid fa-chart-line text-[#2D4A3E]"></i> Aylık Sipariş Hacmi Dağılımı
-                </h3>
-                <div class="h-80 relative"><canvas id="chart-monthly-performance"></canvas></div>
+            <a href="quotations.html" class="op-card" style="text-decoration:none;">
+                <div style="width:30px;height:30px;border-radius:7px;background:#FEF3C7;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fa-solid fa-file-contract" style="color:#92400E;font-size:12px;"></i>
+                </div>
+                <div>
+                    <div id="op-pending-quotes" style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;color:#1C1A17;line-height:1;">—</div>
+                    <div style="font-size:9px;color:#968B7A;letter-spacing:0.06em;">Bekleyen Teklif</div>
+                </div>
+            </a>
+
+            <a href="complaints.html" class="op-card" style="text-decoration:none;">
+                <div style="width:30px;height:30px;border-radius:7px;background:#FEE2E2;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fa-solid fa-triangle-exclamation" style="color:#9F3D3D;font-size:12px;"></i>
+                </div>
+                <div>
+                    <div id="op-open-complaints" style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;color:#1C1A17;line-height:1;">—</div>
+                    <div style="font-size:9px;color:#968B7A;letter-spacing:0.06em;">Açık Şikayet</div>
+                </div>
+            </a>
+
+            <a href="shipments.html" class="op-card" style="text-decoration:none;">
+                <div style="width:30px;height:30px;border-radius:7px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fa-solid fa-ship" style="color:#3F5C7A;font-size:12px;"></i>
+                </div>
+                <div>
+                    <div id="op-delayed-ships" style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;color:#1C1A17;line-height:1;">—</div>
+                    <div style="font-size:9px;color:#968B7A;letter-spacing:0.06em;">Geciken Sevkiyat</div>
+                </div>
+            </a>
+
+        </div>
+
+        <!-- ══ ROW 3: Orta bölüm (2 sol + 2 sağ) ══ -->
+        <div class="grid grid-cols-2 gap-3 mb-3">
+
+            <!-- Sol: Son Siparişler -->
+            <div class="c-card">
+                <div class="sec-label">
+                    <i class="fa-solid fa-boxes-stacked text-[#2D4A3E]"></i> Son Siparişler
+                    <a href="orders.html" style="margin-left:auto;font-size:9px;color:#B58858;text-decoration:none;letter-spacing:0.04em;">Tümü →</a>
+                </div>
+                <table class="dash-table">
+                    <tbody id="recent-orders-body">
+                        <tr><td colspan="4" class="text-center text-xs text-[#968B7A] py-3 animate-pulse">Yükleniyor...</td></tr>
+                    </tbody>
+                </table>
             </div>
-            <div style="background:#fff;border:1px solid #EFEAE0;border-radius:8px;padding:24px;">
-                <h3 style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;display:flex;align-items:center;gap:6px;margin-bottom:16px;">
-                    <i class="fa-solid fa-chart-pie style="color:#B58858"></i> Döviz Cinsine Göre Sipariş Oranları
-                </h3>
-                <div class="h-80 relative"><canvas id="chart-currency-distribution"></canvas></div>
+
+            <!-- Sağ: Son Teklifler -->
+            <div class="c-card">
+                <div class="sec-label">
+                    <i class="fa-solid fa-file-contract text-[#B58858]"></i> Son Teklifler
+                    <a href="quotations.html" style="margin-left:auto;font-size:9px;color:#B58858;text-decoration:none;letter-spacing:0.04em;">Tümü →</a>
+                </div>
+                <table class="dash-table">
+                    <tbody id="recent-quotes-body">
+                        <tr><td colspan="4" class="text-center text-xs text-[#968B7A] py-3 animate-pulse">Yükleniyor...</td></tr>
+                    </tbody>
+                </table>
             </div>
-        </section>
+
+        </div>
+
+        <!-- ══ ROW 4: Ödeme durumu + Top müşteriler ══ -->
+        <div class="grid grid-cols-2 gap-3 mb-3">
+
+            <div class="c-card c-card-link" onclick="window.location.href='payments.html'">
+                <div class="sec-label">
+                    <i class="fa-solid fa-circle-dollar-to-slot text-[#B26B33]"></i> Ödeme Durumu
+                    <span style="margin-left:auto;font-size:9px;color:#B58858;">Detay →</span>
+                </div>
+                <div id="payment-status-widget">
+                    <div class="text-xs text-[#968B7A] animate-pulse">Yükleniyor...</div>
+                </div>
+            </div>
+
+            <div class="c-card c-card-link" onclick="window.location.href='customer-score.html'">
+                <div class="sec-label">
+                    <i class="fa-solid fa-ranking-star text-[#B58858]"></i> Top Müşteriler
+                    <span style="margin-left:auto;font-size:9px;color:#B58858;">Detay →</span>
+                </div>
+                <div id="top-customers-widget">
+                    <div class="text-xs text-[#968B7A] animate-pulse">Yükleniyor...</div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ══ ROW 5: İkincil modüller (3 kart) ══ -->
+        <div class="grid grid-cols-3 gap-3 mb-3">
+
+            <a href="profitability.html" class="c-card c-card-link" style="text-decoration:none;display:block;">
+                <div class="sec-label"><i class="fa-solid fa-chart-line text-[#2D4A3E]"></i> Karlılık</div>
+                <div id="sec-profitability-val" style="font-family:'Cormorant Garamond',serif;font-size:16px;color:#2D4A3E;font-weight:500;">—</div>
+                <div style="font-size:9px;color:#968B7A;margin-top:3px;">Müşteri iskontoları · Detay →</div>
+            </a>
+
+            <a href="market-analysis.html" class="c-card c-card-link" style="text-decoration:none;display:block;">
+                <div class="sec-label"><i class="fa-solid fa-globe text-[#3F5C7A]"></i> Pazar Analizi</div>
+                <div id="sec-market-val" style="font-family:'Cormorant Garamond',serif;font-size:16px;color:#3F5C7A;font-weight:500;">—</div>
+                <div style="font-size:9px;color:#968B7A;margin-top:3px;">Ülke & Segment · Detay →</div>
+            </a>
+
+            <a href="complaints.html" class="c-card c-card-link" style="text-decoration:none;display:block;">
+                <div class="sec-label"><i class="fa-solid fa-triangle-exclamation text-[#9F3D3D]"></i> Şikayetler</div>
+                <div id="sec-complaints-val" style="font-family:'Cormorant Garamond',serif;font-size:16px;color:#9F3D3D;font-weight:500;">—</div>
+                <div style="font-size:9px;color:#968B7A;margin-top:3px;">Credit Notes · Detay →</div>
+            </a>
+
+        </div>
+
+        <!-- ══ ROW 6: Grafikler (2 kolon, compact yükseklik) ══ -->
+        <div class="grid grid-cols-2 gap-3">
+
+            <div class="c-card">
+                <div class="sec-label"><i class="fa-solid fa-chart-line text-[#2D4A3E]"></i> Aylık Sipariş Hacmi</div>
+                <div style="height:160px;position:relative;"><canvas id="chart-monthly-performance"></canvas></div>
+            </div>
+
+            <div class="c-card">
+                <div class="sec-label"><i class="fa-solid fa-chart-pie text-[#B58858]"></i> Döviz Dağılımı</div>
+                <div style="height:160px;position:relative;"><canvas id="chart-currency-distribution"></canvas></div>
+            </div>
+
+        </div>
+
     </main>
 
-    <!-- ═══════════════════════════════════════════
-         TCMB DÖVİZ KURU SCRIPT
-         Kaynak: fawazahmed0/currency-api (CDN, CORS-free, günlük)
-         Mantık: TCMB çalışma saati 09:30-17:30 hft içi.
-                 Kapalı/tatil ise son iş günü kurunu göster.
-    ════════════════════════════════════════════ -->
+    <!-- ══ TCMB FX Script ══ -->
     <script type="module">
     (async function loadFxRates() {
         const usdEl    = document.getElementById('fx-usd-val');
@@ -156,99 +301,28 @@
         const statusEl = document.getElementById('fx-status');
         const dotEl    = document.getElementById('fx-dot');
 
-        // Türkiye sabit resmi tatilleri (MM-DD)
         const HOLIDAYS = ['01-01','04-23','05-01','05-19','07-15','08-30','10-29'];
-
-        function toMMDD(d) {
-            return String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-        }
-
-        function toISO(d) {
-            return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-        }
-
-        // Bir önceki iş gününü bul (geriye giderek)
-        function prevBusinessDay(d) {
-            const x = new Date(d);
-            do { x.setDate(x.getDate() - 1); }
-            while (x.getDay() === 0 || x.getDay() === 6 || HOLIDAYS.includes(toMMDD(x)));
-            return x;
-        }
-
-        // Bugün iş günü mü?
-        function isBusinessDay(d) {
-            return d.getDay() !== 0 && d.getDay() !== 6 && !HOLIDAYS.includes(toMMDD(d));
-        }
-
-        // TCMB piyasa açık mı? (09:30 – 17:30 hft içi)
-        function isTcmbOpen(d) {
-            if (!isBusinessDay(d)) return false;
-            const h = d.getHours(), m = d.getMinutes();
-            const mins = h * 60 + m;
-            return mins >= 9 * 60 + 30 && mins < 17 * 60 + 30;
-        }
-
+        function toMMDD(d) { return String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+        function toISO(d)  { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+        function prevBusinessDay(d) { const x=new Date(d); do{x.setDate(x.getDate()-1);}while(x.getDay()===0||x.getDay()===6||HOLIDAYS.includes(toMMDD(x))); return x; }
+        function isBusinessDay(d)   { return d.getDay()!==0&&d.getDay()!==6&&!HOLIDAYS.includes(toMMDD(d)); }
+        function isTcmbOpen(d)      { if(!isBusinessDay(d))return false; const mins=d.getHours()*60+d.getMinutes(); return mins>=570&&mins<1050; }
         async function fetchRates(dateISO) {
-            const url = `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${dateISO}/v1/currencies/try.json`;
-            const r = await fetch(url);
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            const data = await r.json();
-            // API: 1 TRY = X birim → ters çevir → 1 birim = ? TRY
-            return {
-                usd: (1 / data.try.usd).toFixed(4),
-                eur: (1 / data.try.eur).toFixed(4)
-            };
+            const r=await fetch(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${dateISO}/v1/currencies/try.json`);
+            if(!r.ok)throw new Error('HTTP '+r.status);
+            const data=await r.json();
+            return { usd:(1/data.try.usd).toFixed(4), eur:(1/data.try.eur).toFixed(4) };
         }
+        function fmt(val){ return parseFloat(val).toLocaleString('tr-TR',{minimumFractionDigits:4,maximumFractionDigits:4}); }
 
-        function fmt(val) {
-            return parseFloat(val).toLocaleString('tr-TR', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
-        }
+        const now=new Date(), open=isTcmbOpen(now), today=isBusinessDay(now);
+        let targetDate=today?toISO(now):toISO(prevBusinessDay(now)), rates=null;
+        try { rates=await fetchRates(targetDate); }
+        catch { try{ const fb=today?prevBusinessDay(now):prevBusinessDay(new Date(targetDate)); targetDate=toISO(fb); rates=await fetchRates(targetDate); }catch{ usdEl.textContent='N/A'; eurEl.textContent='N/A'; statusEl.textContent='Veri alınamadı'; return; } }
 
-        const now   = new Date();
-        const open  = isTcmbOpen(now);
-        const today = isBusinessDay(now);
-
-        // Hangi tarihin verisini çekeceğiz?
-        // - Piyasa açıksa → bugün
-        // - Bugün iş günü ama mesai dışıysa → bugün (günün kapanış kuru)
-        // - Tatil/hafta sonu → önceki iş günü
-        let targetDate = today ? toISO(now) : toISO(prevBusinessDay(now));
-        let rates = null;
-
-        try {
-            rates = await fetchRates(targetDate);
-        } catch {
-            // Fallback: bir önceki iş günü
-            try {
-                const fallback = today ? prevBusinessDay(now) : prevBusinessDay(new Date(targetDate));
-                targetDate = toISO(fallback);
-                rates = await fetchRates(targetDate);
-            } catch {
-                usdEl.textContent = 'N/A';
-                eurEl.textContent = 'N/A';
-                statusEl.textContent = 'Veri alınamadı';
-                usdEl.classList.remove('fx-loading');
-                eurEl.classList.remove('fx-loading');
-                return;
-            }
-        }
-
-        // Değerleri göster
-        usdEl.textContent = fmt(rates.usd);
-        eurEl.textContent = fmt(rates.eur);
-        usdEl.classList.remove('fx-loading');
-        eurEl.classList.remove('fx-loading');
-
-        // Durum etiketi
-        if (open) {
-            dotEl.className = 'fx-dot-open';
-            statusEl.textContent = 'Canlı · ' + now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-        } else {
-            dotEl.className = 'fx-dot-close';
-            const d = new Date(targetDate + 'T12:00:00'); // noon — saat dilimi kaymasını önle
-            const label = d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            statusEl.textContent = 'Son Kur · ' + label;
-        }
+        usdEl.textContent=fmt(rates.usd); eurEl.textContent=fmt(rates.eur);
+        if(open){ dotEl.className='fx-dot-open'; statusEl.textContent='Canlı · '+now.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}); }
+        else { dotEl.className='fx-dot-close'; const d=new Date(targetDate+'T12:00:00'); statusEl.textContent='Son Kur · '+d.toLocaleDateString('tr-TR',{day:'2-digit',month:'2-digit',year:'numeric'}); }
     })();
     </script>
 
