@@ -75,7 +75,7 @@ function renderOrdersTable(ordersList) {
             'Bekliyor': 'bg-slate-800 text-slate-400',
             'Üretimde': 'bg-blue-950/60 text-blue-400',
             'Hazır': 'bg-emerald-950/60 text-emerald-400',
-            'Sevk Edildi': 'bg-purple-950/60 text-purple-400'
+            'Sevk Edildi': 'bg-[rgba(228,90,128,0.12)] text-[#E45A80]'
         };
         const payColors = {
             'Ödenmedi': 'bg-rose-950/60 text-rose-400',
@@ -103,7 +103,7 @@ function renderOrdersTable(ordersList) {
             <td>
                 <div class="text-slate-400 text-xs font-mono">${order.order_date ? new Date(order.order_date).toLocaleDateString('tr-TR') : '-'}</div>
                 <div class="text-xs text-slate-500 font-mono mt-0.5">${escapeHtml(order.order_number || '')}</div>
-                ${order.shipment_date ? `<div class="text-xs text-purple-400 font-mono">Sevk: ${new Date(order.shipment_date).toLocaleDateString('tr-TR')}</div>` : ''}
+                ${order.shipment_date ? `<div class="text-xs text-[#E45A80] font-mono">Sevk: ${new Date(order.shipment_date).toLocaleDateString('tr-TR')}</div>` : ''}
                 ${order.due_date ? `<div class="text-xs text-rose-400 font-mono">Vade: ${new Date(order.due_date).toLocaleDateString('tr-TR')}</div>` : ''}
             </td>
             <td>
@@ -165,7 +165,7 @@ function openModalForOrderCreate() {
     document.getElementById('order-id').value = '';
     document.getElementById('order_date').value = new Date().toISOString().slice(0, 10);
     document.getElementById('live-remaining-balance').textContent = '0,00';
-    document.getElementById('order-modal-title').innerHTML = `<i class="fa-solid fa-cart-plus text-orange-500"></i> Yeni Sipariş Girişi`;
+    document.getElementById('order-modal-title').innerHTML = `<i class="fa-solid fa-cart-plus text-[#E45A80]"></i> Yeni Sipariş Girişi`;
     document.getElementById('btn-delete-order').classList.add('hidden');
     document.getElementById('order-modal').classList.remove('hidden');
 }

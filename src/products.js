@@ -194,7 +194,7 @@ function renderTable() {
   tbody.innerHTML = page.map(p => {
     const groupHeader = p.product_group !== lastGroup
       ? `<tr class="bg-[var(--bg-primary)]">
-           <td colspan="10" class="px-4 py-2 text-xs font-semibold text-indigo-400 uppercase tracking-widest border-t border-[var(--border)]">
+           <td colspan="10" class="px-4 py-2 text-xs font-semibold text-[#E45A80] uppercase tracking-widest border-t border-[var(--border)]">
              <i class="fa-solid fa-layer-group mr-1.5 opacity-60"></i>${escHtml(p.product_group || 'Grupsuz')}
            </td>
          </tr>`
@@ -211,7 +211,7 @@ function renderTable() {
     return groupHeader + `
       <tr class="border-t border-[var(--border)] hover:bg-[var(--bg-hover)] transition-colors">
         <td class="px-4 py-3">
-          <span class="font-mono text-xs bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded">
+          <span class="font-mono text-xs bg-[rgba(228,90,128,0.12)] text-[#E45A80] px-2 py-0.5 rounded">
             ${escHtml(p.product_code)}
           </span>
         </td>
@@ -238,7 +238,7 @@ function renderTable() {
             </button>
             <button onclick="openEditProduct('${p.id}')"
               title="Düzenle"
-              class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-indigo-400 hover:bg-indigo-400/10 transition-colors">
+              class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[#E45A80] hover:bg-[rgba(228,90,128,0.12)]/10 transition-colors">
               <i class="fa-solid fa-pen text-sm"></i>
             </button>
             <button onclick="openDeleteModal('${p.id}')"
@@ -398,7 +398,7 @@ function renderPriceList(prices) {
         </div>
         <div class="flex gap-1.5 flex-shrink-0">
           <button onclick="startEditPrice('${pr.id}')"
-            class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-indigo-400 hover:bg-indigo-400/10 transition-colors">
+            class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[#E45A80] hover:bg-[rgba(228,90,128,0.12)]/10 transition-colors">
             <i class="fa-solid fa-pen text-xs"></i>
           </button>
           <button onclick="deletePrice('${pr.id}')"

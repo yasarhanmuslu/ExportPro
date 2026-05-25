@@ -310,7 +310,7 @@ function populateCountryFilter(customers) {
 function getGroupBadgeClass(group) {
     switch(group) {
         case 'VIP': return 'bg-amber-950/40 text-amber-400 border-amber-900/50';
-        case 'Stratejik': return 'bg-purple-950/40 text-purple-400 border-purple-900/50';
+        case 'Stratejik': return 'bg-[rgba(228,90,128,0.12)] text-[#E45A80] border-[rgba(228,90,128,0.25)]';
         case 'Potansiyel': return 'bg-rose-950/40 text-rose-400 border-rose-900/50';
         default: return 'bg-slate-800 text-slate-400 border-slate-700/60';
     }

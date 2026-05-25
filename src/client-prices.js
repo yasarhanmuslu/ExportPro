@@ -97,9 +97,9 @@ function renderClientPriceCards(groups) {
                     <i class="fa-solid fa-chevron-down text-xs text-slate-500 transition-transform duration-200 cp-chevron"></i>
                     <span class="font-bold text-white">${escapeHtml(group.company_name)}</span>
                     ${group.country ? `<span class="text-xs text-slate-500 uppercase tracking-widest">${escapeHtml(group.country)}</span>` : ''}
-                    <span class="px-2 py-0.5 bg-indigo-950 text-indigo-400 text-[11px] font-semibold border border-indigo-900/50 rounded-full">${group.products.length} Ürün</span>
+                    <span class="px-2 py-0.5 bg-[rgba(228,90,128,0.12)] text-[#E45A80] text-[11px] font-semibold border border-indigo-900/50 rounded-full">${group.products.length} Ürün</span>
                 </div>
-                <button class="btn-edit-cp text-xs bg-slate-900 hover:bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg text-indigo-400 transition-colors cursor-pointer" data-customerid="${group.customer_id}">
+                <button class="btn-edit-cp text-xs bg-slate-900 hover:bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg text-[#E45A80] transition-colors cursor-pointer" data-customerid="${group.customer_id}">
                     <i class="fa-solid fa-pen"></i> Düzenle
                 </button>
             </div>
@@ -110,7 +110,7 @@ function renderClientPriceCards(groups) {
                             <th class="px-6 py-2 text-left text-slate-500 font-bold uppercase tracking-wider text-[10px]">Ürün / Kod</th>
                             <th class="px-4 py-2 text-right text-slate-500 font-bold uppercase tracking-wider text-[10px]">Liste (€)</th>
                             <th class="px-4 py-2 text-center text-slate-500 font-bold uppercase tracking-wider text-[10px]">İskonto %</th>
-                            <th class="px-4 py-2 text-right text-indigo-400 font-bold uppercase tracking-wider text-[10px]">Net (€)</th>
+                            <th class="px-4 py-2 text-right text-[#E45A80] font-bold uppercase tracking-wider text-[10px]">Net (€)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -119,7 +119,7 @@ function renderClientPriceCards(groups) {
                                 <td class="px-6 py-2.5 text-slate-300 font-medium">${escapeHtml(p.product_name)}</td>
                                 <td class="px-4 py-2.5 text-right text-slate-400 font-mono">${parseFloat(p.list_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} €</td>
                                 <td class="px-4 py-2.5 text-center text-amber-400 font-mono font-bold">% ${parseFloat(p.discount_rate||0).toFixed(2)}</td>
-                                <td class="px-4 py-2.5 text-right text-indigo-400 font-mono font-bold">${parseFloat(p.net_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} €</td>
+                                <td class="px-4 py-2.5 text-right text-[#E45A80] font-mono font-bold">${parseFloat(p.net_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} €</td>
                             </tr>`).join('')}
                     </tbody>
                 </table>
@@ -153,7 +153,7 @@ function renderClientPriceCards(groups) {
 function openModalForCreate() {
     document.getElementById('cp-customer-id').value = '';
     document.getElementById('cp-customer-select').value = '';
-    document.getElementById('cp-modal-title').innerHTML = `<i class="fa-solid fa-tags text-indigo-500"></i> Yeni Müşteri Fiyat Kartı`;
+    document.getElementById('cp-modal-title').innerHTML = `<i class="fa-solid fa-tags text-[#E45A80]"></i> Yeni Müşteri Fiyat Kartı`;
     document.getElementById('btn-delete-cp').classList.add('hidden');
     tempProducts = [];
     resetProductForm();
@@ -193,9 +193,9 @@ function renderTempProducts() {
             <td class="px-4 py-2 text-slate-300 font-medium text-xs">${escapeHtml(p.product_name)}</td>
             <td class="px-4 py-2 text-right text-slate-400 font-mono text-xs">${parseFloat(p.list_price||0).toFixed(2)} €</td>
             <td class="px-4 py-2 text-center text-amber-400 font-mono text-xs font-bold">% ${parseFloat(p.discount_rate||0).toFixed(2)}</td>
-            <td class="px-4 py-2 text-right text-indigo-400 font-mono text-xs font-bold">${parseFloat(p.net_price||0).toFixed(2)} €</td>
+            <td class="px-4 py-2 text-right text-[#E45A80] font-mono text-xs font-bold">${parseFloat(p.net_price||0).toFixed(2)} €</td>
             <td class="px-4 py-2 text-center whitespace-nowrap">
-                <button type="button" data-idx="${i}" class="btn-edit-temp-product text-indigo-400 hover:text-indigo-300 mr-2 cursor-pointer"><i class="fa-solid fa-pen text-xs"></i></button>
+                <button type="button" data-idx="${i}" class="btn-edit-temp-product text-[#E45A80] hover:text-[#E45A80] mr-2 cursor-pointer"><i class="fa-solid fa-pen text-xs"></i></button>
                 <button type="button" data-idx="${i}" class="btn-remove-temp-product text-slate-500 hover:text-rose-400 cursor-pointer"><i class="fa-solid fa-trash text-xs"></i></button>
             </td>
         `;

@@ -33,7 +33,7 @@
       </div>
       <div class="flex gap-2">
         <button id="btn-add-product"
-          class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+          class="flex items-center gap-2 bg-[#E45A80] hover:bg-[#d44e72] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
           <i class="fa-solid fa-plus"></i> Yeni Ürün
         </button>
       </div>
@@ -44,19 +44,19 @@
       <div class="relative flex-1">
         <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] text-sm pointer-events-none"></i>
         <input id="search-input" type="text" placeholder="Ürün adı veya kod numarasına göre ara…"
-          class="w-full pl-9 pr-9 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          class="w-full pl-9 pr-9 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
         <button id="btn-search-clear"
           class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors p-0.5"
           title="Aramayı temizle">
           <i class="fa-solid fa-xmark text-sm"></i>
         </button>
       </div>
-      <div id="search-result-badge" class="hidden items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium whitespace-nowrap self-center">
+      <div id="search-result-badge" class="hidden items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-[#E45A80]/20 text-[#E45A80] text-xs font-medium whitespace-nowrap self-center">
         <i class="fa-solid fa-filter text-xs"></i>
         <span id="search-result-count"></span>
       </div>
       <select id="filter-group"
-        class="px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[200px]">
+        class="px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80] min-w-[200px]">
         <option value="">Tüm Gruplar</option>
       </select>
     </div>
@@ -65,7 +65,7 @@
     <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
       <div class="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4">
         <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1">Toplam Ürün</p>
-        <p id="stat-total" class="text-2xl font-bold text-indigo-400">—</p>
+        <p id="stat-total" class="text-2xl font-bold text-[#E45A80]">—</p>
       </div>
       <div class="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4">
         <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1">Grup Sayısı</p>
@@ -158,27 +158,27 @@
         <div>
           <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Ürün Kodu <span class="text-rose-400">*</span></label>
           <input id="product-code" type="text" placeholder="örn: SETK3204-0315-001-1-1100"
-            class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
         </div>
         <div>
           <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Ürün Adı <span class="text-rose-400">*</span></label>
           <input id="product-name" type="text" placeholder="örn: HALLEY D.S KLOZET + REZ. + PP KPK"
-            class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
         </div>
         <div>
           <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Ürün Grubu</label>
           <input id="product-group" type="text" placeholder="örn: HALLEY SERİSİ"
-            class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
         </div>
         <div>
           <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Açıklama</label>
           <textarea id="product-description" rows="2" placeholder="İsteğe bağlı açıklama"
-            class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+            class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80] resize-none"></textarea>
         </div>
       </div>
       <div class="flex justify-end gap-3 px-6 py-4 border-t border-[var(--border)]">
         <button id="modal-product-cancel" class="px-4 py-2 text-sm rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors">İptal</button>
-        <button id="modal-product-save" class="px-4 py-2 text-sm rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors">
+        <button id="modal-product-save" class="px-4 py-2 text-sm rounded-lg bg-[#E45A80] hover:bg-[#d44e72] text-white font-medium transition-colors">
           <i class="fa-solid fa-floppy-disk mr-1.5"></i>Kaydet
         </button>
       </div>
@@ -210,12 +210,12 @@
             <div>
               <label class="block text-xs text-[var(--text-secondary)] mb-1">Yıl <span class="text-rose-400">*</span></label>
               <input id="price-year" type="number" min="2020" max="2099" placeholder="2026"
-                class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
             </div>
             <div>
               <label class="block text-xs text-[var(--text-secondary)] mb-1">Döviz <span class="text-rose-400">*</span></label>
               <select id="price-currency"
-                class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]">
                 <option value="EUR">EUR €</option>
                 <option value="USD">USD $</option>
                 <option value="TRY">TRY ₺</option>
@@ -226,17 +226,17 @@
             <div>
               <label class="block text-xs text-[var(--text-secondary)] mb-1">Liste Fiyatı</label>
               <input id="price-list" type="number" step="0.01" min="0" placeholder="0.00"
-                class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
             </div>
             <div>
               <label class="block text-xs text-[var(--text-secondary)] mb-1">Net Fiyat</label>
               <input id="price-net" type="number" step="0.01" min="0" placeholder="0.00"
-                class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
             </div>
             <div>
               <label class="block text-xs text-[var(--text-secondary)] mb-1">İskonto %</label>
               <input id="price-discount" type="number" step="0.01" min="0" max="100" placeholder="0.00"
-                class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-[var(--bg-tertiary)]" readonly />
+                class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80] bg-[var(--bg-tertiary)]" readonly />
             </div>
           </div>
           <div class="flex justify-end gap-2">
@@ -244,7 +244,7 @@
               İptal
             </button>
             <button id="btn-price-save"
-              class="px-4 py-1.5 text-xs rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors">
+              class="px-4 py-1.5 text-xs rounded-lg bg-[#E45A80] hover:bg-[#d44e72] text-white font-medium transition-colors">
               <i class="fa-solid fa-plus mr-1"></i><span id="btn-price-save-label">Ekle</span>
             </button>
           </div>

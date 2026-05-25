@@ -9,14 +9,15 @@
     <link rel="stylesheet" href="./src/assets/css/theme.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        html.light body { background-color: #f1f5f9 !important; }
+        html.light body { background-color: #f8f7f5 !important; }
         html.light .bg-slate-800 { background-color: #ffffff !important; }
-        html.light .bg-slate-950 { background-color: #f8fafc !important; }
-        html.light .border-slate-700 { border-color: #e2e8f0 !important; }
-        html.light .text-slate-300 { color: #374151 !important; }
-        html.light .text-slate-400 { color: #64748b !important; }
-        html.light input { background-color: #ffffff !important; border-color: #cbd5e1 !important; color: #0f172a !important; }
-        html.light .text-slate-100 { color: #1e293b !important; }
+        html.light .bg-slate-950 { background-color: #f8f7f5 !important; }
+        html.light .border-slate-700 { border-color: #e8e4de !important; }
+        html.light .text-slate-300 { color: #4a4540 !important; }
+        html.light .text-slate-400 { color: #6a6560 !important; }
+        html.light input { background-color: #ffffff !important; border-color: #d8d4ce !important; color: #1a1917 !important; }
+        html.light .text-slate-100 { color: #1a1917 !important; }
+        html.light .bg-slate-900\/70 { background-color: rgba(255,255,255,0.92) !important; }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -27,7 +28,7 @@
 
     <!-- Theme Toggle -->
     <div class="fixed top-4 right-4" style="z-index:20;">
-        <button id="login-theme-btn" onclick="(function(){var t=localStorage.getItem('ep-theme')||'dark';var n=t==='dark'?'light':'dark';localStorage.setItem('ep-theme',n);document.documentElement.classList.remove('dark','light');document.documentElement.classList.add(n);document.getElementById('login-theme-btn').innerHTML=n==='dark'?'<i class=\'fa-solid fa-sun text-amber-400\'></i>':'<i class=\'fa-solid fa-moon text-indigo-400\'></i>';})()"
+        <button id="login-theme-btn" onclick="(function(){var t=localStorage.getItem('ep-theme')||'dark';var n=t==='dark'?'light':'dark';localStorage.setItem('ep-theme',n);document.documentElement.classList.remove('dark','light');document.documentElement.classList.add(n);document.getElementById('login-theme-btn').innerHTML=n==='dark'?'<i class=\'fa-solid fa-sun text-amber-400\'></i>':'<i class=\'fa-solid fa-moon\' style=\'color:#E45A80\'></i>';})()"
             class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400 hover:text-white transition-all cursor-pointer shadow-lg">
             <i class="fa-solid fa-sun text-amber-400" id="login-theme-icon"></i>
         </button>
@@ -38,41 +39,46 @@
             var btn = document.getElementById('login-theme-btn');
             if(btn) btn.innerHTML = t === 'dark'
                 ? '<i class="fa-solid fa-sun text-amber-400"></i>'
-                : '<i class="fa-solid fa-moon text-indigo-400"></i>';
+                : '<i class="fa-solid fa-moon" style="color:#E45A80"></i>';
         })();
     </script>
 
     <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700" style="position:relative;z-index:10;">
         <div class="text-center mb-8">
             <div class="flex items-center justify-center gap-3 mb-3">
-                <i class="fa-solid fa-earth-americas text-3xl text-orange-500"></i>
+                <div style="width:44px;height:44px;border-radius:10px;background:#E45A80;display:flex;align-items:center;justify-content:center;">
+                    <i class="fa-solid fa-earth-americas text-xl text-white"></i>
+                </div>
             </div>
-            <h1 class="text-3xl font-bold text-indigo-400 tracking-tight">Export Manager Pro</h1>
-            <p class="text-slate-400 mt-2 text-sm">Kurumsal İhracat Yönetim Sistemi</p>
+            <h1 class="text-3xl font-bold tracking-tight" style="color:#E45A80;">Export Manager Pro</h1>
+            <p class="mt-2" style="font-size:1.125rem;font-weight:500;color:#4a4540;">Kurumsal İhracat Yönetim Sistemi</p>
         </div>
 
         <form id="authForm" class="space-y-5">
             <div>
                 <label class="block text-sm font-medium text-slate-300 mb-1">E-posta Adresi</label>
                 <input type="email" id="email" required
-                    class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-100 text-sm"
+                    class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-lg focus:outline-none text-slate-100 text-sm"
                     placeholder="ornek@firma.com">
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-300 mb-1">Şifre</label>
                 <input type="password" id="password" required
-                    class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-100 text-sm"
+                    class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-lg focus:outline-none text-slate-100 text-sm"
                     placeholder="••••••••">
             </div>
             <div id="messageArea" class="hidden text-sm p-3 rounded-lg text-center font-medium"></div>
             <button type="submit" id="mainBtn"
-                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 px-4 rounded-lg transition duration-200 shadow-lg text-sm cursor-pointer">
+                class="w-full text-white font-semibold py-2.5 px-4 rounded-lg transition duration-200 shadow-lg text-sm cursor-pointer"
+                style="background:#E45A80;border:none;"
+                onmouseover="this.style.background='#d44e72'"
+                onmouseout="this.style.background='#E45A80'">
                 Giriş Yap
             </button>
         </form>
         <div class="mt-6 text-center text-sm">
             <span class="text-slate-400" id="toggleText">Hesabınız yok mu?</span>
-            <button id="toggleBtn" class="text-indigo-400 hover:text-indigo-300 font-medium ml-1 underline cursor-pointer">Kayıt Olun</button>
+            <button id="toggleBtn" class="font-medium ml-1 underline cursor-pointer" style="color:#E45A80;" onmouseover="this.style.color='#d44e72'" onmouseout="this.style.color='#E45A80'">Kayıt Olun</button>
         </div>
     </div>
 
@@ -172,9 +178,9 @@
 
         function getColors() {
             if (isLight()) {
-                return { node: 'rgba(99,102,241,', line: 'rgba(99,102,241,', cursor: 'rgba(234,88,12,' };
+                return { node: 'rgba(228,90,128,', line: 'rgba(228,90,128,', cursor: 'rgba(214,210,201,' };
             }
-            return { node: 'rgba(148,163,184,', line: 'rgba(99,102,241,', cursor: 'rgba(249,115,22,' };
+            return { node: 'rgba(214,210,201,', line: 'rgba(228,90,128,', cursor: 'rgba(214,210,201,' };
         }
 
         function makeNode() {

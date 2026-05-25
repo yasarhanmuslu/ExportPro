@@ -11,8 +11,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        .kpi-card { background: rgba(15,23,42,0.6); border: 1px solid rgb(30,41,59); border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 20px 25px -5px rgb(0 0 0/.1); transition: border-color .3s; }
-        .kpi-card:hover { border-color: rgb(51,65,85); }
+        .kpi-card { background: rgba(20,20,20,0.8); border: 1px solid #242424; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 20px 25px -5px rgb(0 0 0/.1); transition: border-color .3s; }
+        .kpi-card:hover { border-color: rgba(228,90,128,0.25); }
 
         #fx-banner { animation: fx-fadein 0.5s ease; }
         @keyframes fx-fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
@@ -21,7 +21,7 @@
         .fx-loading { opacity: 0.4; }
 
         .fx-dot-open  { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #34d399; box-shadow: 0 0 6px #34d399; }
-        .fx-dot-close { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #94a3b8; }
+        .fx-dot-close { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #5a5855; }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100">
@@ -57,7 +57,7 @@
                 <span class="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">EUR</span>
                 <i class="fa-solid fa-arrow-right-long text-slate-700 text-[10px]"></i>
                 <span class="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">TRY</span>
-                <span id="fx-eur-val" class="fx-value fx-loading text-sm font-bold text-indigo-400 font-mono tracking-tight ml-1">...</span>
+                <span id="fx-eur-val" class="fx-value fx-loading text-sm font-bold text-[#E45A80] font-mono tracking-tight ml-1">...</span>
             </div>
 
             <!-- Sağ: Durum göstergesi -->
@@ -74,13 +74,13 @@
         <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b border-slate-800">
             <div>
                 <h2 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                    <i class="fa-solid fa-chart-pie text-purple-500"></i> Yönetici Analiz Paneli
+                    <i class="fa-solid fa-chart-pie text-[#E45A80]"></i> Yönetici Analiz Paneli
                 </h2>
                 <p class="text-sm text-slate-400 mt-1">Şirketinizin ihracat performansına anlık genel bakış.</p>
             </div>
             <div class="flex items-center gap-3 bg-slate-900/50 px-4 py-2 rounded-xl border border-slate-800">
                 <label for="year-select" class="text-xs font-semibold text-slate-400 tracking-wider uppercase">Analiz Yılı:</label>
-                <select id="year-select" class="bg-slate-950 border border-slate-800 py-1 px-3 text-sm font-medium rounded-lg text-slate-100 focus:ring-purple-500 focus:outline-none"></select>
+                <select id="year-select" class="bg-slate-950 border border-slate-800 py-1 px-3 text-sm font-medium rounded-lg text-slate-100 focus:ring-[#E45A80] focus:outline-none"></select>
             </div>
         </header>
 
@@ -114,7 +114,7 @@
         <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-6 shadow-xl">
                 <h3 class="text-sm font-semibold text-slate-300 tracking-wide uppercase flex items-center gap-2 mb-4">
-                    <i class="fa-solid fa-chart-line text-indigo-400"></i> Aylık Sipariş Hacmi Dağılımı
+                    <i class="fa-solid fa-chart-line text-[#E45A80]"></i> Aylık Sipariş Hacmi Dağılımı
                 </h3>
                 <div class="h-80 relative"><canvas id="chart-monthly-performance"></canvas></div>
             </div>
