@@ -353,7 +353,11 @@ async function confirmDelete() {
     await fetchProducts();
   } catch (err) {
     console.error('deleteProduct error:', err);
-    alert('Silme hatası: ' + err.message);
+    if (err.code === '23503') {
+      alert('Bu ürün silinemez!\nÜrüne ait fiyat kaydı bulunmaktadır.\nÖnce ürün fiyatlarını siliniz.');
+    } else {
+      alert('Silme hatası: ' + err.message);
+    }
   }
 }
 
@@ -505,7 +509,11 @@ window.deletePrice = async function(priceId) {
     renderPriceList(updated.prices);
   } catch (err) {
     console.error('deletePrice error:', err);
-    alert('Silme hatası: ' + err.message);
+    if (err.code === '23503') {
+      alert('Bu fiyat kaydı silinemez!\nBağlı kayıtlar bulunmaktadır.');
+    } else {
+      alert('Silme hatası: ' + err.message);
+    }
   }
 };
 

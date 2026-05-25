@@ -334,6 +334,11 @@ async function handleDeleteCN() {
         await fetchCreditNotesData();
     } catch (err) {
         console.error(err.message);
+        if (err.code === '23503') {
+            alert("Bu Credit Note silinemez!\nBağlı ürün detay kayıtları bulunmaktadır.");
+        } else {
+            alert("Silme işlemi başarısız oldu: " + err.message);
+        }
     }
 }
 

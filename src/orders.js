@@ -257,6 +257,11 @@ async function handleDeleteOrder() {
         await fetchOrdersData();
     } catch (err) {
         console.error("Sipariş silinemedi:", err.message);
+        if (err.code === '23503') {
+            alert("Bu sipariş silinemez!\nSiparişe bağlı credit note kaydı bulunmaktadır.\nÖnce ilgili credit note'ları siliniz.");
+        } else {
+            alert("Silme işlemi başarısız oldu: " + err.message);
+        }
     }
 }
 

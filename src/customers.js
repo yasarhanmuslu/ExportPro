@@ -268,7 +268,11 @@ async function handleDeleteCustomer() {
             await fetchCustomers();
         } catch (error) {
             console.error("Müşteri silinemedi:", error.message);
-            alert("Silme işlemi başarısız oldu.");
+            if (error.code === '23503') {
+                alert("Bu müşteri silinemez!\nMüşteriye ait sipariş, özel fiyat veya credit note kaydı bulunmaktadır.\nÖnce ilgili kayıtları siliniz.");
+            } else {
+                alert("Silme işlemi başarısız oldu: " + error.message);
+            }
         }
     }
 }

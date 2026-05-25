@@ -230,6 +230,11 @@ async function handleDeletePrice() {
         await fetchCustomerPrices();
     } catch (err) {
         console.error(err.message);
+        if (err.code === '23503') {
+            alert("Bu fiyat kaydı silinemez!\nBağlı kayıtlar bulunmaktadır.");
+        } else {
+            alert("Silme işlemi başarısız oldu: " + err.message);
+        }
     }
 }
 
