@@ -14,7 +14,8 @@ export default defineConfig({
         orderTimeline: resolve(__dirname, 'order-timeline.html'),
         profitability: resolve(__dirname, 'profitability.html'),
         complaints: resolve(__dirname, 'complaints.html'),
-        payments: resolve(__dirname, 'payments.html')
+        payments: resolve(__dirname, 'payments.html'),
+        shipments: resolve(__dirname, 'shipments.html')
       }
     }
   }
