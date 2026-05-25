@@ -21,34 +21,46 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ── Veri yükleme ─────────────────────────────────────────────────────────────
 async function loadData(session) {
     try {
-        // 1) credit_notes + customers (tek ilişki - çoklu ilişki hatasını önler)
+        // 1) credit_notes — SADECE kendi alanları, join YOK (FK belirsizliğini önler)
         const { data: notes, error: notesErr } = await supabase
             .from('credit_notes')
-            .select('*, customers(company_name, country)')
+            .select('id, customer_id, cn_date, process_status, user_id')
             .eq('user_id', session.user.id)
             .order('cn_date', { ascending: false });
         if (notesErr) throw notesErr;
 
-        // 2) credit_note_items (ayrı sorgu)
-        const cnIds = (notes || []).map(n => n.id);
-        let itemsMap = {}; // { cn_id: [items] }
+        const cnIds      = (notes || []).map(n => n.id);
+        const customerIds = [...new Set((notes || []).map(n => n.customer_id).filter(Boolean))];
 
+        // 2) customers — doğrudan customers tablosundan çek
+        let customerMap = {}; // { customer_id: { company_name, country } }
+        if (customerIds.length > 0) {
+            const { data: customers, error: custErr } = await supabase
+                .from('customers')
+                .select('id, company_name, country')
+                .in('id', customerIds);
+            if (custErr) throw custErr;
+            (customers || []).forEach(c => { customerMap[c.id] = c; });
+        }
+
+        // 3) credit_note_items — ayrı sorgu
+        let itemsMap = {}; // { credit_note_id: [items] }
         if (cnIds.length > 0) {
             const { data: items, error: itemsErr } = await supabase
                 .from('credit_note_items')
                 .select('*')
                 .in('credit_note_id', cnIds);
             if (itemsErr) throw itemsErr;
-
             (items || []).forEach(item => {
                 if (!itemsMap[item.credit_note_id]) itemsMap[item.credit_note_id] = [];
                 itemsMap[item.credit_note_id].push(item);
             });
         }
 
-        // 3) Manuel birleştir
+        // 4) Manuel birleştir
         rawData = (notes || []).map(cn => ({
             ...cn,
+            customers:         customerMap[cn.customer_id] || null,
             credit_note_items: itemsMap[cn.id] || []
         }));
 
