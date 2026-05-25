@@ -10,7 +10,8 @@ export default defineConfig({
         customers: resolve(__dirname, 'customers.html'),
         orders: resolve(__dirname, 'orders.html'),
         prices: resolve(__dirname, 'prices.html'),
-        creditNotes: resolve(__dirname, 'credit-notes.html')
+        creditNotes: resolve(__dirname, 'credit-notes.html'),
+        orderTimeline: resolve(__dirname, 'order-timeline.html')
       }
     }
   }
