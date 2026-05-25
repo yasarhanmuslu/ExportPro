@@ -1,6 +1,6 @@
 import { supabase } from '../utils/supabaseClient.js';
 
-const APP_VERSION = 'V: 1.0.25';
+const APP_VERSION = 'V: 1.0.26';
 
 export async function renderNavbar(activeTab) {
     const { data: { session } } = await supabase.auth.getSession();
@@ -20,6 +20,7 @@ export async function renderNavbar(activeTab) {
     const tabs = [
         { id: 'dashboard',    label: 'Dashboard',     icon: 'fa-chart-pie',     href: 'index.html' },
         { id: 'orders',       label: 'Siparişler',     icon: 'fa-boxes-stacked', href: 'orders.html' },
+        { id: 'quotations',   label: 'Teklifler',       icon: 'fa-file-contract', href: 'quotations.html' },
         { id: 'customers',    label: 'Müşteriler',     icon: 'fa-users',         href: 'customers.html' },
         { id: 'prices',       label: 'Fiyat Robotu',   icon: 'fa-calculator',    href: 'prices.html' },
         { id: 'credit-notes', label: 'Credit Notes',   icon: 'fa-file-invoice',  href: 'credit-notes.html' },
