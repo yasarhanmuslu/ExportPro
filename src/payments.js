@@ -54,21 +54,37 @@ function initEventListeners() {
 // ── Veri Yükleme ─────────────────────────────────────────────────────────────
 async function loadData(session) {
     try {
-        const { data: orders, error } = await supabase
-            .from('orders')
-            .select(`
-                id, order_number, order_date, due_date, shipment_date,
-                total_amount, advance_payment, remaining_balance,
-                currency, payment_status, production_status,
-                order_quantity, order_notes, customer_id,
-                customers ( id, company_name, country, client_group )
-            `)
-            .eq('user_id', session.user.id)
-            .order('due_date', { ascending: true });
+        // Siparişler ve müşteriler ayrı ayrı çekiliyor
+        // (orders↔customers arasında birden fazla FK olduğunda embed belirsizliği çözümü)
+        const [{ data: orders, error: ordErr }, { data: customers, error: custErr }] = await Promise.all([
+            supabase
+                .from('orders')
+                .select(`
+                    id, order_number, order_date, due_date, shipment_date,
+                    total_amount, advance_payment, remaining_balance,
+                    currency, payment_status, production_status,
+                    order_quantity, order_notes, customer_id
+                `)
+                .eq('user_id', session.user.id)
+                .order('due_date', { ascending: true }),
+            supabase
+                .from('customers')
+                .select('id, company_name, country, client_group')
+                .eq('user_id', session.user.id)
+        ]);
 
-        if (error) throw error;
+        if (ordErr) throw ordErr;
+        if (custErr) throw custErr;
 
-        globalOrders = orders || [];
+        // Müşteri map'i oluştur
+        const custMap = {};
+        (customers || []).forEach(c => { custMap[c.id] = c; });
+
+        // Siparişlere customers nesnesini ekle (orders.js ile aynı yapı)
+        globalOrders = (orders || []).map(o => ({
+            ...o,
+            customers: custMap[o.customer_id] || null
+        }));
         renderKPIs();
         renderOverdueList();
         renderAllOpenTable();
