@@ -1,9 +1,6 @@
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
 
-await requireAuth();
-await renderNavbar('help');
-
 // ── Sayfa açıklamaları ────────────────────────────────────────────────────────
 const pages = [
     {
@@ -284,43 +281,88 @@ const pages = [
     }
 ];
 
-// ── Sayfa render ──────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+// ── showPage global fonksiyon ─────────────────────────────────────────────────
+window.showPage = function(index) {
+    const p = pages[index];
+
+    document.querySelectorAll('.toc-item').forEach((el, i) => {
+        el.style.background = i === index ? `${pages[i].color}12` : 'transparent';
+        el.style.color = i === index ? pages[i].color : 'var(--ink-2,#6B655B)';
+    });
+
+    const detail = document.getElementById('help-detail');
+    detail.innerHTML = `
+        <div style="max-width:720px;">
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:28px;">
+                <div style="
+                    width:52px;height:52px;border-radius:12px;
+                    background:${p.color}15;color:${p.color};
+                    display:flex;align-items:center;justify-content:center;
+                    font-size:20px;flex-shrink:0;
+                "><i class="fa-solid ${p.icon}"></i></div>
+                <div>
+                    <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:26px;font-weight:500;color:var(--ink-1,#1C1A17);margin:0 0 4px;">${p.label}</h2>
+                    <p style="margin:0;font-size:13px;color:var(--ink-3,#968B7A);">${p.short}</p>
+                </div>
+            </div>
+            <div class="help-content" style="font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.75;color:var(--ink-2,#6B655B);">
+                ${p.desc}
+            </div>
+            <div style="margin-top:32px;">
+                <a href="${p.href}" style="
+                    display:inline-flex;align-items:center;gap:8px;
+                    padding:10px 20px;border-radius:8px;
+                    background:${p.color};color:#fff;
+                    font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;
+                    text-decoration:none;transition:opacity 0.15s;
+                " onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                    <i class="fa-solid fa-arrow-right" style="font-size:11px;"></i>
+                    ${p.label} sayfasını aç
+                </a>
+            </div>
+        </div>
+    `;
+
+    detail.querySelectorAll('.help-content h4').forEach(h => {
+        h.style.cssText = `font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:${p.color};font-weight:600;margin:24px 0 10px;`;
+    });
+    detail.querySelectorAll('.help-content p').forEach(el => { el.style.cssText = 'margin:0 0 14px;'; });
+    detail.querySelectorAll('.help-content ul').forEach(el => { el.style.cssText = 'margin:0 0 14px;padding-left:20px;display:flex;flex-direction:column;gap:6px;'; });
+    detail.querySelectorAll('.help-content strong').forEach(el => { el.style.cssText = 'color:var(--ink-1,#1C1A17);font-weight:600;'; });
+};
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+    await requireAuth();
+    await renderNavbar('help');
+
     const container = document.getElementById('help-container');
     if (!container) return;
 
-    // İçindekiler + detay paneli render
     container.innerHTML = `
-        <div id="help-layout" style="display:flex;gap:0;min-height:calc(100vh - 40px);">
-
-            <!-- Sol panel: İçindekiler -->
+        <div style="display:flex;gap:0;min-height:calc(100vh - 40px);">
             <aside id="help-toc" style="
                 width:270px;flex-shrink:0;
                 background:var(--surface,#fff);
                 border-right:1px solid var(--sidebar-border,#EFEAE0);
                 padding:24px 0;
-                position:sticky;top:0;height:calc(100vh);overflow-y:auto;
+                position:sticky;top:0;height:100vh;overflow-y:auto;
             ">
                 <div style="padding:0 18px 16px;border-bottom:1px solid var(--sidebar-border,#EFEAE0);margin-bottom:12px;">
                     <div style="font-family:'Cormorant Garamond',Georgia,serif;font-size:20px;font-weight:500;color:var(--ink-1,#1C1A17);line-height:1.2;">Kullanım Kılavuzu</div>
                     <div style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-3,#968B7A);margin-top:3px;">Export Suite — Tüm Sayfalar</div>
                 </div>
-                <nav id="toc-nav" style="display:flex;flex-direction:column;gap:1px;padding:0 10px;">
+                <nav style="display:flex;flex-direction:column;gap:1px;padding:0 10px;">
                     ${pages.map((p, i) => `
-                        <button
-                            class="toc-item"
-                            data-index="${i}"
-                            onclick="showPage(${i})"
-                            style="
-                                display:flex;align-items:center;gap:10px;
-                                width:100%;text-align:left;
-                                padding:9px 10px;border-radius:7px;
-                                border:none;background:transparent;cursor:pointer;
-                                font-family:'DM Sans',sans-serif;font-size:13px;
-                                color:var(--ink-2,#6B655B);
-                                transition:background 0.15s,color 0.15s;
-                            "
-                        >
+                        <button class="toc-item" data-index="${i}" onclick="showPage(${i})" style="
+                            display:flex;align-items:center;gap:10px;
+                            width:100%;text-align:left;
+                            padding:9px 10px;border-radius:7px;
+                            border:none;background:transparent;cursor:pointer;
+                            font-family:'DM Sans',sans-serif;font-size:13px;
+                            color:var(--ink-2,#6B655B);
+                            transition:background 0.15s,color 0.15s;
+                        ">
                             <span style="
                                 display:inline-flex;align-items:center;justify-content:center;
                                 width:28px;height:28px;border-radius:6px;flex-shrink:0;
@@ -334,84 +376,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     `).join('')}
                 </nav>
             </aside>
-
-            <!-- Sağ panel: Detay -->
             <main id="help-detail" style="flex:1;padding:40px 48px;overflow-y:auto;"></main>
         </div>
     `;
 
-    // İlk sayfayı göster
     showPage(0);
 });
-
-// Global: toc item tıklandığında sayfayı göster
-window.showPage = function(index) {
-    const p = pages[index];
-
-    // Aktif sınıf güncelle
-    document.querySelectorAll('.toc-item').forEach((el, i) => {
-        el.style.background = i === index ? `${pages[i].color}12` : 'transparent';
-        el.style.color = i === index ? pages[i].color : 'var(--ink-2,#6B655B)';
-        el.style.fontWeight = i === index ? '600' : 'normal';
-    });
-
-    // Detay panelini güncelle
-    const detail = document.getElementById('help-detail');
-    detail.innerHTML = `
-        <div style="max-width:720px;">
-            <!-- Başlık -->
-            <div style="display:flex;align-items:center;gap:16px;margin-bottom:28px;">
-                <div style="
-                    width:52px;height:52px;border-radius:12px;
-                    background:${p.color}15;color:${p.color};
-                    display:flex;align-items:center;justify-content:center;
-                    font-size:20px;flex-shrink:0;
-                "><i class="fa-solid ${p.icon}"></i></div>
-                <div>
-                    <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:26px;font-weight:500;color:var(--ink-1,#1C1A17);margin:0 0 4px;">${p.label}</h2>
-                    <p style="margin:0;font-size:13px;color:var(--ink-3,#968B7A);">${p.short}</p>
-                </div>
-            </div>
-
-            <!-- Açıklama içeriği -->
-            <div class="help-content" style="
-                font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.75;
-                color:var(--ink-2,#6B655B);
-            ">
-                ${p.desc}
-            </div>
-
-            <!-- Sayfaya Git düğmesi -->
-            <div style="margin-top:32px;">
-                <a href="${p.href}" style="
-                    display:inline-flex;align-items:center;gap:8px;
-                    padding:10px 20px;border-radius:8px;
-                    background:${p.color};color:#fff;
-                    font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;
-                    text-decoration:none;
-                    transition:opacity 0.15s;
-                " onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-                    <i class="fa-solid fa-arrow-right" style="font-size:11px;"></i>
-                    ${p.label} sayfasını aç
-                </a>
-            </div>
-        </div>
-    `;
-
-    // Yardım içerik stilleri
-    detail.querySelectorAll('.help-content h4').forEach(h => {
-        h.style.cssText = `font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:${p.color};font-weight:600;margin:24px 0 10px;`;
-    });
-    detail.querySelectorAll('.help-content p').forEach(el => {
-        el.style.cssText = 'margin:0 0 14px;';
-    });
-    detail.querySelectorAll('.help-content ul').forEach(el => {
-        el.style.cssText = 'margin:0 0 14px;padding-left:20px;display:flex;flex-direction:column;gap:6px;';
-    });
-    detail.querySelectorAll('.help-content li').forEach(el => {
-        el.style.cssText = 'line-height:1.6;';
-    });
-    detail.querySelectorAll('.help-content strong').forEach(el => {
-        el.style.cssText = `color:var(--ink-1,#1C1A17);font-weight:600;`;
-    });
-};
