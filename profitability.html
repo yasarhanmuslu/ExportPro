@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <script>/* Flash önle */ (function(){var t=localStorage.getItem('ep-theme')||'light';document.documentElement.classList.add(t==='dark'?'dark':'light');})();</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karlılık Analizi — Export Suite</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./src/assets/css/theme.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background: #F6F3EC !important; color: #1C1A17 !important; }
+        .modal-backdrop { background: rgba(28,26,23,0.50) !important; backdrop-filter: blur(4px); }
+        input, select, textarea {
+            background: #fff !important; border: 1px solid #E4DDCE !important;
+            border-radius: 6px !important; color: #1C1A17 !important;
+            font-family: 'DM Sans', sans-serif !important; font-size: 13px !important;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none !important; border-color: #2D4A3E !important;
+            box-shadow: 0 0 0 3px rgba(45,74,62,0.08) !important;
+        }
+
+        .kpi-card {
+            background: #fff;
+            border: 1px solid #EFEAE0;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(28,26,23,0.06);
+            transition: border-color .2s, box-shadow .2s;
+        }
+        .kpi-card:hover { border-color: #D6CEBC; box-shadow: 0 6px 18px rgba(28,26,23,0.09); }
+
+        .section-card {
+            background: #fff;
+            border: 1px solid #EFEAE0;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(28,26,23,0.04);
+        }
+
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th {
+            padding: 10px 14px;
+            font-size: 10px; font-weight: 600;
+            letter-spacing: 0.14em; text-transform: uppercase;
+            color: #968B7A; text-align: left;
+            border-bottom: 1px solid #EFEAE0;
+            background: #FBF8F1;
+            white-space: nowrap;
+        }
+        .data-table td {
+            padding: 10px 14px;
+            font-size: 12.5px;
+            color: #1C1A17;
+            border-bottom: 1px solid #F4F0E8;
+        }
+        .data-table tbody tr { cursor: pointer; transition: background 0.12s; }
+        .data-table tbody tr:hover { background: #FBF8F1; }
+
+        .score-badge {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 44px; padding: 3px 8px;
+            border-radius: 20px; font-size: 11px; font-weight: 600;
+            font-family: 'DM Sans', sans-serif;
+        }
+        .score-green { background: #E1EBE4; color: #3D6E50; }
+        .score-yellow { background: #F3E5D2; color: #B26B33; }
+        .score-red { background: #F1DDD9; color: #9F3D3D; }
+
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(28,26,23,0.5); backdrop-filter: blur(5px);
+            z-index: 200; align-items: center; justify-content: center; padding: 1rem;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-box {
+            background: #fff; border: 1px solid #EFEAE0;
+            border-radius: 1rem; padding: 2rem;
+            width: 100%; max-width: 680px;
+            max-height: 85vh; overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(28,26,23,0.18);
+        }
+
+        .loading-shimmer {
+            background: linear-gradient(90deg, #F4F0E8 25%, #EFEAE0 50%, #F4F0E8 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px; height: 14px;
+        }
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+        .stat-item { display: flex; flex-direction: column; gap: 2px; }
+        .stat-label { font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #968B7A; }
+        .stat-value { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 500; color: #1C1A17; line-height: 1.1; }
+        .stat-sub { font-size: 11px; color: #6B655B; }
+
+        .section-title {
+            font-size: 10px; font-weight: 600; letter-spacing: 0.18em;
+            text-transform: uppercase; color: #968B7A;
+            display: flex; align-items: center; gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .chart-wrapper { position: relative; height: 300px; }
+
+        .product-price-row {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px; border-radius: 8px;
+            border: 1px solid #EFEAE0; background: #FDFCF9;
+            margin-bottom: 6px; transition: border-color .15s;
+        }
+        .product-price-row:hover { border-color: #D6CEBC; }
+
+        .price-range-bar {
+            flex: 1; height: 6px; background: #EFEAE0; border-radius: 3px;
+            position: relative; overflow: hidden; min-width: 60px;
+        }
+        .price-range-fill {
+            position: absolute; top: 0; height: 100%; border-radius: 3px;
+            background: linear-gradient(90deg, #3D6E50, #B58858);
+        }
+
+        .tag-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 2px 8px; border-radius: 10px;
+            font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+        }
+        .tag-inconsistent { background: #F1DDD9; color: #9F3D3D; }
+        .tag-consistent { background: #E1EBE4; color: #3D6E50; }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div id="navbar-target"></div>
+
+    <main class="min-h-screen" style="margin-left:230px; padding:32px;">
+
+        <!-- Sayfa Başlığı -->
+        <div style="font-size:10px;font-weight:600;letter-spacing:0.22em;text-transform:uppercase;color:#B58858;margin-bottom:8px;">Analitik · Karlılık</div>
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5" style="border-bottom:1px solid #EFEAE0;">
+            <div>
+                <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:10px;">
+                    <i class="fa-solid fa-chart-line" style="color:#2D4A3E;font-size:20px;"></i> Karlılık Analizi.
+                </h2>
+                <p style="font-size:13px;color:#6B655B;margin-top:6px;">İskonto profilleri, müşteri skor tablosu ve ürün fiyat tutarsızlıkları.</p>
+            </div>
+            <button id="btn-refresh" style="display:flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;border:1px solid #E4DDCE;background:#fff;color:#6B655B;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:border-color .15s;">
+                <i class="fa-solid fa-arrows-rotate" style="font-size:11px;"></i> Yenile
+            </button>
+        </header>
+
+        <!-- ══════════════════════════════════════
+             A) ÖZET KPI KARTLARI
+        ══════════════════════════════════════ -->
+        <section id="kpi-section" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
+            <!-- KPI 1: Ort. İskonto -->
+            <div class="kpi-card">
+                <div class="stat-label" style="margin-bottom:10px;">
+                    <i class="fa-solid fa-percent" style="color:#B58858;margin-right:5px;"></i>Ortalama İskonto
+                </div>
+                <div id="kpi-avg-discount" class="stat-value">
+                    <div class="loading-shimmer" style="width:60%;"></div>
+                </div>
+                <div id="kpi-avg-discount-sub" class="stat-sub" style="margin-top:4px;">tüm ürün fiyatları</div>
+            </div>
+
+            <!-- KPI 2: En Yüksek İskonto -->
+            <div class="kpi-card">
+                <div class="stat-label" style="margin-bottom:10px;">
+                    <i class="fa-solid fa-arrow-trend-up" style="color:#9F3D3D;margin-right:5px;"></i>En Yüksek İskonto
+                </div>
+                <div id="kpi-max-discount-customer" class="stat-value" style="font-size:16px;">
+                    <div class="loading-shimmer" style="width:80%;"></div>
+                </div>
+                <div id="kpi-max-discount-rate" class="stat-sub" style="margin-top:4px;color:#9F3D3D;">—</div>
+            </div>
+
+            <!-- KPI 3: Toplam Net Satış -->
+            <div class="kpi-card">
+                <div class="stat-label" style="margin-bottom:10px;">
+                    <i class="fa-solid fa-coins" style="color:#2D4A3E;margin-right:5px;"></i>Toplam Net Satış
+                </div>
+                <div id="kpi-total-sales" class="stat-value" style="color:#2D4A3E;">
+                    <div class="loading-shimmer" style="width:70%;"></div>
+                </div>
+                <div class="stat-sub" style="margin-top:4px;">tüm siparişler</div>
+            </div>
+
+            <!-- KPI 4: Aktif Müşteri -->
+            <div class="kpi-card">
+                <div class="stat-label" style="margin-bottom:10px;">
+                    <i class="fa-solid fa-users-check" style="color:#3F5C7A;margin-right:5px;"></i>Aktif Müşteri
+                </div>
+                <div id="kpi-active-customers" class="stat-value" style="color:#3F5C7A;">
+                    <div class="loading-shimmer" style="width:40%;"></div>
+                </div>
+                <div class="stat-sub" style="margin-top:4px;">en az 1 siparişi olan</div>
+            </div>
+        </section>
+
+        <!-- ══════════════════════════════════════
+             B) MÜŞTERİ BAZINDA İSKONTO TABLOSU
+        ══════════════════════════════════════ -->
+        <section class="section-card mb-6">
+            <div class="section-title">
+                <i class="fa-solid fa-table-list" style="color:#2D4A3E;"></i>
+                Müşteri Bazında İskonto & Karlılık Skoru
+                <span id="customer-table-count" style="margin-left:auto;font-size:10px;background:#F4F0E8;padding:2px 10px;border-radius:10px;color:#6B655B;">yükleniyor...</span>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Müşteri Adı</th>
+                            <th style="text-align:right;">Ürün Sayısı</th>
+                            <th style="text-align:right;">Ort. Liste Fiyat</th>
+                            <th style="text-align:right;">Ort. İskonto %</th>
+                            <th style="text-align:right;">Ort. Net Fiyat</th>
+                            <th style="text-align:right;">Toplam Sipariş</th>
+                            <th style="text-align:center;">Skor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customer-discount-tbody">
+                        <tr><td colspan="7" style="text-align:center;padding:32px;color:#968B7A;">
+                            <i class="fa-solid fa-spinner fa-spin" style="margin-right:6px;"></i> Veriler yükleniyor...
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ══════════════════════════════════════
+             C) İSKONTO DAĞILIMI GRAFİĞİ
+        ══════════════════════════════════════ -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+            <section class="section-card">
+                <div class="section-title">
+                    <i class="fa-solid fa-chart-bar" style="color:#B58858;"></i>
+                    İskonto Dağılımı (Müşteri Bazında)
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="chart-discount-distribution"></canvas>
+                </div>
+            </section>
+
+            <!-- D) ÜRÜN BAZINDA NET FİYAT ANALİZİ — özet istatistik bölümü -->
+            <section class="section-card">
+                <div class="section-title">
+                    <i class="fa-solid fa-magnifying-glass-chart" style="color:#3F5C7A;"></i>
+                    Ürün Fiyat Tutarsızlık Özeti
+                    <span id="product-inconsistency-count" style="margin-left:auto;font-size:10px;background:#F1DDD9;padding:2px 10px;border-radius:10px;color:#9F3D3D;display:none;"></span>
+                </div>
+                <div style="font-size:11px;color:#968B7A;margin-bottom:12px;">Aynı ürün için farklı müşterilere verilen fiyat aralıkları (min / ort / max)</div>
+                <div id="product-price-list" style="max-height:255px;overflow-y:auto;padding-right:4px;">
+                    <div style="text-align:center;padding:32px;color:#968B7A;">
+                        <i class="fa-solid fa-spinner fa-spin"></i> Yükleniyor...
+                    </div>
+                </div>
+            </section>
+        </div>
+
+    </main>
+
+    <!-- ══════════════════════════════════════
+         MÜŞTERİ DETAY MODAL
+    ══════════════════════════════════════ -->
+    <div id="customer-detail-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="flex items-start justify-between mb-5">
+                <div>
+                    <div style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;margin-bottom:4px;">Müşteri Karlılık Detayı</div>
+                    <h3 id="modal-customer-name" style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:500;color:#1C1A17;"></h3>
+                </div>
+                <button id="modal-close-btn" style="width:32px;height:32px;border-radius:8px;border:1px solid #EFEAE0;background:#FBF8F1;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                    <i class="fa-solid fa-xmark" style="font-size:13px;color:#6B655B;"></i>
+                </button>
+            </div>
+
+            <!-- Modal Özet Satırı -->
+            <div class="grid grid-cols-3 gap-3 mb-6">
+                <div style="background:#FBF8F1;border:1px solid #EFEAE0;border-radius:8px;padding:12px;">
+                    <div style="font-size:9px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#968B7A;margin-bottom:4px;">Ort. İskonto</div>
+                    <div id="modal-avg-discount" style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;color:#B26B33;"></div>
+                </div>
+                <div style="background:#FBF8F1;border:1px solid #EFEAE0;border-radius:8px;padding:12px;">
+                    <div style="font-size:9px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#968B7A;margin-bottom:4px;">Toplam Sipariş</div>
+                    <div id="modal-total-orders" style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;color:#2D4A3E;"></div>
+                </div>
+                <div style="background:#FBF8F1;border:1px solid #EFEAE0;border-radius:8px;padding:12px;">
+                    <div style="font-size:9px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#968B7A;margin-bottom:4px;">Karlılık Skoru</div>
+                    <div id="modal-score" style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;"></div>
+                </div>
+            </div>
+
+            <!-- Ürün Fiyat Tablosu -->
+            <div style="font-size:10px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#968B7A;margin-bottom:10px;">
+                <i class="fa-solid fa-list" style="margin-right:5px;"></i>Ürün Özel Fiyat Listesi
+            </div>
+            <div style="overflow-x:auto;border:1px solid #EFEAE0;border-radius:8px;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Ürün Adı</th>
+                            <th style="text-align:right;">Liste Fiyat</th>
+                            <th style="text-align:right;">İskonto %</th>
+                            <th style="text-align:right;">Net Fiyat</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-products-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./src/profitability.js"></script>
+</body>
+</html>

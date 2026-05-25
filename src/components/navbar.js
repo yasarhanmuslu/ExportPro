@@ -25,6 +25,7 @@ export async function renderNavbar(activeTab) {
         { id: 'credit-notes', label: 'Credit Notes',   icon: 'fa-file-invoice',  href: 'credit-notes.html' },
         { id: 'products',     label: 'Ürün Kartları',  icon: 'fa-box',           href: 'products.html' },
         { id: 'order-timeline', label: 'Takip Takvimi', icon: 'fa-calendar-check', href: 'order-timeline.html' },
+        { id: 'profitability', label: 'Karlılık Analizi', icon: 'fa-chart-line', href: 'profitability.html' },
     ];
 
     const menuItems = tabs.map(tab => {
