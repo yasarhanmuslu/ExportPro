@@ -56,7 +56,7 @@ async function fetchOrdersData() {
     try {
         const { data: orders, error } = await supabase
             .from('orders')
-            .select(`*, customers ( company_name, country )`)
+            .select(`*, customers!orders_customer_id_fkey ( company_name, country )`)
             .order('order_date', { ascending: false });
         if (error) throw error;
         globalOrders = orders;

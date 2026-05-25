@@ -1,6 +1,6 @@
 import { supabase } from '../utils/supabaseClient.js';
 
-const APP_VERSION = 'V: 1.0.34';
+const APP_VERSION = 'V: 1.0.35';
 
 export async function renderNavbar(activeTab) {
     const { data: { session } } = await supabase.auth.getSession();
