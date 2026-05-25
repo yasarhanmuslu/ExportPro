@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <script>/* Flash önle */ (function(){var t=localStorage.getItem('ep-theme')||'light';document.documentElement.classList.add(t==='dark'?'dark':'light');})();</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yardım & Kullanım Kılavuzu — Export Suite</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./src/assets/css/theme.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: var(--bg, #F6F3EC) !important; color: var(--ink-1, #1C1A17) !important; }
+
+        #help-toc::-webkit-scrollbar { width: 4px; }
+        #help-toc::-webkit-scrollbar-thumb { background: var(--border, #E4DDCE); border-radius: 4px; }
+
+        #help-detail::-webkit-scrollbar { width: 6px; }
+        #help-detail::-webkit-scrollbar-thumb { background: var(--border, #E4DDCE); border-radius: 4px; }
+
+        .toc-item:hover {
+            background: rgba(45,74,62,0.07) !important;
+            color: var(--ink-1, #1C1A17) !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div id="navbar-target"></div>
+
+    <main style="margin-left:230px;min-height:100vh;display:flex;flex-direction:column;">
+        <div id="help-container" style="flex:1;display:flex;flex-direction:column;"></div>
+    </main>
+
+    <script type="module" src="./src/help.js"></script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 import { supabase } from '../utils/supabaseClient.js';
 
-const APP_VERSION = 'V: 1.0.29';
+const APP_VERSION = 'V: 1.0.30';
 
 export async function renderNavbar(activeTab) {
     const { data: { session } } = await supabase.auth.getSession();
@@ -33,14 +33,17 @@ export async function renderNavbar(activeTab) {
         { id: 'customer-score', label: 'Müşteri Skoru', icon: 'fa-ranking-star', href: 'customer-score.html' },
         { id: 'product-analysis', label: 'Ürün Analizi', icon: 'fa-boxes-stacked', href: 'product-analysis.html' },
         { id: 'market-analysis', label: 'Pazar Analizi', icon: 'fa-globe', href: 'market-analysis.html' },
+        { id: 'help', label: 'Yardım & Kılavuz', icon: 'fa-circle-question', href: 'help.html' },
     ];
 
     const menuItems = tabs.map(tab => {
         const isActive = tab.id === activeTab;
-        return `
+        const isHelp = tab.id === 'help';
+        const separator = isHelp ? `<div style="height:1px;background:var(--sidebar-border,#EFEAE0);margin:6px 4px;"></div>` : '';
+        return `${separator}
             <a href="${tab.href}"
                class="flex items-center gap-2.5 px-3 py-2 text-sm transition-all duration-150 ${isActive ? 'nav-active' : ''}"
-               style="border-radius:6px;">
+               style="border-radius:6px;${isHelp ? 'color:var(--ink-3,#968B7A);' : ''}">
                 <i class="fa-solid ${tab.icon}" style="width:14px;text-align:center;font-size:11px;"></i>
                 ${tab.label}
             </a>`;
