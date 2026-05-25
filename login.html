@@ -8,9 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
     <link rel="stylesheet" href="./src/assets/css/theme.css">
     <script src="https://cdn.tailwindcss.com"></script>
-
     <style>
-        /* Login light theme overrides */
         html.light body { background-color: #f1f5f9 !important; }
         html.light .bg-slate-800 { background-color: #ffffff !important; }
         html.light .bg-slate-950 { background-color: #f8fafc !important; }
@@ -24,27 +22,25 @@
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4">
 
-    <!-- Space Animation Canvas -->
+    <!-- Space Animation Canvas — V: 1.0.16 -->
     <canvas id="ep-bg-canvas" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;"></canvas>
 
     <!-- Theme Toggle -->
-    <div class="fixed top-4 right-4" style="z-index:10;">
+    <div class="fixed top-4 right-4" style="z-index:20;">
         <button id="login-theme-btn" onclick="(function(){var t=localStorage.getItem('ep-theme')||'dark';var n=t==='dark'?'light':'dark';localStorage.setItem('ep-theme',n);document.documentElement.classList.remove('dark','light');document.documentElement.classList.add(n);document.getElementById('login-theme-btn').innerHTML=n==='dark'?'<i class=\'fa-solid fa-sun text-amber-400\'></i>':'<i class=\'fa-solid fa-moon text-indigo-400\'></i>';})()"
             class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400 hover:text-white transition-all cursor-pointer shadow-lg">
             <i class="fa-solid fa-sun text-amber-400" id="login-theme-icon"></i>
         </button>
     </div>
     <script>
-        // İkon başlangıç durumu
         (function(){
             var t = localStorage.getItem('ep-theme') || 'dark';
             var btn = document.getElementById('login-theme-btn');
-            if(btn) btn.innerHTML = t === 'dark' 
+            if(btn) btn.innerHTML = t === 'dark'
                 ? '<i class="fa-solid fa-sun text-amber-400"></i>'
                 : '<i class="fa-solid fa-moon text-indigo-400"></i>';
         })();
     </script>
-
 
     <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700" style="position:relative;z-index:10;">
         <div class="text-center mb-8">
@@ -80,6 +76,7 @@
         </div>
     </div>
 
+    <!-- Supabase Auth -->
     <script>
         const { createClient } = window.supabase;
         const sb = createClient(
@@ -103,9 +100,9 @@
 
         function showMessage(text, isSuccess = false) {
             messageArea.innerText = text;
-            messageArea.className = `text-sm p-3 rounded-lg text-center font-medium ${isSuccess
+            messageArea.className = 'text-sm p-3 rounded-lg text-center font-medium ' + (isSuccess
                 ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-800'
-                : 'bg-rose-950/50 text-rose-400 border border-rose-800'}`;
+                : 'bg-rose-950/50 text-rose-400 border border-rose-800');
             messageArea.classList.remove('hidden');
         }
 
@@ -147,18 +144,20 @@
                 mainBtn.innerText = 'Yeni Hesap Oluştur';
             }
         });
+    </script>
+
     <!-- Space Constellation Animation -->
-    <!-- V: 1.0.16 -->
     <script>
     (function(){
-        const canvas = document.getElementById('ep-bg-canvas');
-        const ctx    = canvas.getContext('2d');
-        let W, H, mouse = { x: -9999, y: -9999 };
+        var canvas = document.getElementById('ep-bg-canvas');
+        var ctx    = canvas.getContext('2d');
+        var W, H;
+        var mouse  = { x: -9999, y: -9999 };
 
-        const NODE_COUNT   = 80;
-        const CONNECT_DIST = 130;
-        const REPEL_RADIUS = 100;
-        const REPEL_FORCE  = 1.4;
+        var NODE_COUNT   = 80;
+        var CONNECT_DIST = 130;
+        var REPEL_RADIUS = 100;
+        var REPEL_FORCE  = 1.4;
 
         function resize() {
             W = canvas.width  = window.innerWidth;
@@ -173,129 +172,111 @@
 
         function getColors() {
             if (isLight()) {
-                return {
-                    node:   'rgba(99,102,241,',
-                    line:   'rgba(99,102,241,',
-                    cursor: 'rgba(234,88,12,'
-                };
+                return { node: 'rgba(99,102,241,', line: 'rgba(99,102,241,', cursor: 'rgba(234,88,12,' };
             }
+            return { node: 'rgba(148,163,184,', line: 'rgba(99,102,241,', cursor: 'rgba(249,115,22,' };
+        }
+
+        function makeNode() {
+            var spd = 0.12 + Math.random() * 0.22;
+            var ang = Math.random() * Math.PI * 2;
             return {
-                node:   'rgba(148,163,184,',
-                line:   'rgba(99,102,241,',
-                cursor: 'rgba(249,115,22,'
+                x:     Math.random() * W,
+                y:     Math.random() * H,
+                vx:    Math.cos(ang) * spd,
+                vy:    Math.sin(ang) * spd,
+                r:     1.2 + Math.random() * 1.8,
+                alpha: 0.4 + Math.random() * 0.6
             };
         }
 
-        class Node {
-            constructor() { this.init(); }
-            init() {
-                this.x  = Math.random() * W;
-                this.y  = Math.random() * H;
-                const spd = 0.12 + Math.random() * 0.22;
-                const ang = Math.random() * Math.PI * 2;
-                this.vx = Math.cos(ang) * spd;
-                this.vy = Math.sin(ang) * spd;
-                this.r     = 1.2 + Math.random() * 1.8;
-                this.alpha = 0.4 + Math.random() * 0.6;
+        var nodes = [];
+        for (var i = 0; i < NODE_COUNT; i++) nodes.push(makeNode());
+
+        function updateNode(n) {
+            var dx   = n.x - mouse.x;
+            var dy   = n.y - mouse.y;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < REPEL_RADIUS && dist > 0) {
+                var force = (1 - dist / REPEL_RADIUS) * REPEL_FORCE;
+                n.vx += (dx / dist) * force * 0.09;
+                n.vy += (dy / dist) * force * 0.09;
             }
 
-            update() {
-                const dx   = this.x - mouse.x;
-                const dy   = this.y - mouse.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
+            var MAX_SPD  = 2.0;
+            var BASE_SPD = 0.15;
+            var spd = Math.sqrt(n.vx * n.vx + n.vy * n.vy);
+            if (spd > MAX_SPD) { n.vx = n.vx / spd * MAX_SPD; n.vy = n.vy / spd * MAX_SPD; }
+            if (spd > BASE_SPD) { n.vx *= 0.999; n.vy *= 0.999; }
 
-                if (dist < REPEL_RADIUS && dist > 0) {
-                    const force = (1 - dist / REPEL_RADIUS) * REPEL_FORCE;
-                    this.vx += (dx / dist) * force * 0.09;
-                    this.vy += (dy / dist) * force * 0.09;
-                }
+            n.vx += (Math.random() - 0.5) * 0.003;
+            n.vy += (Math.random() - 0.5) * 0.003;
 
-                const MAX_SPD = 2.0;
-                const BASE_SPD = 0.15;
-                const spd = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-                if (spd > MAX_SPD) {
-                    this.vx = this.vx / spd * MAX_SPD;
-                    this.vy = this.vy / spd * MAX_SPD;
-                }
-                if (spd > BASE_SPD) {
-                    this.vx *= 0.999;
-                    this.vy *= 0.999;
-                }
+            n.x += n.vx;
+            n.y += n.vy;
 
-                this.vx += (Math.random() - 0.5) * 0.003;
-                this.vy += (Math.random() - 0.5) * 0.003;
-
-                this.x += this.vx;
-                this.y += this.vy;
-
-                if (this.x < -20) this.x = W + 20;
-                if (this.x > W+20) this.x = -20;
-                if (this.y < -20) this.y = H + 20;
-                if (this.y > H+20) this.y = -20;
-            }
-
-            draw(colors) {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
-                ctx.fillStyle = colors.node + this.alpha + ')';
-                ctx.fill();
-            }
+            if (n.x < -20) n.x = W + 20;
+            if (n.x > W + 20) n.x = -20;
+            if (n.y < -20) n.y = H + 20;
+            if (n.y > H + 20) n.y = -20;
         }
 
-        const nodes = Array.from({ length: NODE_COUNT }, () => new Node());
+        function loop() {
+            ctx.clearRect(0, 0, W, H);
+            var colors = getColors();
 
-        function drawConnections(colors) {
-            for (let i = 0; i < nodes.length; i++) {
-                for (let j = i + 1; j < nodes.length; j++) {
-                    const a  = nodes[i], b = nodes[j];
-                    const dx = a.x - b.x, dy = a.y - b.y;
-                    const d  = Math.sqrt(dx * dx + dy * dy);
+            for (var i = 0; i < nodes.length; i++) updateNode(nodes[i]);
+
+            for (var i = 0; i < nodes.length; i++) {
+                for (var j = i + 1; j < nodes.length; j++) {
+                    var a = nodes[i], b = nodes[j];
+                    var dx = a.x - b.x, dy = a.y - b.y;
+                    var d = Math.sqrt(dx * dx + dy * dy);
                     if (d < CONNECT_DIST) {
-                        const op = (1 - d / CONNECT_DIST) * 0.4;
                         ctx.beginPath();
                         ctx.moveTo(a.x, a.y);
                         ctx.lineTo(b.x, b.y);
-                        ctx.strokeStyle = colors.line + op + ')';
+                        ctx.strokeStyle = colors.line + ((1 - d / CONNECT_DIST) * 0.4) + ')';
                         ctx.lineWidth   = 0.7;
                         ctx.stroke();
                     }
                 }
             }
-        }
 
-        function drawMouseLines(colors) {
-            if (mouse.x < 0 || mouse.x > W + 100) return;
-            const reach = REPEL_RADIUS * 1.6;
-            nodes.forEach(n => {
-                const dx = n.x - mouse.x, dy = n.y - mouse.y;
-                const d  = Math.sqrt(dx * dx + dy * dy);
-                if (d < reach) {
-                    const op = (1 - d / reach) * 0.55;
-                    ctx.beginPath();
-                    ctx.moveTo(mouse.x, mouse.y);
-                    ctx.lineTo(n.x, n.y);
-                    ctx.strokeStyle = colors.cursor + op + ')';
-                    ctx.lineWidth   = 0.6;
-                    ctx.stroke();
+            if (mouse.x > 0 && mouse.x < W + 100) {
+                var reach = REPEL_RADIUS * 1.6;
+                for (var i = 0; i < nodes.length; i++) {
+                    var n = nodes[i];
+                    var dx = n.x - mouse.x, dy = n.y - mouse.y;
+                    var d = Math.sqrt(dx * dx + dy * dy);
+                    if (d < reach) {
+                        ctx.beginPath();
+                        ctx.moveTo(mouse.x, mouse.y);
+                        ctx.lineTo(n.x, n.y);
+                        ctx.strokeStyle = colors.cursor + ((1 - d / reach) * 0.55) + ')';
+                        ctx.lineWidth   = 0.6;
+                        ctx.stroke();
+                    }
                 }
-            });
-        }
+            }
 
-        function loop() {
-            ctx.clearRect(0, 0, W, H);
-            const colors = getColors();
-            nodes.forEach(n => n.update());
-            drawConnections(colors);
-            drawMouseLines(colors);
-            nodes.forEach(n => n.draw(colors));
+            for (var i = 0; i < nodes.length; i++) {
+                var n = nodes[i];
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+                ctx.fillStyle = colors.node + n.alpha + ')';
+                ctx.fill();
+            }
+
             requestAnimationFrame(loop);
         }
 
-        document.addEventListener('mousemove', e => {
+        document.addEventListener('mousemove', function(e) {
             mouse.x = e.clientX;
             mouse.y = e.clientY;
         });
-        document.addEventListener('mouseleave', () => {
+        document.addEventListener('mouseleave', function() {
             mouse.x = -9999;
             mouse.y = -9999;
         });
@@ -303,5 +284,6 @@
         loop();
     })();
     </script>
+
 </body>
 </html>
