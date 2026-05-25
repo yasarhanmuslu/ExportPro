@@ -17,7 +17,7 @@ let calMonth = new Date().getMonth(); // 0-based
 async function loadOrders() {
     const { data, error } = await supabase
         .from('orders')
-        .select('*, customers(company_name)')
+        .select('*, customers!orders_customer_id_fkey(company_name)')
         .eq('user_id', session.user.id)
         .order('due_date', { ascending: true });
 

@@ -24,7 +24,7 @@ async function loadAnalysis(session) {
         .select(`
             id, product_name, product_code, quantity, unit_price, amount, currency,
             orders!inner(order_date, customer_id,
-                customers(id, company_name)
+                customers!orders_customer_id_fkey(id, company_name)
             ),
             products(product_group)
         `)

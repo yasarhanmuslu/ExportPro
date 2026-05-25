@@ -50,7 +50,7 @@ async function fetchCreditNotesData() {
             .from('credit_notes')
             .select(`
                 *,
-                customers ( company_name ),
+                customers!credit_notes_customer_id_fkey ( company_name ),
                 credit_note_items ( * )
             `)
             .order('cn_date', { ascending: false });

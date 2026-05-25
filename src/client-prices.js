@@ -43,7 +43,7 @@ async function fetchClientPrices() {
         const { data: { session } } = await supabase.auth.getSession();
         const { data, error } = await supabase
             .from('customer_prices')
-            .select(`*, customers ( company_name, country )`)
+            .select(`*, customers!client_prices_customer_id_fkey ( company_name, country )`)
             .eq('user_id', session.user.id)
             .order('product_name', { ascending: true });
         if (error) throw error;

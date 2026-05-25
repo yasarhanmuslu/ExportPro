@@ -49,7 +49,7 @@ async function fetchCustomerPrices() {
             .from('customer_prices')
             .select(`
                 *,
-                customers ( company_name )
+                customers!customer_prices_customer_id_fkey ( company_name )
             `)
             .order('product_name', { ascending: true });
 

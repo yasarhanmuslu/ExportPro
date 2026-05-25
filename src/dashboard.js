@@ -40,11 +40,11 @@ async function loadAllDashboardData(selectedYear) {
             profitabilityRes
         ] = await Promise.all([
             supabase.from('orders')
-                .select('*, customers(company_name, country)')
+                .select('*, customers!orders_customer_id_fkey(company_name, country)')
                 .eq('user_id', uid)
                 .order('order_date', { ascending: false }),
             supabase.from('quotations')
-                .select('id, status, total_amount, currency, quotation_date, customers(company_name)')
+                .select('id, status, total_amount, currency, quotation_date, customers!quotations_customer_id_fkey(company_name)')
                 .eq('user_id', uid)
                 .order('created_at', { ascending: false }),
             supabase.from('credit_notes')
@@ -57,7 +57,7 @@ async function loadAllDashboardData(selectedYear) {
                 .select('id, company_name, country')
                 .eq('user_id', uid),
             supabase.from('customer_prices')
-                .select('customer_id, discount_rate, customers(company_name)')
+                .select('customer_id, discount_rate, customers!customer_prices_customer_id_fkey(company_name)')
                 .eq('user_id', uid)
         ]);
 

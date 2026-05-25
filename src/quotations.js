@@ -44,7 +44,7 @@ async function fetchCustomers(session) {
 async function fetchQuotations(session) {
     const { data, error } = await supabase
         .from('quotations')
-        .select(`*, customers(company_name, country), quotation_items(*)`)
+        .select(`*, customers!quotations_customer_id_fkey(company_name, country), quotation_items(*)`)
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false });
 
