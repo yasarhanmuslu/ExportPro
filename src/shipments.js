@@ -58,7 +58,13 @@ function initEventListeners() {
 // ── Veri Yükleme ─────────────────────────────────────────────────────────────
 async function loadData(session) {
     try {
-        const [{ data: shipments, error: shipErr }, { data: orders, error: ordErr }] = await Promise.all([
+        // orders↔customers arasında birden fazla FK olabileceğinden embed kullanmıyoruz;
+        // payments.js ile aynı pattern: her tabloyu ayrı çek, JS'de birleştir.
+        const [
+            { data: shipments, error: shipErr },
+            { data: orders,    error: ordErr  },
+            { data: customers, error: custErr }
+        ] = await Promise.all([
             supabase
                 .from('shipments')
                 .select('*')
@@ -66,23 +72,32 @@ async function loadData(session) {
                 .order('created_at', { ascending: false }),
             supabase
                 .from('orders')
-                .select('id, order_number, customer_id, customers(company_name, country)')
+                .select('id, order_number, customer_id')
                 .eq('user_id', session.user.id)
-                .order('order_number', { ascending: false })
+                .order('order_number', { ascending: false }),
+            supabase
+                .from('customers')
+                .select('id, company_name, country')
+                .eq('user_id', session.user.id)
         ]);
 
         if (shipErr) throw shipErr;
         if (ordErr)  throw ordErr;
+        if (custErr) throw custErr;
 
-        globalOrders = orders || [];
+        // Müşteri map'i: customer_id → { company_name, country }
+        const custMap = {};
+        (customers || []).forEach(c => { custMap[c.id] = c; });
 
         // Order map'i oluştur: order_id → { order_number, company_name, country }
+        globalOrders = orders || [];
         const orderMap = {};
         globalOrders.forEach(o => {
+            const cust = custMap[o.customer_id] || {};
             orderMap[o.id] = {
                 order_number: o.order_number,
-                company_name: o.customers?.company_name || '—',
-                country: o.customers?.country || ''
+                company_name: cust.company_name || '—',
+                country:      cust.country      || ''
             };
         });
 
@@ -91,7 +106,7 @@ async function loadData(session) {
             _order: orderMap[s.order_id] || { order_number: '?', company_name: '—', country: '' }
         }));
 
-        populateOrderDropdown();
+        populateOrderDropdown(custMap);
         populateFilterDropdowns();
         renderKPIs();
         renderTable(globalShipments);
@@ -103,14 +118,15 @@ async function loadData(session) {
 }
 
 // ── Sipariş Dropdown ─────────────────────────────────────────────────────────
-function populateOrderDropdown() {
+function populateOrderDropdown(custMap) {
     const sel = document.getElementById('form-order-id');
     if (!sel) return;
     sel.innerHTML = '<option value="">— Sipariş Seçiniz —</option>';
     globalOrders.forEach(o => {
+        const cust = custMap[o.customer_id] || {};
         const opt = document.createElement('option');
         opt.value = o.id;
-        opt.textContent = `${o.order_number} — ${o.customers?.company_name || '?'} (${o.customers?.country || ''})`;
+        opt.textContent = `${o.order_number} — ${cust.company_name || '?'} (${cust.country || ''})`;
         sel.appendChild(opt);
     });
 }
