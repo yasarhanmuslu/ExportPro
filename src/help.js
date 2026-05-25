@@ -376,7 +376,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     `).join('')}
                 </nav>
             </aside>
-            <main id="help-detail" style="flex:1;padding:40px 48px;overflow-y:auto;"></main>
+            <main id="help-detail" style="flex:1;padding:40px 15px 40px 15px;overflow-y:auto;"></main>
         </div>
     `;
 
