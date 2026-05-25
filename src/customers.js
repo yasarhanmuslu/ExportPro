@@ -44,9 +44,9 @@ function renderCustomersList(customersList) {
 
     if (customersList.length === 0) {
         container.innerHTML = `
-            <div class="text-center py-12 bg-slate-900/20 border border-slate-800 border-dashed rounded-xl">
+            <div class="text-center py-12 bg-[#FBF8F1]/20 border border-[#EFEAE0] border-dashed rounded-xl">
                 <i class="fa-solid fa-users-slash text-slate-600 text-3xl mb-3"></i>
-                <p class="text-slate-500 text-sm">Kriterlere uygun müşteri kaydı bulunamadı.</p>
+                <p class="text-[#968B7A] text-sm">Kriterlere uygun müşteri kaydı bulunamadı.</p>
             </div>`;
         return;
     }
@@ -61,13 +61,13 @@ function renderCustomersList(customersList) {
     Object.keys(grouped).forEach(country => {
         const itemCount = grouped[country].length;
         const groupCard = document.createElement('div');
-        groupCard.className = "bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-md";
+        groupCard.className = "bg-[#FBF8F1]/40 border border-[#EFEAE0] rounded-xl overflow-hidden shadow-md";
 
         groupCard.innerHTML = `
-            <div class="bg-slate-900/80 px-6 py-4 flex items-center justify-between cursor-pointer border-b border-slate-800/60 select-none toggle-group-btn">
+            <div class="bg-[#FBF8F1]/80 px-6 py-4 flex items-center justify-between cursor-pointer border-b border-[#EFEAE0]/60 select-none toggle-group-btn">
                 <div class="flex items-center gap-3">
-                    <i class="fa-solid fa-chevron-down text-xs text-slate-500 transition-transform duration-200"></i>
-                    <span class="font-bold text-white tracking-wide">${country.toUpperCase()}</span>
+                    <i class="fa-solid fa-chevron-down text-xs text-[#968B7A] transition-transform duration-200"></i>
+                    <span class="font-bold text-[#1C1A17] tracking-wide">${country.toUpperCase()}</span>
                     <span class="px-2 py-0.5 bg-blue-950 text-blue-400 text-[11px] font-semibold border border-blue-900/50 rounded-full">${itemCount} Müşteri</span>
                 </div>
             </div>
@@ -87,11 +87,11 @@ function renderCustomersList(customersList) {
                     <tbody>
                         ${grouped[country].map(cust => `
                             <tr>
-                                <td class="font-medium text-slate-200">${escapeHtml(cust.company_name)}</td>
-                                <td class="text-slate-300">${escapeHtml(cust.contact_name || '—')}</td>
+                                <td class="font-medium text-[#1C1A17]">${escapeHtml(cust.company_name)}</td>
+                                <td class="text-[#6B655B]">${escapeHtml(cust.contact_name || '—')}</td>
                                 <td>
                                     <div class="text-xs">${escapeHtml(cust.email || '—')}</div>
-                                    <div class="text-xs text-slate-500">${escapeHtml(cust.phone || '')}</div>
+                                    <div class="text-xs text-[#968B7A]">${escapeHtml(cust.phone || '')}</div>
                                 </td>
                                 <td>
                                     <span class="px-2.5 py-1 rounded-md text-xs font-medium border ${getGroupBadgeClass(cust.client_group)}">
@@ -103,9 +103,9 @@ function renderCustomersList(customersList) {
                                         ${cust.status || 'Aktif'}
                                     </span>
                                 </td>
-                                <td class="text-slate-400 text-xs">${new Date(cust.created_at).toLocaleDateString('tr-TR')}</td>
+                                <td class="text-[#6B655B] text-xs">${new Date(cust.created_at).toLocaleDateString('tr-TR')}</td>
                                 <td class="text-right">
-                                    <button class="btn-edit-trigger text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 px-3 py-1.5 rounded-md text-blue-400 transition-colors" data-id="${cust.id}">
+                                    <button class="btn-edit-trigger text-xs bg-[#FBF8F1] hover:bg-slate-700 border border-[#E4DDCE] hover:border-slate-600 px-3 py-1.5 rounded-md text-blue-400 transition-colors" data-id="${cust.id}">
                                         <i class="fa-solid fa-pen-to-square"></i> Düzenle
                                     </button>
                                 </td>
@@ -309,19 +309,19 @@ function populateCountryFilter(customers) {
 
 function getGroupBadgeClass(group) {
     switch(group) {
-        case 'VIP': return 'bg-amber-950/40 text-amber-400 border-amber-900/50';
-        case 'Stratejik': return 'bg-[rgba(228,90,128,0.12)] text-[#E45A80] border-[rgba(228,90,128,0.25)]';
-        case 'Potansiyel': return 'bg-rose-950/40 text-rose-400 border-rose-900/50';
-        default: return 'bg-slate-800 text-slate-400 border-slate-700/60';
+        case 'VIP': return 'bg-amber-950/40 text-[#B26B33] border-amber-900/50';
+        case 'Stratejik': return 'bg-[#E8EEEA] text-[#2D4A3E] border-[rgba(228,90,128,0.25)]';
+        case 'Potansiyel': return 'bg-rose-950/40 text-[#9F3D3D] border-rose-900/50';
+        default: return 'bg-[#FBF8F1] text-[#6B655B] border-[#E4DDCE]/60';
     }
 }
 
 function getStatusBadgeClass(status) {
     switch(status) {
-        case 'Aktif': return 'bg-emerald-950/50 text-emerald-400';
-        case 'Pasif': return 'bg-slate-800 text-slate-500';
-        case 'Potansiyel': return 'bg-amber-950/40 text-amber-400';
-        default: return 'bg-emerald-950/50 text-emerald-400';
+        case 'Aktif': return 'bg-emerald-950/50 text-[#3D6E50]';
+        case 'Pasif': return 'bg-[#FBF8F1] text-[#968B7A]';
+        case 'Potansiyel': return 'bg-amber-950/40 text-[#B26B33]';
+        default: return 'bg-emerald-950/50 text-[#3D6E50]';
     }
 }
 

@@ -47,7 +47,7 @@ async function fetchOrdersData() {
         renderOrdersTable(orders);
     } catch (err) {
         console.error("Sipariş verileri yüklenemedi:", err.message);
-        document.getElementById('orders-table-body').innerHTML = `<tr><td colspan="9" class="text-center text-rose-400 py-4">Veriler çekilirken bir hata oluştu.</td></tr>`;
+        document.getElementById('orders-table-body').innerHTML = `<tr><td colspan="9" class="text-center text-[#9F3D3D] py-4">Veriler çekilirken bir hata oluştu.</td></tr>`;
     }
 }
 
@@ -59,7 +59,7 @@ function renderOrdersTable(ordersList) {
     countBadge.textContent = `${ordersList.length} Sipariş`;
 
     if (ordersList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-slate-500 py-8">Kriterlere uygun sipariş bulunamadı.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-[#968B7A] py-8">Kriterlere uygun sipariş bulunamadı.</td></tr>`;
         return;
     }
 
@@ -72,15 +72,15 @@ function renderOrdersTable(ordersList) {
 
         // Üretim durum rengi
         const prodColors = {
-            'Bekliyor': 'bg-slate-800 text-slate-400',
+            'Bekliyor': 'bg-[#FBF8F1] text-[#6B655B]',
             'Üretimde': 'bg-blue-950/60 text-blue-400',
-            'Hazır': 'bg-emerald-950/60 text-emerald-400',
-            'Sevk Edildi': 'bg-[rgba(228,90,128,0.12)] text-[#E45A80]'
+            'Hazır': 'bg-emerald-950/60 text-[#3D6E50]',
+            'Sevk Edildi': 'bg-[#E8EEEA] text-[#2D4A3E]'
         };
         const payColors = {
-            'Ödenmedi': 'bg-rose-950/60 text-rose-400',
-            'Kısmen Ödendi': 'bg-amber-950/60 text-amber-400',
-            'Ödendi': 'bg-emerald-950/60 text-emerald-400'
+            'Ödenmedi': 'bg-rose-950/60 text-[#9F3D3D]',
+            'Kısmen Ödendi': 'bg-amber-950/60 text-[#B26B33]',
+            'Ödendi': 'bg-emerald-950/60 text-[#3D6E50]'
         };
 
         const prodStatus = order.production_status || 'Bekliyor';
@@ -101,19 +101,19 @@ function renderOrdersTable(ordersList) {
                 <span class="w-2.5 h-2.5 rounded-full inline-block ${rowClass === 'row-yesil' ? 'bg-emerald-400' : rowClass === 'row-sari' ? 'bg-yellow-400' : rowClass === 'row-kirmizi' ? 'bg-rose-400' : 'bg-slate-500'}"></span>
             </td>
             <td>
-                <div class="text-slate-400 text-xs font-mono">${order.order_date ? new Date(order.order_date).toLocaleDateString('tr-TR') : '-'}</div>
-                <div class="text-xs text-slate-500 font-mono mt-0.5">${escapeHtml(order.order_number || '')}</div>
-                ${order.shipment_date ? `<div class="text-xs text-[#E45A80] font-mono">Sevk: ${new Date(order.shipment_date).toLocaleDateString('tr-TR')}</div>` : ''}
-                ${order.due_date ? `<div class="text-xs text-rose-400 font-mono">Vade: ${new Date(order.due_date).toLocaleDateString('tr-TR')}</div>` : ''}
+                <div class="text-[#6B655B] text-xs font-mono">${order.order_date ? new Date(order.order_date).toLocaleDateString('tr-TR') : '-'}</div>
+                <div class="text-xs text-[#968B7A] font-mono mt-0.5">${escapeHtml(order.order_number || '')}</div>
+                ${order.shipment_date ? `<div class="text-xs text-[#2D4A3E] font-mono">Sevk: ${new Date(order.shipment_date).toLocaleDateString('tr-TR')}</div>` : ''}
+                ${order.due_date ? `<div class="text-xs text-[#9F3D3D] font-mono">Vade: ${new Date(order.due_date).toLocaleDateString('tr-TR')}</div>` : ''}
             </td>
             <td>
-                <div class="font-semibold text-slate-200">${escapeHtml(compName)}</div>
-                ${country ? `<div class="text-xs text-slate-500 uppercase tracking-widest mt-0.5">${escapeHtml(country)}</div>` : ''}
-                ${order.order_notes ? `<div class="text-xs text-slate-500 italic mt-0.5 truncate max-w-[160px]">${escapeHtml(order.order_notes)}</div>` : ''}
+                <div class="font-semibold text-[#1C1A17]">${escapeHtml(compName)}</div>
+                ${country ? `<div class="text-xs text-[#968B7A] uppercase tracking-widest mt-0.5">${escapeHtml(country)}</div>` : ''}
+                ${order.order_notes ? `<div class="text-xs text-[#968B7A] italic mt-0.5 truncate max-w-[160px]">${escapeHtml(order.order_notes)}</div>` : ''}
             </td>
             <td class="text-right font-mono font-medium">${parseFloat(order.total_amount||0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${symbol}</td>
-            <td class="text-right font-mono text-emerald-400">${parseFloat(order.advance_payment||0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${symbol}</td>
-            <td class="text-right font-mono text-amber-400">${parseFloat(order.remaining_balance||0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${symbol}</td>
+            <td class="text-right font-mono text-[#3D6E50]">${parseFloat(order.advance_payment||0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${symbol}</td>
+            <td class="text-right font-mono text-[#B26B33]">${parseFloat(order.remaining_balance||0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${symbol}</td>
             <td class="text-center">
                 <span class="text-xs px-2 py-1 rounded-full font-semibold ${prodColors[prodStatus] || prodColors['Bekliyor']}">${prodStatus}</span>
             </td>
@@ -121,7 +121,7 @@ function renderOrdersTable(ordersList) {
                 <span class="text-xs px-2 py-1 rounded-full font-semibold ${payColors[payStatus] || payColors['Ödenmedi']}">${payStatus}</span>
             </td>
             <td class="text-center">
-                <button class="btn-edit-order-trigger text-xs bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 px-2.5 py-1.5 rounded-lg text-orange-400 transition-colors" data-id="${order.id}">
+                <button class="btn-edit-order-trigger text-xs bg-[#FBF8F1] hover:bg-[#FBF8F1] border border-[#EFEAE0] hover:border-[#E4DDCE] px-2.5 py-1.5 rounded-lg text-orange-400 transition-colors" data-id="${order.id}">
                     <i class="fa-solid fa-file-pen"></i> Yönet
                 </button>
             </td>
@@ -165,7 +165,7 @@ function openModalForOrderCreate() {
     document.getElementById('order-id').value = '';
     document.getElementById('order_date').value = new Date().toISOString().slice(0, 10);
     document.getElementById('live-remaining-balance').textContent = '0,00';
-    document.getElementById('order-modal-title').innerHTML = `<i class="fa-solid fa-cart-plus text-[#E45A80]"></i> Yeni Sipariş Girişi`;
+    document.getElementById('order-modal-title').innerHTML = `<i class="fa-solid fa-cart-plus text-[#2D4A3E]"></i> Yeni Sipariş Girişi`;
     document.getElementById('btn-delete-order').classList.add('hidden');
     document.getElementById('order-modal').classList.remove('hidden');
 }

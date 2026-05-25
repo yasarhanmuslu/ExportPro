@@ -4,19 +4,34 @@
     <meta charset="UTF-8">
     <script>/* Flash önle */ (function(){var t=localStorage.getItem("ep-theme")||"dark";document.documentElement.classList.add(t==="light"?"light":"dark");})();</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Credit Note Takip - Export Manager Pro</title>
+    <title>Credit Notes — Export Suite</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./src/assets/css/theme.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* ── Porselen iç sayfa overrides ── */
+        body { background: #F6F3EC !important; color: #1C1A17 !important; }
+        .modal-backdrop { background: rgba(28,26,23,0.50) !important; backdrop-filter: blur(4px); }
         input, select, textarea {
-            background: rgb(2 6 23); border: 1px solid rgb(51 65 85);
-            border-radius: 0.5rem; padding: 0.5rem 1rem;
-            color: rgb(241 245 249); font-size: 0.875rem; width: 100%;
+            background: #fff !important; border: 1px solid #E4DDCE !important;
+            border-radius: 6px !important; color: #1C1A17 !important;
+            font-family: 'DM Sans', sans-serif !important; font-size: 13px !important;
         }
-        input:focus, select:focus { outline: none; border-color: rgb(99 102 241); box-shadow: 0 0 0 1px rgb(99 102 241); }
-        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
+        input:focus, select:focus, textarea:focus {
+            outline: none !important; border-color: #2D4A3E !important;
+            box-shadow: 0 0 0 3px rgba(45,74,62,0.08) !important;
+        }
+
+        input, select, textarea {
+            background: #fff; border: 1px solid #E4DDCE;
+            border-radius: 6px; padding: 0 12px;
+            color: #1C1A17; font-size: 13px; width: 100%; height: 38px;
+        }
+        input:focus, select:focus { outline: none; border-color: #2D4A3E; box-shadow: 0 0 0 3px rgba(45,74,62,0.08); }
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(28,26,23,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
         .modal-backdrop.hidden { display: none; }
         .modal-content { background: rgb(15 23 42); border: 1px solid rgb(30 41 59); border-radius: 1rem; width: 100%; max-width: 56rem; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
         .custom-table-container { overflow-x: auto; background: rgba(15,23,42,0.4); border: 1px solid rgb(30 41 59); border-radius: 0.75rem; }
@@ -27,23 +42,23 @@
         .custom-table tbody tr:last-child td { border-bottom: none; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100">
+<body class="min-h-screen">
 
     <div id="navbar-target"></div>
 
-    <main class="ml-64 p-8 min-h-screen">
-        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b border-slate-800">
+    <main class="min-h-screen" style="margin-left:230px;padding:32px;">
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b">
             <div>
-                <h2 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px;">
                     <i class="fa-solid fa-file-invoice-dollar text-rose-500"></i> Credit Note (Şikayet & Mahsup) Takibi
                 </h2>
                 <p class="text-sm text-slate-400 mt-1">Müşteri şikayetleri, kalite kararları ve finansal statü takipleri.</p>
             </div>
             <div class="flex items-center gap-3">
-                <button id="btn-export-cn" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-lg text-sm font-semibold flex items-center gap-2 text-slate-300 cursor-pointer">
+                <button id="btn-export-cn" class="px-4 py-2 bg-[#FBF8F1] hover:bg-[#F0EDE4F1] border border-slate-700 rounded-lg text-sm font-semibold flex items-center gap-2 text-slate-300 cursor-pointer">
                     <i class="fa-solid fa-file-excel text-emerald-500"></i> Dışa Aktar
                 </button>
-                <button id="btn-open-cn-modal" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer">
+                <button id="btn-open-cn-modal" class="px-4 py-2 bg-[#9F3D3D] hover:bg-[#7a2e2e]00 text-white rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer">
                     <i class="fa-solid fa-circle-plus"></i> Yeni CN Dosyası Aç
                 </button>
             </div>
@@ -61,9 +76,9 @@
                 <option value="Reddedildi">Reddedildi</option>
                 <option value="Mahsup Edildi">Mahsup Edildi</option>
             </select>
-            <div class="bg-slate-900/40 border border-slate-800 rounded-lg px-4 py-2 flex items-center justify-between text-xs text-slate-400 font-medium">
+            <div class="bg-[#F6F3EC]/40 border border-slate-800 rounded-lg px-4 py-2 flex items-center justify-between text-xs text-slate-400 font-medium">
                 <span>Açık Şikayet/Dosya:</span>
-                <span id="total-cn-records" class="text-rose-400 font-bold text-sm">0 Dosya</span>
+                <span id="total-cn-records" class="text-[#9F3D3D] font-bold text-sm">0 Dosya</span>
             </div>
         </section>
 
@@ -88,11 +103,11 @@
     <!-- Modal -->
     <div id="cn-modal" class="modal-backdrop hidden">
         <div class="modal-content">
-            <div class="flex items-center justify-between border-b border-slate-800 p-6">
+            <div class="flex items-center justify-between border-b p-6">
                 <h3 id="cn-modal-title" class="text-lg font-bold text-white flex items-center gap-2">
                     <i class="fa-solid fa-file-medical text-rose-500"></i> Yeni Credit Note Dosyası
                 </h3>
-                <button id="btn-close-cn-modal" class="text-slate-500 hover:text-slate-300 cursor-pointer">
+                <button id="btn-close-cn-modal" class="text-[#968B7A] hover:text-slate-300 cursor-pointer">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
@@ -100,7 +115,7 @@
             <form id="cn-form" class="flex-1 overflow-y-auto p-6 space-y-6">
                 <input type="hidden" id="cn-id">
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-900/30 p-4 border border-slate-800 rounded-xl">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-[#FBF8F1] p-4 border border-slate-800 rounded-xl">
                     <div>
                         <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Müşteri Firma *</label>
                         <select id="cn-customer-select" required>
@@ -123,11 +138,11 @@
                 </div>
 
                 <div class="space-y-4">
-                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                        <h4 class="text-xs font-bold text-[#E45A80] uppercase tracking-widest flex items-center gap-2">
+                    <div class="flex items-center justify-between border-b pb-2">
+                        <h4 class="text-xs font-bold text-[#2D4A3E] uppercase tracking-widest flex items-center gap-2">
                             <i class="fa-solid fa-boxes-stacked"></i> Şikayet Ürün Kalemleri
                         </h4>
-                        <button type="button" id="btn-add-item-row" class="text-xs bg-[rgba(228,90,128,0.12)]50 hover:bg-[rgba(228,90,128,0.12)]00 border border-indigo-900 text-[#E45A80] px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer">
+                        <button type="button" id="btn-add-item-row" class="text-xs bg-[#E8EEEA]50 hover:bg-[#E8EEEA]00 border border-indigo-900 text-[#2D4A3E] px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer">
                             <i class="fa-solid fa-plus text-xs"></i> Yeni Satır Ekle
                         </button>
                     </div>
@@ -135,13 +150,13 @@
                 </div>
             </form>
 
-            <div class="flex items-center justify-between border-t border-slate-800 p-6 bg-slate-950/60">
-                <button type="button" id="btn-delete-cn" class="hidden px-4 py-2 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/50 text-rose-400 text-sm font-semibold rounded-lg cursor-pointer">
+            <div class="flex items-center justify-between border-t border-[#EFEAE0] p-6 bg-slate-950/60">
+                <button type="button" id="btn-delete-cn" class="hidden px-4 py-2 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/50 text-[#9F3D3D] text-sm font-semibold rounded-lg cursor-pointer">
                     <i class="fa-solid fa-trash-can"></i> Dosyayı Sil
                 </button>
                 <div class="flex items-center gap-3 ml-auto">
-                    <button type="button" id="btn-cn-cancel" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm font-semibold text-slate-300 cursor-pointer">İptal / Kapat</button>
-                    <button type="submit" form="cn-form" class="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-sm font-semibold cursor-pointer">Değişiklikleri Kaydet</button>
+                    <button type="button" id="btn-cn-cancel" class="px-4 py-2 bg-[#FBF8F1] hover:bg-[#FBF8F1] border border-slate-700 rounded-lg text-sm font-semibold text-slate-300 cursor-pointer">İptal / Kapat</button>
+                    <button type="submit" form="cn-form" class="px-5 py-2 bg-[#9F3D3D] hover:bg-[#7a2e2e]00 text-white rounded-lg text-sm font-semibold cursor-pointer">Değişiklikleri Kaydet</button>
                 </div>
             </div>
         </div>

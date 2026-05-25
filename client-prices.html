@@ -4,19 +4,34 @@
     <meta charset="UTF-8">
     <script>/* Flash önle */ (function(){var t=localStorage.getItem("ep-theme")||"dark";document.documentElement.classList.add(t==="light"?"light":"dark");})();</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Müşteri Fiyat Kartları - Export Manager Pro</title>
+    <title>Müşteri Fiyat Kartları — Export Suite</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./src/assets/css/theme.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* ── Porselen iç sayfa overrides ── */
+        body { background: #F6F3EC !important; color: #1C1A17 !important; }
+        .modal-backdrop { background: rgba(28,26,23,0.50) !important; backdrop-filter: blur(4px); }
         input, select, textarea {
-            background: rgb(2 6 23); border: 1px solid rgb(51 65 85);
-            border-radius: 0.5rem; padding: 0.5rem 1rem;
-            color: rgb(241 245 249); font-size: 0.875rem; width: 100%;
+            background: #fff !important; border: 1px solid #E4DDCE !important;
+            border-radius: 6px !important; color: #1C1A17 !important;
+            font-family: 'DM Sans', sans-serif !important; font-size: 13px !important;
         }
-        input:focus, select:focus { outline: none; border-color: rgb(99 102 241); box-shadow: 0 0 0 1px rgb(99 102 241); }
-        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); display: flex; align-items: flex-start; justify-content: center; z-index: 100; padding: 1rem; overflow-y: auto; }
+        input:focus, select:focus, textarea:focus {
+            outline: none !important; border-color: #2D4A3E !important;
+            box-shadow: 0 0 0 3px rgba(45,74,62,0.08) !important;
+        }
+
+        input, select, textarea {
+            background: #fff; border: 1px solid #E4DDCE;
+            border-radius: 6px; padding: 0 12px;
+            color: #1C1A17; font-size: 13px; width: 100%; height: 38px;
+        }
+        input:focus, select:focus { outline: none; border-color: #2D4A3E; box-shadow: 0 0 0 3px rgba(45,74,62,0.08); }
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(28,26,23,0.5); backdrop-filter: blur(4px); display: flex; align-items: flex-start; justify-content: center; z-index: 100; padding: 1rem; overflow-y: auto; }
         .modal-backdrop.hidden { display: none; }
         .modal-content { background: rgb(15 23 42); border: 1px solid rgb(30 41 59); border-radius: 1rem; width: 100%; max-width: 60rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); margin: auto; overflow: hidden; display: flex; flex-direction: column; max-height: 90vh; }
         .custom-table-container { overflow-x: auto; background: rgba(15,23,42,0.4); border: 1px solid rgb(30 41 59); border-radius: 0.75rem; }
@@ -34,23 +49,23 @@
         .product-form-row input { padding: 0.4rem 0.6rem; font-size: 0.8rem; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100">
+<body class="min-h-screen">
 
     <div id="navbar-target"></div>
 
-    <main class="ml-64 p-8 min-h-screen">
-        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b border-slate-800">
+    <main class="min-h-screen" style="margin-left:230px;padding:32px;">
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b">
             <div>
-                <h2 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                    <i class="fa-solid fa-tags text-[#E45A80]"></i> Müşteri Fiyat Kartları
+                <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px;">
+                    <i class="fa-solid fa-tags text-[#2D4A3E]"></i> Müşteri Fiyat Kartları
                 </h2>
                 <p class="text-sm text-slate-400 mt-1">Müşteri bazlı özel fiyat tanımlamaları, iskonto oranları ve net fiyat yönetimi.</p>
             </div>
             <div class="flex items-center gap-3">
-                <button id="btn-export-client-prices" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-lg text-sm font-semibold flex items-center gap-2 text-slate-300 cursor-pointer">
+                <button id="btn-export-client-prices" class="px-4 py-2 bg-[#FBF8F1] hover:bg-[#FBF8F1] border border-slate-700 rounded-lg text-sm font-semibold flex items-center gap-2 text-slate-300 cursor-pointer">
                     <i class="fa-solid fa-file-excel text-emerald-500"></i> Fiyat Listesini Aktar
                 </button>
-                <button id="btn-open-cp-modal" class="px-4 py-2 bg-[#E45A80] hover:bg-[#d44e72] text-white rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer">
+                <button id="btn-open-cp-modal" class="px-4 py-2 bg-[#2D4A3E] hover:bg-[#1a3329] text-white rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer">
                     <i class="fa-solid fa-plus"></i> Yeni Müşteri Fiyat Kartı
                 </button>
             </div>
@@ -61,26 +76,26 @@
                 <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-500 text-sm z-10"></i>
                 <input type="text" id="cp-search-input" placeholder="Müşteri adı veya ürün ara..." style="padding-left:2.5rem">
             </div>
-            <div class="bg-slate-900/40 border border-slate-800 rounded-lg px-4 py-2 flex items-center justify-between text-xs text-slate-400 font-medium">
+            <div class="bg-[#F6F3EC]/40 border border-slate-800 rounded-lg px-4 py-2 flex items-center justify-between text-xs text-slate-400 font-medium">
                 <span>Kayıtlı Müşteri Fiyat Kartı:</span>
-                <span id="total-cp-records" class="text-[#E45A80] font-bold text-sm">0 Müşteri</span>
+                <span id="total-cp-records" class="text-[#2D4A3E] font-bold text-sm">0 Müşteri</span>
             </div>
         </section>
 
         <!-- Müşteri Kartları (Akordeon) -->
         <section id="cp-cards-container" class="space-y-3">
-            <div class="text-slate-500 text-sm py-8 text-center">Yükleniyor...</div>
+            <div class="text-[#968B7A] text-sm py-8 text-center">Yükleniyor...</div>
         </section>
     </main>
 
     <!-- Müşteri Fiyat Kartı Modal -->
     <div id="cp-modal" class="modal-backdrop hidden">
         <div class="modal-content">
-            <div class="flex items-center justify-between border-b border-slate-800 px-6 py-4">
+            <div class="flex items-center justify-between border-b px-6 py-4">
                 <h3 id="cp-modal-title" class="text-lg font-bold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-tags text-[#E45A80]"></i> Müşteri Fiyat Kartı
+                    <i class="fa-solid fa-tags text-[#2D4A3E]"></i> Müşteri Fiyat Kartı
                 </h3>
-                <button id="btn-close-cp-modal" class="text-slate-500 hover:text-slate-300 cursor-pointer">
+                <button id="btn-close-cp-modal" class="text-[#968B7A] hover:text-slate-300 cursor-pointer">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
@@ -90,7 +105,7 @@
 
                 <!-- 1. Müşteri Seç -->
                 <div class="bg-[rgba(228,90,128,0.06)] border border-[rgba(228,90,128,0.18)] rounded-xl p-4">
-                    <p class="text-xs font-bold text-[#E45A80] uppercase tracking-widest mb-3 border-b border-indigo-900/40 pb-2">1. Müşteri Seçimi</p>
+                    <p class="text-xs font-bold text-[#2D4A3E] uppercase tracking-widest mb-3 border-b border-indigo-900/40 pb-2">1. Müşteri Seçimi</p>
                     <div>
                         <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Müşteri Firma *</label>
                         <select id="cp-customer-select" required>
@@ -100,10 +115,10 @@
                 </div>
 
                 <!-- 2. Ürün Ekle Formu -->
-                <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-4">
-                    <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+                <div class="bg-[#F6F3EC]/40 border border-slate-800 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-3 border-b pb-2">
                         <p id="cp-product-form-title" class="text-xs font-bold text-slate-400 uppercase tracking-widest">2. Ürün / Fiyat Ekle</p>
-                        <button type="button" id="btn-cancel-product-edit" class="hidden text-xs text-rose-400 font-bold hover:text-rose-300 cursor-pointer">Vazgeç</button>
+                        <button type="button" id="btn-cancel-product-edit" class="hidden text-xs text-[#9F3D3D] font-bold hover:text-[#9F3D3D] cursor-pointer">Vazgeç</button>
                     </div>
                     <input type="hidden" id="cp-edit-product-idx">
                     <div class="product-form-row grid grid-cols-12 gap-2 items-end">
@@ -116,7 +131,7 @@
                             <input type="number" id="cp-temp-list" step="0.01" placeholder="100.00">
                         </div>
                         <div class="col-span-3">
-                            <label class="block text-xs font-semibold text-[#E45A80] uppercase tracking-wider mb-1">Net Fiyat (€)</label>
+                            <label class="block text-xs font-semibold text-[#2D4A3E] uppercase tracking-wider mb-1">Net Fiyat (€)</label>
                             <input type="number" id="cp-temp-net" step="0.01" placeholder="75.00">
                         </div>
                         <div class="col-span-2">
@@ -124,7 +139,7 @@
                             <input type="number" id="cp-temp-discount" step="0.01" placeholder="25.00">
                         </div>
                         <div class="col-span-1">
-                            <button type="button" id="btn-add-cp-product" class="w-full bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold transition cursor-pointer" style="padding:0.45rem;">
+                            <button type="button" id="btn-add-cp-product" class="w-full bg-[#FBF8F1] hover:bg-slate-600 text-white rounded-lg font-bold transition cursor-pointer" style="padding:0.45rem;">
                                 <i id="cp-btn-icon" class="fa-solid fa-plus text-sm"></i>
                             </button>
                         </div>
@@ -151,12 +166,12 @@
             </div>
 
             <div class="flex items-center gap-3 px-6 py-4 border-t border-slate-800">
-                <button type="button" id="btn-delete-cp" class="hidden px-4 py-2 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/50 text-rose-400 text-sm font-semibold rounded-lg cursor-pointer">
+                <button type="button" id="btn-delete-cp" class="hidden px-4 py-2 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/50 text-[#9F3D3D] text-sm font-semibold rounded-lg cursor-pointer">
                     <i class="fa-solid fa-trash-can"></i> Müşteriyi Sil
                 </button>
                 <div class="flex items-center gap-3 ml-auto">
-                    <button type="button" id="btn-cancel-cp" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm font-semibold text-slate-300 cursor-pointer">Vazgeç</button>
-                    <button type="button" id="btn-save-cp" class="px-4 py-2 bg-[#E45A80] hover:bg-[#d44e72] text-white rounded-lg text-sm font-semibold cursor-pointer">
+                    <button type="button" id="btn-cancel-cp" class="px-4 py-2 bg-[#FBF8F1] hover:bg-[#FBF8F1] border border-slate-700 rounded-lg text-sm font-semibold text-slate-300 cursor-pointer">Vazgeç</button>
+                    <button type="button" id="btn-save-cp" class="px-4 py-2 bg-[#2D4A3E] hover:bg-[#1a3329] text-white rounded-lg text-sm font-semibold cursor-pointer">
                         <i class="fa-solid fa-floppy-disk mr-1"></i> Fiyat Kartını Kaydet
                     </button>
                 </div>

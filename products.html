@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<html lang="tr" class="dark">
+<html lang="tr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ürün Kartları — Export Pro</title>
+  <title>Ürün Kartları — Export Suite</title>
   <!-- 1. Supabase CDN — EN ÖNCE yüklenmeli (supabaseClient.js window.supabase kullanıyor) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- 2. Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = { darkMode: 'class', theme: { extend: {} } }
+    tailwind.config = { theme: { extend: {} } }
   </script>
   <!-- 3. Font Awesome & CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
@@ -17,7 +17,7 @@
   <!-- 4. Tema -->
   <script type="module" src="src/theme.js"></script>
 </head>
-<body class="bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-screen flex">
+<body class="min-h-screen flex">
 
   <!-- Navbar -->
   <div id="navbar-target"></div>
@@ -33,7 +33,7 @@
       </div>
       <div class="flex gap-2">
         <button id="btn-add-product"
-          class="flex items-center gap-2 bg-[#E45A80] hover:bg-[#d44e72] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+          class="flex items-center gap-2 bg-[#2D4A3E] hover:bg-[#1a3329] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
           <i class="fa-solid fa-plus"></i> Yeni Ürün
         </button>
       </div>
@@ -51,7 +51,7 @@
           <i class="fa-solid fa-xmark text-sm"></i>
         </button>
       </div>
-      <div id="search-result-badge" class="hidden items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-[#E45A80]/20 text-[#E45A80] text-xs font-medium whitespace-nowrap self-center">
+      <div id="search-result-badge" class="hidden items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-[#E45A80]/20 text-[#2D4A3E] text-xs font-medium whitespace-nowrap self-center">
         <i class="fa-solid fa-filter text-xs"></i>
         <span id="search-result-count"></span>
       </div>
@@ -65,30 +65,30 @@
     <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
       <div class="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4">
         <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1">Toplam Ürün</p>
-        <p id="stat-total" class="text-2xl font-bold text-[#E45A80]">—</p>
+        <p id="stat-total" class="text-2xl font-bold text-[#2D4A3E]">—</p>
       </div>
       <div class="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4">
         <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1">Grup Sayısı</p>
-        <p id="stat-groups" class="text-2xl font-bold text-emerald-400">—</p>
+        <p id="stat-groups" class="text-2xl font-bold text-[#3D6E50]">—</p>
       </div>
       <!-- Eksik fiyat filtre kartları -->
       <button id="stat-btn-eur"
         class="stat-missing-btn text-left bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all group"
         data-currency="EUR" title="EUR fiyatı eksik ürünleri göster">
-        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1 group-hover:text-emerald-400 transition-colors">
-          <i class="fa-solid fa-triangle-exclamation mr-1 opacity-0 group-hover:opacity-100 transition-opacity text-emerald-400"></i>Eksik EUR
+        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1 group-hover:text-[#3D6E50] transition-colors">
+          <i class="fa-solid fa-triangle-exclamation mr-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#3D6E50]"></i>Eksik EUR
         </p>
-        <p id="stat-eur" class="text-2xl font-bold text-emerald-400">—</p>
-        <p class="text-xs text-[var(--text-secondary)] mt-0.5 group-hover:text-emerald-400/70 transition-colors">fiyatsız ürün</p>
+        <p id="stat-eur" class="text-2xl font-bold text-[#3D6E50]">—</p>
+        <p class="text-xs text-[var(--text-secondary)] mt-0.5 group-hover:text-[#3D6E50]/70 transition-colors">fiyatsız ürün</p>
       </button>
       <button id="stat-btn-usd"
         class="stat-missing-btn text-left bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all group"
         data-currency="USD" title="USD fiyatı eksik ürünleri göster">
-        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1 group-hover:text-amber-400 transition-colors">
-          <i class="fa-solid fa-triangle-exclamation mr-1 opacity-0 group-hover:opacity-100 transition-opacity text-amber-400"></i>Eksik USD
+        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1 group-hover:text-[#B26B33] transition-colors">
+          <i class="fa-solid fa-triangle-exclamation mr-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#B26B33]"></i>Eksik USD
         </p>
-        <p id="stat-usd" class="text-2xl font-bold text-amber-400">—</p>
-        <p class="text-xs text-[var(--text-secondary)] mt-0.5 group-hover:text-amber-400/70 transition-colors">fiyatsız ürün</p>
+        <p id="stat-usd" class="text-2xl font-bold text-[#B26B33]">—</p>
+        <p class="text-xs text-[var(--text-secondary)] mt-0.5 group-hover:text-[#B26B33]/70 transition-colors">fiyatsız ürün</p>
       </button>
       <button id="stat-btn-try"
         class="stat-missing-btn text-left bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4 hover:border-sky-500/50 hover:bg-sky-500/5 transition-all group"
@@ -156,12 +156,12 @@
       <div class="px-6 py-5 space-y-4">
         <input type="hidden" id="product-id" />
         <div>
-          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Ürün Kodu <span class="text-rose-400">*</span></label>
+          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Ürün Kodu <span class="text-[#9F3D3D]">*</span></label>
           <input id="product-code" type="text" placeholder="örn: SETK3204-0315-001-1-1100"
             class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
         </div>
         <div>
-          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Ürün Adı <span class="text-rose-400">*</span></label>
+          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Ürün Adı <span class="text-[#9F3D3D]">*</span></label>
           <input id="product-name" type="text" placeholder="örn: HALLEY D.S KLOZET + REZ. + PP KPK"
             class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
         </div>
@@ -178,7 +178,7 @@
       </div>
       <div class="flex justify-end gap-3 px-6 py-4 border-t border-[var(--border)]">
         <button id="modal-product-cancel" class="px-4 py-2 text-sm rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors">İptal</button>
-        <button id="modal-product-save" class="px-4 py-2 text-sm rounded-lg bg-[#E45A80] hover:bg-[#d44e72] text-white font-medium transition-colors">
+        <button id="modal-product-save" class="px-4 py-2 text-sm rounded-lg bg-[#2D4A3E] hover:bg-[#1a3329] text-white font-medium transition-colors">
           <i class="fa-solid fa-floppy-disk mr-1.5"></i>Kaydet
         </button>
       </div>
@@ -208,12 +208,12 @@
           <input type="hidden" id="price-edit-id" />
           <div class="grid grid-cols-2 gap-3 mb-3">
             <div>
-              <label class="block text-xs text-[var(--text-secondary)] mb-1">Yıl <span class="text-rose-400">*</span></label>
+              <label class="block text-xs text-[var(--text-secondary)] mb-1">Yıl <span class="text-[#9F3D3D]">*</span></label>
               <input id="price-year" type="number" min="2020" max="2099" placeholder="2026"
                 class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
             </div>
             <div>
-              <label class="block text-xs text-[var(--text-secondary)] mb-1">Döviz <span class="text-rose-400">*</span></label>
+              <label class="block text-xs text-[var(--text-secondary)] mb-1">Döviz <span class="text-[#9F3D3D]">*</span></label>
               <select id="price-currency"
                 class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]">
                 <option value="EUR">EUR €</option>
@@ -244,7 +244,7 @@
               İptal
             </button>
             <button id="btn-price-save"
-              class="px-4 py-1.5 text-xs rounded-lg bg-[#E45A80] hover:bg-[#d44e72] text-white font-medium transition-colors">
+              class="px-4 py-1.5 text-xs rounded-lg bg-[#2D4A3E] hover:bg-[#1a3329] text-white font-medium transition-colors">
               <i class="fa-solid fa-plus mr-1"></i><span id="btn-price-save-label">Ekle</span>
             </button>
           </div>
@@ -257,7 +257,7 @@
   <div id="modal-delete" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
     <div class="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center">
       <div class="w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center mx-auto mb-4">
-        <i class="fa-solid fa-triangle-exclamation text-rose-400 text-xl"></i>
+        <i class="fa-solid fa-triangle-exclamation text-[#9F3D3D] text-xl"></i>
       </div>
       <h3 class="text-base font-semibold text-[var(--text-primary)] mb-2">Ürünü Sil</h3>
       <p id="delete-confirm-text" class="text-sm text-[var(--text-secondary)] mb-6">Bu ürün ve tüm fiyat kayıtları silinecek. Emin misiniz?</p>

@@ -4,19 +4,34 @@
     <meta charset="UTF-8">
     <script>/* Flash önle */ (function(){var t=localStorage.getItem("ep-theme")||"dark";document.documentElement.classList.add(t==="light"?"light":"dark");})();</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Müşteri Arşivi - Export Manager Pro</title>
+    <title>Müşteriler — Export Suite</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./src/assets/css/theme.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* ── Porselen iç sayfa overrides ── */
+        body { background: #F6F3EC !important; color: #1C1A17 !important; }
+        .modal-backdrop { background: rgba(28,26,23,0.50) !important; backdrop-filter: blur(4px); }
         input, select, textarea {
-            background: rgb(2 6 23); border: 1px solid rgb(51 65 85);
-            border-radius: 0.5rem; padding: 0.5rem 1rem;
-            color: rgb(241 245 249); font-size: 0.875rem; width: 100%;
+            background: #fff !important; border: 1px solid #E4DDCE !important;
+            border-radius: 6px !important; color: #1C1A17 !important;
+            font-family: 'DM Sans', sans-serif !important; font-size: 13px !important;
         }
-        input:focus, select:focus, textarea:focus { outline: none; border-color: rgb(99 102 241); box-shadow: 0 0 0 1px rgb(99 102 241); }
-        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); display: flex; align-items: flex-start; justify-content: center; z-index: 100; padding: 1.5rem; overflow-y: auto; }
+        input:focus, select:focus, textarea:focus {
+            outline: none !important; border-color: #2D4A3E !important;
+            box-shadow: 0 0 0 3px rgba(45,74,62,0.08) !important;
+        }
+
+        input, select, textarea {
+            background: #fff; border: 1px solid #E4DDCE;
+            border-radius: 6px; padding: 0 12px;
+            color: #1C1A17; font-size: 13px; width: 100%; height: 38px;
+        }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #2D4A3E; box-shadow: 0 0 0 3px rgba(45,74,62,0.08); }
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(28,26,23,0.5); backdrop-filter: blur(4px); display: flex; align-items: flex-start; justify-content: center; z-index: 100; padding: 1.5rem; overflow-y: auto; }
         .modal-backdrop.hidden { display: none; }
         .modal-content { background: rgb(15 23 42); border: 1px solid rgb(30 41 59); border-radius: 1rem; padding: 1.5rem; width: 100%; max-width: 38rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); margin: auto; }
         .custom-table-container { overflow-x: auto; background: rgba(15,23,42,0.4); border: 1px solid rgb(30 41 59); border-radius: 0.75rem; }
@@ -30,23 +45,23 @@
         input[type="date"] { color-scheme: dark; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100">
+<body class="min-h-screen">
 
     <div id="navbar-target"></div>
 
-    <main class="ml-64 p-8 min-h-screen">
-        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b border-slate-800">
+    <main class="min-h-screen" style="margin-left:230px;padding:32px;">
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b">
             <div>
-                <h2 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px;">
                     <i class="fa-solid fa-users text-blue-500"></i> Müşteri Arşivi
                 </h2>
                 <p class="text-sm text-slate-400 mt-1">Uluslararası müşterilerinizin portföy yönetimi ve segmentasyon.</p>
             </div>
             <div class="flex items-center gap-3">
-                <button id="btn-export-excel" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-lg text-sm font-semibold flex items-center gap-2 text-slate-300 cursor-pointer">
+                <button id="btn-export-excel" class="px-4 py-2 bg-[#FBF8F1] hover:bg-[#F0EDE4F1] border border-slate-700 rounded-lg text-sm font-semibold flex items-center gap-2 text-slate-300 cursor-pointer">
                     <i class="fa-solid fa-file-excel text-emerald-500"></i> Excel'e Aktar
                 </button>
-                <button id="btn-open-modal" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer">
+                <button id="btn-open-modal" class="px-4 py-2 bg-[#2D4A3E] hover:bg-[#1a3329] text-white rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer">
                     <i class="fa-solid fa-plus"></i> Yeni Müşteri Ekle
                 </button>
             </div>
@@ -70,18 +85,18 @@
         </section>
 
         <section id="customers-list-container" class="space-y-4">
-            <div class="text-slate-500 text-sm py-8 text-center">Yükleniyor...</div>
+            <div class="text-[#968B7A] text-sm py-8 text-center">Yükleniyor...</div>
         </section>
     </main>
 
     <!-- Modal -->
     <div id="customer-modal" class="modal-backdrop hidden">
         <div class="modal-content">
-            <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-5">
+            <div class="flex items-center justify-between border-b pb-4 mb-5">
                 <h3 id="modal-title" class="text-lg font-bold text-white flex items-center gap-2">
                     <i class="fa-solid fa-user-plus text-blue-500"></i> Yeni Müşteri Kaydı
                 </h3>
-                <button id="btn-close-modal" class="text-slate-500 hover:text-slate-300 cursor-pointer">
+                <button id="btn-close-modal" class="text-[#968B7A] hover:text-slate-300 cursor-pointer">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
@@ -164,12 +179,12 @@
 
                 <!-- Footer Butonlar -->
                 <div class="flex items-center justify-between border-t border-slate-800 pt-5 mt-2">
-                    <button type="button" id="btn-delete-customer" class="hidden px-4 py-2 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/50 text-rose-400 text-sm font-semibold rounded-lg cursor-pointer">
+                    <button type="button" id="btn-delete-customer" class="hidden px-4 py-2 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/50 text-[#9F3D3D] text-sm font-semibold rounded-lg cursor-pointer">
                         <i class="fa-solid fa-trash-can"></i> Kaydı Sil
                     </button>
                     <div class="flex items-center gap-3 ml-auto">
-                        <button type="button" id="btn-cancel" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm font-semibold text-slate-300 cursor-pointer">Vazgeç</button>
-                        <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-semibold cursor-pointer">
+                        <button type="button" id="btn-cancel" class="px-4 py-2 bg-[#FBF8F1] hover:bg-[#FBF8F1] border border-slate-700 rounded-lg text-sm font-semibold text-slate-300 cursor-pointer">Vazgeç</button>
+                        <button type="submit" class="px-5 py-2 bg-[#2D4A3E] hover:bg-[#1a3329] text-white rounded-lg text-sm font-semibold cursor-pointer">
                             <i class="fa-solid fa-floppy-disk mr-1.5"></i>Kaydet
                         </button>
                     </div>

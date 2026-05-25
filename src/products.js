@@ -194,7 +194,7 @@ function renderTable() {
   tbody.innerHTML = page.map(p => {
     const groupHeader = p.product_group !== lastGroup
       ? `<tr class="bg-[var(--bg-primary)]">
-           <td colspan="10" class="px-4 py-2 text-xs font-semibold text-[#E45A80] uppercase tracking-widest border-t border-[var(--border)]">
+           <td colspan="10" class="px-4 py-2 text-xs font-semibold text-[#2D4A3E] uppercase tracking-widest border-t border-[var(--border)]">
              <i class="fa-solid fa-layer-group mr-1.5 opacity-60"></i>${escHtml(p.product_group || 'Grupsuz')}
            </td>
          </tr>`
@@ -204,14 +204,14 @@ function renderTable() {
     const eur2026 = p.prices.find(pr => pr.currency === 'EUR' && pr.price_year === 2026);
     const usd2026 = p.prices.find(pr => pr.currency === 'USD' && pr.price_year === 2026);
     const try2026 = p.prices.find(pr => pr.currency === 'TRY' && pr.price_year === 2026);
-    const fmtEur  = v => v != null ? '€' + Number(v).toFixed(2) : '<span class="text-slate-500">—</span>';
-    const fmtUsd  = v => v != null ? '$' + Number(v).toFixed(2) : '<span class="text-slate-500">—</span>';
-    const fmtTry  = v => v != null ? '₺' + Number(v).toFixed(2) : '<span class="text-slate-500">—</span>';
+    const fmtEur  = v => v != null ? '€' + Number(v).toFixed(2) : '<span class="text-[#968B7A]">—</span>';
+    const fmtUsd  = v => v != null ? '$' + Number(v).toFixed(2) : '<span class="text-[#968B7A]">—</span>';
+    const fmtTry  = v => v != null ? '₺' + Number(v).toFixed(2) : '<span class="text-[#968B7A]">—</span>';
 
     return groupHeader + `
       <tr class="border-t border-[var(--border)] hover:bg-[var(--bg-hover)] transition-colors">
         <td class="px-4 py-3">
-          <span class="font-mono text-xs bg-[rgba(228,90,128,0.12)] text-[#E45A80] px-2 py-0.5 rounded">
+          <span class="font-mono text-xs bg-[#E8EEEA] text-[#2D4A3E] px-2 py-0.5 rounded">
             ${escHtml(p.product_code)}
           </span>
         </td>
@@ -219,31 +219,31 @@ function renderTable() {
           <div class="truncate" title="${escHtml(p.product_name)}">${escHtml(p.product_name)}</div>
         </td>
         <td class="px-4 py-3">
-          <span class="text-xs bg-slate-700/50 text-slate-300 px-2 py-0.5 rounded-full">
+          <span class="text-xs bg-slate-700/50 text-[#6B655B] px-2 py-0.5 rounded-full">
             ${escHtml(p.product_group || '—')}
           </span>
         </td>
         <td class="px-4 py-3 text-right text-sm text-[var(--text-primary)]">${fmtEur(eur2026?.list_price)}</td>
-        <td class="px-4 py-3 text-right text-sm font-semibold text-emerald-400">${fmtEur(eur2026?.net_price)}</td>
+        <td class="px-4 py-3 text-right text-sm font-semibold text-[#3D6E50]">${fmtEur(eur2026?.net_price)}</td>
         <td class="px-4 py-3 text-right text-sm text-[var(--text-primary)]">${fmtUsd(usd2026?.list_price)}</td>
-        <td class="px-4 py-3 text-right text-sm font-semibold text-amber-400">${fmtUsd(usd2026?.net_price)}</td>
+        <td class="px-4 py-3 text-right text-sm font-semibold text-[#B26B33]">${fmtUsd(usd2026?.net_price)}</td>
         <td class="px-4 py-3 text-right text-sm text-[var(--text-primary)]">${fmtTry(try2026?.list_price)}</td>
         <td class="px-4 py-3 text-right text-sm font-semibold text-sky-400">${fmtTry(try2026?.net_price)}</td>
         <td class="px-4 py-3 text-center">
           <div class="flex items-center justify-center gap-2">
             <button onclick="openPriceModal('${p.id}')"
               title="Fiyat Yönetimi"
-              class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-amber-400 hover:bg-amber-400/10 transition-colors">
+              class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[#B26B33] hover:bg-amber-400/10 transition-colors">
               <i class="fa-solid fa-tag text-sm"></i>
             </button>
             <button onclick="openEditProduct('${p.id}')"
               title="Düzenle"
-              class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[#E45A80] hover:bg-[rgba(228,90,128,0.12)]/10 transition-colors">
+              class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[#2D4A3E] hover:bg-[#E8EEEA]/10 transition-colors">
               <i class="fa-solid fa-pen text-sm"></i>
             </button>
             <button onclick="openDeleteModal('${p.id}')"
               title="Sil"
-              class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-rose-400 hover:bg-rose-400/10 transition-colors">
+              class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[#9F3D3D] hover:bg-rose-400/10 transition-colors">
               <i class="fa-solid fa-trash text-sm"></i>
             </button>
           </div>
@@ -380,11 +380,11 @@ function renderPriceList(prices) {
   container.innerHTML = sorted.map(pr => {
     const disc    = pr.discount_rate != null ? `%${Number(pr.discount_rate).toFixed(2)}` : '—';
     const sym      = pr.currency === 'EUR' ? '€' : pr.currency === 'USD' ? '$' : '₺';
-    const colorCls = pr.currency === 'EUR' ? 'text-emerald-400' : pr.currency === 'USD' ? 'text-amber-400' : 'text-sky-400';
+    const colorCls = pr.currency === 'EUR' ? 'text-[#3D6E50]' : pr.currency === 'USD' ? 'text-[#B26B33]' : 'text-sky-400';
     return `
       <div class="flex items-center justify-between bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl px-4 py-3 gap-3">
         <div class="flex items-center gap-3 min-w-0">
-          <span class="text-xs font-semibold px-2 py-0.5 rounded ${pr.currency === 'EUR' ? 'bg-emerald-500/10 text-emerald-400' : pr.currency === 'USD' ? 'bg-amber-500/10 text-amber-400' : 'bg-sky-500/10 text-sky-400'}">
+          <span class="text-xs font-semibold px-2 py-0.5 rounded ${pr.currency === 'EUR' ? 'bg-emerald-500/10 text-[#3D6E50]' : pr.currency === 'USD' ? 'bg-amber-500/10 text-[#B26B33]' : 'bg-sky-500/10 text-sky-400'}">
             ${pr.price_year} ${pr.currency}
           </span>
           <div class="text-sm min-w-0">
@@ -393,16 +393,16 @@ function renderPriceList(prices) {
             <span class="text-[var(--text-secondary)] ml-3">Net:</span>
             <span class="font-semibold ml-1 ${colorCls}">${sym}${Number(pr.net_price || 0).toFixed(2)}</span>
             <span class="text-[var(--text-secondary)] ml-3">İsk:</span>
-            <span class="ml-1 text-rose-400 font-medium">${disc}</span>
+            <span class="ml-1 text-[#9F3D3D] font-medium">${disc}</span>
           </div>
         </div>
         <div class="flex gap-1.5 flex-shrink-0">
           <button onclick="startEditPrice('${pr.id}')"
-            class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[#E45A80] hover:bg-[rgba(228,90,128,0.12)]/10 transition-colors">
+            class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[#2D4A3E] hover:bg-[#E8EEEA]/10 transition-colors">
             <i class="fa-solid fa-pen text-xs"></i>
           </button>
           <button onclick="deletePrice('${pr.id}')"
-            class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-rose-400 hover:bg-rose-400/10 transition-colors">
+            class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[#9F3D3D] hover:bg-rose-400/10 transition-colors">
             <i class="fa-solid fa-trash text-xs"></i>
           </button>
         </div>

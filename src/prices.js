@@ -59,7 +59,7 @@ async function fetchCustomerPrices() {
         renderPricesTable(prices);
     } catch (err) {
         console.error("Fiyat listesi çekilemedi:", err.message);
-        document.getElementById('prices-table-body').innerHTML = `<tr><td colspan="6" class="text-center text-rose-400 py-4">Fiyat verileri çekilirken hata oluştu.</td></tr>`;
+        document.getElementById('prices-table-body').innerHTML = `<tr><td colspan="6" class="text-center text-[#9F3D3D] py-4">Fiyat verileri çekilirken hata oluştu.</td></tr>`;
     }
 }
 
@@ -72,7 +72,7 @@ function renderPricesTable(pricesList) {
     recordBadge.textContent = `${pricesList.length} Tanım`;
 
     if (pricesList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-slate-500 py-8">Kayıtlı özel müşteri fiyatı/iskontosu bulunamadı.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-[#968B7A] py-8">Kayıtlı özel müşteri fiyatı/iskontosu bulunamadı.</td></tr>`;
         return;
     }
 
@@ -82,13 +82,13 @@ function renderPricesTable(pricesList) {
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td class="font-semibold text-slate-200">${escapeHtml(compName)}</td>
-            <td class="text-slate-300">${escapeHtml(p.product_name)}</td>
-            <td class="text-right font-mono text-slate-400 whitespace-nowrap">${parseFloat(p.list_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}&nbsp;€</td>
-            <td class="text-center font-mono text-amber-400 font-medium bg-amber-950/10">% ${discRate}</td>
-            <td class="text-right font-mono text-emerald-400 font-bold whitespace-nowrap">${parseFloat(p.net_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}&nbsp;€</td>
+            <td class="font-semibold text-[#1C1A17]">${escapeHtml(compName)}</td>
+            <td class="text-[#6B655B]">${escapeHtml(p.product_name)}</td>
+            <td class="text-right font-mono text-[#6B655B] whitespace-nowrap">${parseFloat(p.list_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}&nbsp;€</td>
+            <td class="text-center font-mono text-[#B26B33] font-medium bg-amber-950/10">% ${discRate}</td>
+            <td class="text-right font-mono text-[#3D6E50] font-bold whitespace-nowrap">${parseFloat(p.net_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}&nbsp;€</td>
             <td class="text-center">
-                <button class="btn-edit-price-trigger text-xs bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 px-2.5 py-1.5 rounded-lg text-emerald-400 transition-colors" data-id="${p.id}">
+                <button class="btn-edit-price-trigger text-xs bg-[#FBF8F1] hover:bg-[#FBF8F1] border border-[#EFEAE0] hover:border-[#E4DDCE] px-2.5 py-1.5 rounded-lg text-[#3D6E50] transition-colors" data-id="${p.id}">
                     <i class="fa-solid fa-calculator"></i> Robotu Aç
                 </button>
             </td>
@@ -164,7 +164,7 @@ function openModalForPriceEdit(id) {
     document.getElementById('discount_rate').value = p.discount_rate.toLocaleString('tr-TR', { minimumFractionDigits: 3 });
     document.getElementById('net_price').value = p.net_price.toLocaleString('tr-TR', { minimumFractionDigits: 2 });
 
-    document.getElementById('price-modal-title').innerHTML = `<i class="fa-solid fa-robot text-amber-400"></i> Robotik Fiyat Düzenleme`;
+    document.getElementById('price-modal-title').innerHTML = `<i class="fa-solid fa-robot text-[#B26B33]"></i> Robotik Fiyat Düzenleme`;
     document.getElementById('btn-delete-price').classList.remove('hidden');
     document.getElementById('price-modal').classList.remove('hidden');
 }

@@ -61,7 +61,7 @@ async function fetchCreditNotesData() {
         renderCNTable(notes);
     } catch (err) {
         console.error("Credit Note verileri yüklenemedi:", err.message);
-        document.getElementById('cn-table-body').innerHTML = `<tr><td colspan="5" class="text-center text-rose-400 py-4">Veriler yüklenirken hata oluştu.</td></tr>`;
+        document.getElementById('cn-table-body').innerHTML = `<tr><td colspan="5" class="text-center text-[#9F3D3D] py-4">Veriler yüklenirken hata oluştu.</td></tr>`;
     }
 }
 
@@ -74,7 +74,7 @@ function renderCNTable(notesList) {
     badge.textContent = `${notesList.length} Dosya`;
 
     if (notesList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-slate-500 py-8">Kayıtlı Credit Note / Kalite şikayet dosyası bulunamadı.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-[#968B7A] py-8">Kayıtlı Credit Note / Kalite şikayet dosyası bulunamadı.</td></tr>`;
         return;
     }
 
@@ -88,16 +88,16 @@ function renderCNTable(notesList) {
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td class="text-slate-400 text-xs font-mono">${new Date(note.cn_date).toLocaleDateString('tr-TR')}</td>
-            <td class="font-semibold text-slate-200">${escapeHtml(compName)}</td>
-            <td class="text-slate-400 text-xs max-w-xs truncate">${itemsSummary}</td>
+            <td class="text-[#6B655B] text-xs font-mono">${new Date(note.cn_date).toLocaleDateString('tr-TR')}</td>
+            <td class="font-semibold text-[#1C1A17]">${escapeHtml(compName)}</td>
+            <td class="text-[#6B655B] text-xs max-w-xs truncate">${itemsSummary}</td>
             <td>
                 <span class="px-2.5 py-1 rounded-md text-xs font-medium border ${getStatusBadgeClass(note.process_status)}">
                     ${note.process_status || 'İncelemede'}
                 </span>
             </td>
             <td class="text-center">
-                <button class="btn-edit-cn-trigger text-xs bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 px-3 py-1.5 rounded-lg text-rose-400 transition-colors" data-id="${note.id}">
+                <button class="btn-edit-cn-trigger text-xs bg-[#FBF8F1] hover:bg-[#FBF8F1] border border-[#EFEAE0] hover:border-[#E4DDCE] px-3 py-1.5 rounded-lg text-[#9F3D3D] transition-colors" data-id="${note.id}">
                     <i class="fa-solid fa-folder-open"></i> Dosyayı Aç
                 </button>
             </td>
@@ -138,43 +138,43 @@ function addItemRow(data = {}) {
 
     const itemRow = document.createElement('div');
     itemRow.id = rowId;
-    itemRow.className = "cn-item-row bg-slate-950 p-4 border border-slate-800/80 rounded-xl space-y-4 relative pt-10 md:pt-4";
+    itemRow.className = "cn-item-row bg-[#F6F3EC] p-4 border border-[#EFEAE0]/80 rounded-xl space-y-4 relative pt-10 md:pt-4";
 
     itemRow.innerHTML = `
-        <button type="button" class="btn-remove-row absolute top-3 right-3 text-slate-500 hover:text-rose-400 transition-colors" title="Satırı Çıkar">
+        <button type="button" class="btn-remove-row absolute top-3 right-3 text-[#968B7A] hover:text-[#9F3D3D] transition-colors" title="Satırı Çıkar">
             <i class="fa-solid fa-trash-can text-sm"></i>
         </button>
 
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Ürün Adı *</label>
+                <label class="block text-[10px] font-semibold text-[#968B7A] uppercase tracking-wider mb-1">Ürün Adı *</label>
                 <input type="text" class="item-product-name w-full text-xs" required placeholder="Örn: X Profili" value="${data.product_name || ''}">
             </div>
             <div>
-                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Ürün Kodu</label>
+                <label class="block text-[10px] font-semibold text-[#968B7A] uppercase tracking-wider mb-1">Ürün Kodu</label>
                 <input type="text" class="item-product-code w-full text-xs" placeholder="Örn: ALM-202" value="${data.product_code || ''}">
             </div>
             <div>
-                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Şikayet (Complaint) ID</label>
+                <label class="block text-[10px] font-semibold text-[#968B7A] uppercase tracking-wider mb-1">Şikayet (Complaint) ID</label>
                 <input type="text" class="item-complaint-id w-full text-xs" placeholder="Örn: COMP-881" value="${data.complaint_id || ''}">
             </div>
             <div>
-                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Karar / Sonuç</label>
+                <label class="block text-[10px] font-semibold text-[#968B7A] uppercase tracking-wider mb-1">Karar / Sonuç</label>
                 <input type="text" class="item-decision w-full text-xs" placeholder="Örn: Yenisi Üretilecek" value="${data.decision || ''}">
             </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-900/60 pt-3">
             <div>
-                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">İlişkili Hedef Sipariş / Fatura</label>
+                <label class="block text-[10px] font-semibold text-[#968B7A] uppercase tracking-wider mb-1">İlişkili Hedef Sipariş / Fatura</label>
                 <input type="text" class="item-target-order w-full text-xs" placeholder="Örn: Order #4512" value="${data.target_order || ''}">
             </div>
             <div>
-                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Hata/Problem Tanımı</label>
+                <label class="block text-[10px] font-semibold text-[#968B7A] uppercase tracking-wider mb-1">Hata/Problem Tanımı</label>
                 <input type="text" class="item-desc-1 w-full text-xs" placeholder="Örn: Yüzeyde çizik ve deformasyon" value="${data.description_1 || ''}">
             </div>
             <div>
-                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Kök Neden / Aksiyon Notu</label>
+                <label class="block text-[10px] font-semibold text-[#968B7A] uppercase tracking-wider mb-1">Kök Neden / Aksiyon Notu</label>
                 <input type="text" class="item-desc-2 w-full text-xs" placeholder="Örn: Paketleme hattındaki rulo değişti" value="${data.description_2 || ''}">
             </div>
         </div>
@@ -340,10 +340,10 @@ async function handleDeleteCN() {
 // --- YARDIMCI GÖRSEL VE FİLTRE FONKSİYONLARI ---
 function getStatusBadgeClass(status) {
     switch(status) {
-        case 'Onaylandı': return 'bg-emerald-950/40 text-emerald-400 border-emerald-900/50';
+        case 'Onaylandı': return 'bg-emerald-950/40 text-[#3D6E50] border-emerald-900/50';
         case 'Mahsup Edildi': return 'bg-blue-950/40 text-blue-400 border-blue-900/50';
-        case 'Reddedildi': return 'bg-rose-950/40 text-rose-400 border-rose-900/50';
-        default: return 'bg-amber-950/40 text-amber-400 border-amber-900/50'; // İncelemede
+        case 'Reddedildi': return 'bg-rose-950/40 text-[#9F3D3D] border-rose-900/50';
+        default: return 'bg-amber-950/40 text-[#B26B33] border-amber-900/50'; // İncelemede
     }
 }
 

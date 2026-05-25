@@ -2,87 +2,203 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <script>/* Flash önle */ (function(){var t=localStorage.getItem("ep-theme")||"dark";document.documentElement.classList.add(t==="light"?"light":"dark");})();</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Giriş Yap - Export Manager Pro</title>
+    <title>Giriş Yap — Export Suite</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
-    <link rel="stylesheet" href="./src/assets/css/theme.css">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        html.light body { background-color: #f8f7f5 !important; }
-        html.light .bg-slate-800 { background-color: #ffffff !important; }
-        html.light .bg-slate-950 { background-color: #f8f7f5 !important; }
-        html.light .border-slate-700 { border-color: #e8e4de !important; }
-        html.light .text-slate-300 { color: #4a4540 !important; }
-        html.light .text-slate-400 { color: #6a6560 !important; }
-        html.light input { background-color: #ffffff !important; border-color: #d8d4ce !important; color: #1a1917 !important; }
-        html.light .text-slate-100 { color: #1a1917 !important; }
-        html.light .bg-slate-900\/70 { background-color: rgba(255,255,255,0.92) !important; }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #F6F3EC; --surface: #FFFFFF; --border: #E4DDCE; --border-soft: #EFEAE0;
+            --ink-1: #1C1A17; --ink-2: #6B655B; --ink-3: #968B7A;
+            --accent: #2D4A3E; --accent-soft: #E8EEEA;
+            --bronze: #B58858; --bronze-soft: #F2E9DA;
+            --ok: #3D6E50; --danger: #9F3D3D;
+        }
+        html, body { height: 100%; }
+        body {
+            font-family: 'DM Sans', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--ink-1);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Subtle grain texture via SVG noise */
+        body::before {
+            content: '';
+            position: fixed; inset: 0; pointer-events: none; z-index: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+            opacity: 0.4;
+        }
+
+        .login-wrap {
+            position: relative; z-index: 1;
+            width: 100%; max-width: 400px;
+            padding: 1rem;
+        }
+
+        /* Marka alanı */
+        .login-brand {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .login-brand-icon {
+            width: 44px; height: 44px; border-radius: 10px;
+            background: var(--ink-1);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 14px;
+        }
+
+        .login-brand-icon svg { width: 22px; height: 22px; }
+
+        .login-brand h1 {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 32px; font-weight: 500;
+            color: var(--ink-1); letter-spacing: -0.01em;
+            line-height: 1.15; margin-bottom: 4px;
+        }
+
+        .login-brand p {
+            font-size: 13px; color: var(--ink-2); font-weight: 400;
+        }
+
+        /* Kart */
+        .login-card {
+            background: var(--surface);
+            border: 1px solid var(--border-soft);
+            border-radius: 10px;
+            padding: 32px;
+        }
+
+        /* Eyebrow */
+        .eyebrow {
+            font-size: 10px; font-weight: 600;
+            letter-spacing: 0.22em; text-transform: uppercase;
+            color: var(--bronze); margin-bottom: 20px;
+        }
+
+        .form-group { margin-bottom: 14px; }
+
+        .form-group label {
+            display: block;
+            font-size: 12px; font-weight: 500;
+            color: var(--ink-2);
+            margin-bottom: 5px;
+        }
+
+        .form-group input {
+            display: block; width: 100%;
+            height: 38px; padding: 0 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px; color: var(--ink-1);
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(45,74,62,0.08);
+        }
+
+        .form-group input::placeholder { color: var(--ink-3); font-weight: 300; }
+
+        #messageArea {
+            display: none; margin-bottom: 12px;
+            font-size: 12.5px; padding: 10px 14px;
+            border-radius: 6px; text-align: center;
+        }
+
+        #messageArea.ok   { background: var(--ok-soft, #E1EBE4); color: #3D6E50; border: 1px solid rgba(61,110,80,0.2); }
+        #messageArea.err  { background: #F1DDD9; color: #9F3D3D; border: 1px solid rgba(159,61,61,0.2); }
+        #messageArea:not(.hidden) { display: block; }
+        #messageArea.hidden { display: none; }
+
+        #mainBtn {
+            display: block; width: 100%;
+            height: 40px; border-radius: 6px;
+            background: var(--ink-1); color: #fff;
+            border: 1px solid var(--ink-1);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px; font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s;
+            margin-top: 4px;
+        }
+
+        #mainBtn:hover:not(:disabled) { background: #000; border-color: #000; }
+        #mainBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .login-toggle {
+            margin-top: 18px;
+            text-align: center;
+            font-size: 12.5px; color: var(--ink-3);
+        }
+
+        .login-toggle #toggleBtn {
+            background: none; border: none; padding: 0;
+            color: var(--accent); font-family: 'DM Sans', sans-serif;
+            font-size: 12.5px; font-weight: 500;
+            cursor: pointer; text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        /* Alt dekoratif çizgi */
+        .login-footer {
+            text-align: center; margin-top: 24px;
+            font-size: 10px; letter-spacing: 0.18em;
+            text-transform: uppercase; color: var(--ink-3);
+        }
+    </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4">
+<body>
+    <div class="login-wrap">
+        <div class="login-brand">
+            <div class="login-brand-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+            </div>
+            <h1>Export Suite</h1>
+            <p>Kurumsal İhracat Yönetim Sistemi</p>
+        </div>
 
-    <!-- Space Animation Canvas — V: 1.0.16 -->
-    <canvas id="ep-bg-canvas" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;"></canvas>
+        <div class="login-card">
+            <div class="eyebrow">Hesabınıza Giriş Yapın</div>
 
-    <!-- Theme Toggle -->
-    <div class="fixed top-4 right-4" style="z-index:20;">
-        <button id="login-theme-btn" onclick="(function(){var t=localStorage.getItem('ep-theme')||'dark';var n=t==='dark'?'light':'dark';localStorage.setItem('ep-theme',n);document.documentElement.classList.remove('dark','light');document.documentElement.classList.add(n);document.getElementById('login-theme-btn').innerHTML=n==='dark'?'<i class=\'fa-solid fa-sun text-amber-400\'></i>':'<i class=\'fa-solid fa-moon\' style=\'color:#E45A80\'></i>';})()"
-            class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400 hover:text-white transition-all cursor-pointer shadow-lg">
-            <i class="fa-solid fa-sun text-amber-400" id="login-theme-icon"></i>
-        </button>
-    </div>
-    <script>
-        (function(){
-            var t = localStorage.getItem('ep-theme') || 'dark';
-            var btn = document.getElementById('login-theme-btn');
-            if(btn) btn.innerHTML = t === 'dark'
-                ? '<i class="fa-solid fa-sun text-amber-400"></i>'
-                : '<i class="fa-solid fa-moon" style="color:#E45A80"></i>';
-        })();
-    </script>
-
-    <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700" style="position:relative;z-index:10;">
-        <div class="text-center mb-8">
-            <div class="flex items-center justify-center gap-3 mb-3">
-                <div style="width:44px;height:44px;border-radius:10px;background:#E45A80;display:flex;align-items:center;justify-content:center;">
-                    <i class="fa-solid fa-earth-americas text-xl text-white"></i>
+            <form id="authForm">
+                <div class="form-group">
+                    <label for="email">E-posta Adresi</label>
+                    <input type="email" id="email" required placeholder="ornek@firma.com" autocomplete="email">
                 </div>
+                <div class="form-group">
+                    <label for="password">Şifre</label>
+                    <input type="password" id="password" required placeholder="••••••••" autocomplete="current-password">
+                </div>
+
+                <div id="messageArea" class="hidden"></div>
+
+                <button type="submit" id="mainBtn">Giriş Yap</button>
+            </form>
+
+            <div class="login-toggle">
+                <span id="toggleText">Hesabınız yok mu?</span>
+                <button id="toggleBtn">Kayıt Olun</button>
             </div>
-            <h1 class="text-3xl font-bold tracking-tight" style="color:#E45A80;">Export Manager Pro</h1>
-            <p class="mt-2" style="font-size:1.125rem;font-weight:500;color:#4a4540;">Kurumsal İhracat Yönetim Sistemi</p>
         </div>
 
-        <form id="authForm" class="space-y-5">
-            <div>
-                <label class="block text-sm font-medium text-slate-300 mb-1">E-posta Adresi</label>
-                <input type="email" id="email" required
-                    class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-lg focus:outline-none text-slate-100 text-sm"
-                    placeholder="ornek@firma.com">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-slate-300 mb-1">Şifre</label>
-                <input type="password" id="password" required
-                    class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-lg focus:outline-none text-slate-100 text-sm"
-                    placeholder="••••••••">
-            </div>
-            <div id="messageArea" class="hidden text-sm p-3 rounded-lg text-center font-medium"></div>
-            <button type="submit" id="mainBtn"
-                class="w-full text-white font-semibold py-2.5 px-4 rounded-lg transition duration-200 shadow-lg text-sm cursor-pointer"
-                style="background:#E45A80;border:none;"
-                onmouseover="this.style.background='#d44e72'"
-                onmouseout="this.style.background='#E45A80'">
-                Giriş Yap
-            </button>
-        </form>
-        <div class="mt-6 text-center text-sm">
-            <span class="text-slate-400" id="toggleText">Hesabınız yok mu?</span>
-            <button id="toggleBtn" class="font-medium ml-1 underline cursor-pointer" style="color:#E45A80;" onmouseover="this.style.color='#d44e72'" onmouseout="this.style.color='#E45A80'">Kayıt Olun</button>
-        </div>
+        <div class="login-footer">Export Suite · İhracat Yönetimi</div>
     </div>
 
-    <!-- Supabase Auth -->
     <script>
         const { createClient } = window.supabase;
         const sb = createClient(
@@ -105,191 +221,48 @@
         let isLoginMode     = true;
 
         function showMessage(text, isSuccess = false) {
-            messageArea.innerText = text;
-            messageArea.className = 'text-sm p-3 rounded-lg text-center font-medium ' + (isSuccess
-                ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-800'
-                : 'bg-rose-950/50 text-rose-400 border border-rose-800');
-            messageArea.classList.remove('hidden');
+            messageArea.textContent = text;
+            messageArea.className   = isSuccess ? 'ok' : 'err';
         }
 
         toggleBtn.addEventListener('click', () => {
             isLoginMode = !isLoginMode;
-            messageArea.classList.add('hidden');
-            mainBtn.innerText    = isLoginMode ? 'Giriş Yap' : 'Yeni Hesap Oluştur';
-            toggleText.innerText = isLoginMode ? 'Hesabınız yok mu?' : 'Zaten hesabınız var mı?';
-            toggleBtn.innerText  = isLoginMode ? 'Kayıt Olun' : 'Giriş Yapın';
+            messageArea.className   = 'hidden';
+            mainBtn.textContent     = isLoginMode ? 'Giriş Yap' : 'Yeni Hesap Oluştur';
+            toggleText.textContent  = isLoginMode ? 'Hesabınız yok mu?' : 'Zaten hesabınız var mı?';
+            toggleBtn.textContent   = isLoginMode ? 'Kayıt Olun' : 'Giriş Yapın';
         });
 
         authForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            messageArea.classList.add('hidden');
+            messageArea.className = 'hidden';
             const email    = emailInput.value.trim();
             const password = passwordInput.value;
             mainBtn.disabled = true;
 
             if (isLoginMode) {
-                mainBtn.innerText = 'Giriş Yapılıyor...';
+                mainBtn.textContent = 'Giriş Yapılıyor...';
                 const { error } = await sb.auth.signInWithPassword({ email, password });
                 if (error) {
                     showMessage(error.message, false);
-                    mainBtn.disabled  = false;
-                    mainBtn.innerText = 'Giriş Yap';
+                    mainBtn.disabled    = false;
+                    mainBtn.textContent = 'Giriş Yap';
                 } else {
                     showMessage('Giriş başarılı!', true);
                     setTimeout(() => window.location.href = 'index.html', 800);
                 }
             } else {
-                mainBtn.innerText = 'Hesap Oluşturuluyor...';
+                mainBtn.textContent = 'Hesap Oluşturuluyor...';
                 const { error } = await sb.auth.signUp({ email, password });
                 if (error) {
                     showMessage(error.message, false);
                 } else {
                     showMessage('Kayıt başarılı! E-posta adresinizi kontrol edin.', true);
                 }
-                mainBtn.disabled  = false;
-                mainBtn.innerText = 'Yeni Hesap Oluştur';
+                mainBtn.disabled    = false;
+                mainBtn.textContent = 'Yeni Hesap Oluştur';
             }
         });
     </script>
-
-    <!-- Space Constellation Animation -->
-    <script>
-    (function(){
-        var canvas = document.getElementById('ep-bg-canvas');
-        var ctx    = canvas.getContext('2d');
-        var W, H;
-        var mouse  = { x: -9999, y: -9999 };
-
-        var NODE_COUNT   = 80;
-        var CONNECT_DIST = 130;
-        var REPEL_RADIUS = 100;
-        var REPEL_FORCE  = 1.4;
-
-        function resize() {
-            W = canvas.width  = window.innerWidth;
-            H = canvas.height = window.innerHeight;
-        }
-        resize();
-        window.addEventListener('resize', resize);
-
-        function isLight() {
-            return document.documentElement.classList.contains('light');
-        }
-
-        function getColors() {
-            if (isLight()) {
-                return { node: 'rgba(228,90,128,', line: 'rgba(228,90,128,', cursor: 'rgba(214,210,201,' };
-            }
-            return { node: 'rgba(214,210,201,', line: 'rgba(228,90,128,', cursor: 'rgba(214,210,201,' };
-        }
-
-        function makeNode() {
-            var spd = 0.12 + Math.random() * 0.22;
-            var ang = Math.random() * Math.PI * 2;
-            return {
-                x:     Math.random() * W,
-                y:     Math.random() * H,
-                vx:    Math.cos(ang) * spd,
-                vy:    Math.sin(ang) * spd,
-                r:     1.2 + Math.random() * 1.8,
-                alpha: 0.4 + Math.random() * 0.6
-            };
-        }
-
-        var nodes = [];
-        for (var i = 0; i < NODE_COUNT; i++) nodes.push(makeNode());
-
-        function updateNode(n) {
-            var dx   = n.x - mouse.x;
-            var dy   = n.y - mouse.y;
-            var dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist < REPEL_RADIUS && dist > 0) {
-                var force = (1 - dist / REPEL_RADIUS) * REPEL_FORCE;
-                n.vx += (dx / dist) * force * 0.09;
-                n.vy += (dy / dist) * force * 0.09;
-            }
-
-            var MAX_SPD  = 2.0;
-            var BASE_SPD = 0.15;
-            var spd = Math.sqrt(n.vx * n.vx + n.vy * n.vy);
-            if (spd > MAX_SPD) { n.vx = n.vx / spd * MAX_SPD; n.vy = n.vy / spd * MAX_SPD; }
-            if (spd > BASE_SPD) { n.vx *= 0.999; n.vy *= 0.999; }
-
-            n.vx += (Math.random() - 0.5) * 0.003;
-            n.vy += (Math.random() - 0.5) * 0.003;
-
-            n.x += n.vx;
-            n.y += n.vy;
-
-            if (n.x < -20) n.x = W + 20;
-            if (n.x > W + 20) n.x = -20;
-            if (n.y < -20) n.y = H + 20;
-            if (n.y > H + 20) n.y = -20;
-        }
-
-        function loop() {
-            ctx.clearRect(0, 0, W, H);
-            var colors = getColors();
-
-            for (var i = 0; i < nodes.length; i++) updateNode(nodes[i]);
-
-            for (var i = 0; i < nodes.length; i++) {
-                for (var j = i + 1; j < nodes.length; j++) {
-                    var a = nodes[i], b = nodes[j];
-                    var dx = a.x - b.x, dy = a.y - b.y;
-                    var d = Math.sqrt(dx * dx + dy * dy);
-                    if (d < CONNECT_DIST) {
-                        ctx.beginPath();
-                        ctx.moveTo(a.x, a.y);
-                        ctx.lineTo(b.x, b.y);
-                        ctx.strokeStyle = colors.line + ((1 - d / CONNECT_DIST) * 0.4) + ')';
-                        ctx.lineWidth   = 0.7;
-                        ctx.stroke();
-                    }
-                }
-            }
-
-            if (mouse.x > 0 && mouse.x < W + 100) {
-                var reach = REPEL_RADIUS * 1.6;
-                for (var i = 0; i < nodes.length; i++) {
-                    var n = nodes[i];
-                    var dx = n.x - mouse.x, dy = n.y - mouse.y;
-                    var d = Math.sqrt(dx * dx + dy * dy);
-                    if (d < reach) {
-                        ctx.beginPath();
-                        ctx.moveTo(mouse.x, mouse.y);
-                        ctx.lineTo(n.x, n.y);
-                        ctx.strokeStyle = colors.cursor + ((1 - d / reach) * 0.55) + ')';
-                        ctx.lineWidth   = 0.6;
-                        ctx.stroke();
-                    }
-                }
-            }
-
-            for (var i = 0; i < nodes.length; i++) {
-                var n = nodes[i];
-                ctx.beginPath();
-                ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
-                ctx.fillStyle = colors.node + n.alpha + ')';
-                ctx.fill();
-            }
-
-            requestAnimationFrame(loop);
-        }
-
-        document.addEventListener('mousemove', function(e) {
-            mouse.x = e.clientX;
-            mouse.y = e.clientY;
-        });
-        document.addEventListener('mouseleave', function() {
-            mouse.x = -9999;
-            mouse.y = -9999;
-        });
-
-        loop();
-    })();
-    </script>
-
 </body>
 </html>

@@ -1,143 +1,103 @@
 /* ═══════════════════════════════════════════════════════════════
-   EXPORT PRO — THEME SYSTEM
-   Design DNA: Flormar Brand DNA by Pomelli
-   Aesthetic: Minimalist · Feminen · Professional · Polished
-   Typography: Montserrat (Primary)
-   Palette: Flormar Pink #E45A80 · Deep Onyx #0a0a0a · Pale Greige #D6D2C9
+   EXPORT SUITE — PORSELEN TASARIM SİSTEMİ
+   Estetik: Minimal · Seramik · Kurumsal · Hassas
+   Tipografi: Cormorant Garamond (başlık) + DM Sans (gövde)
    ═══════════════════════════════════════════════════════════════ */
 
-/* ── Google Fonts: Montserrat ── */
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap');
 
 /* ══════════════════════════════
-   DARK MODE (DEFAULT)
-   Base: Deep Onyx + Greige accents
+   DESIGN TOKENS
    ══════════════════════════════ */
 :root {
-    /* Backgrounds */
-    --bg-primary:       #0a0a0a;
-    --bg-secondary:     #111111;
-    --bg-tertiary:      #1a1a1a;
-    --bg-card:          rgba(20, 20, 20, 0.8);
-    --bg-card-hover:    rgba(26, 26, 26, 0.95);
+  --bg:           #F6F3EC;
+  --surface:      #FFFFFF;
+  --surface-2:    #FBF8F1;
+  --border:       #E4DDCE;
+  --border-soft:  #EFEAE0;
 
-    /* Borders */
-    --border-color:     #242424;
-    --border-subtle:    #1c1c1c;
-    --border-strong:    #333333;
+  --ink-1:        #1C1A17;
+  --ink-2:        #6B655B;
+  --ink-3:        #968B7A;
 
-    /* Text */
-    --text-primary:     #f0ede8;
-    --text-secondary:   #9a9690;
-    --text-muted:       #5a5855;
-    --text-accent:      #D6D2C9;
+  --accent:       #2D4A3E;
+  --accent-soft:  #E8EEEA;
+  --bronze:       #B58858;
+  --bronze-soft:  #F2E9DA;
 
-    /* Inputs */
-    --input-bg:         #0f0f0f;
-    --input-border:     #2a2a2a;
-    --input-focus:      #E45A80;
+  --ok:           #3D6E50;
+  --ok-soft:      #E1EBE4;
+  --warn:         #B26B33;
+  --warn-soft:    #F3E5D2;
+  --danger:       #9F3D3D;
+  --danger-soft:  #F1DDD9;
+  --info:         #3F5C7A;
+  --info-soft:    #E0E6EE;
 
-    /* Modals */
-    --modal-bg:         #111111;
-    --modal-border:     #242424;
-    --modal-shadow:     0 32px 64px rgba(0, 0, 0, 0.8);
+  /* Sidebar */
+  --sidebar-bg:      #FFFFFF;
+  --sidebar-border:  #EFEAE0;
+  --sidebar-w:       230px;
 
-    /* Tables */
-    --table-th-color:   #5a5855;
-    --table-td-color:   #9a9690;
-    --table-hover:      rgba(228, 90, 128, 0.04);
-    --table-border:     #0f0f0f;
-    --table-header-bg:  rgba(10, 10, 10, 0.8);
+  /* Scrollbar */
+  --scrollbar-track: #EFEAE0;
+  --scrollbar-thumb: #D6CEBC;
 
-    /* Sidebar */
-    --sidebar-bg:       #0d0d0d;
-    --sidebar-border:   #1c1c1c;
-    --sidebar-footer:   rgba(8, 8, 8, 0.95);
-    --sidebar-active:   rgba(228, 90, 128, 0.10);
-    --sidebar-hover:    rgba(228, 90, 128, 0.05);
-
-    /* Accent — Flormar Pink */
-    --accent-primary:   #E45A80;
-    --accent-subtle:    rgba(228, 90, 128, 0.12);
-    --accent-border:    rgba(228, 90, 128, 0.25);
-
-    /* Greige secondary */
-    --greige:           #D6D2C9;
-
-    /* Scrollbar */
-    --scrollbar-track:  #111111;
-    --scrollbar-thumb:  #2a2a2a;
-}
-
-/* ══════════════════════════════
-   LIGHT MODE
-   Base: Warm White + Onyx + Greige
-   ══════════════════════════════ */
-html.light {
-    --bg-primary:       #f8f7f5;
-    --bg-secondary:     #ffffff;
-    --bg-tertiary:      #f0ede8;
-    --bg-card:          rgba(255, 255, 255, 0.95);
-    --bg-card-hover:    rgba(248, 247, 245, 1);
-
-    --border-color:     #e8e4de;
-    --border-subtle:    #f0ede8;
-    --border-strong:    #D6D2C9;
-
-    --text-primary:     #1a1917;
-    --text-secondary:   #5a5550;
-    --text-muted:       #9a9590;
-    --text-accent:      #1a1917;
-
-    --input-bg:         #ffffff;
-    --input-border:     #d8d4ce;
-    --input-focus:      #E45A80;
-
-    --modal-bg:         #ffffff;
-    --modal-border:     #e8e4de;
-    --modal-shadow:     0 24px 48px rgba(30, 25, 20, 0.14);
-
-    --table-th-color:   #8a8580;
-    --table-td-color:   #4a4540;
-    --table-hover:      rgba(228, 90, 128, 0.05);
-    --table-border:     #f4f1ec;
-    --table-header-bg:  rgba(248, 247, 245, 0.9);
-
-    --sidebar-bg:       #ffffff;
-    --sidebar-border:   #ece8e2;
-    --sidebar-footer:   rgba(248, 247, 245, 0.98);
-    --sidebar-active:   rgba(228, 90, 128, 0.08);
-    --sidebar-hover:    rgba(228, 90, 128, 0.04);
-
-    --accent-primary:   #E45A80;
-    --accent-subtle:    rgba(228, 90, 128, 0.08);
-    --accent-border:    rgba(228, 90, 128, 0.20);
-
-    --greige:           #D6D2C9;
-
-    --scrollbar-track:  #f0ede8;
-    --scrollbar-thumb:  #D6D2C9;
+  /* Legacy compat — mevcut JS/HTML'de kullanılan var() referansları */
+  --bg-primary:    var(--bg);
+  --bg-secondary:  var(--surface);
+  --bg-tertiary:   var(--surface-2);
+  --border-color:  var(--border);
+  --text-primary:  var(--ink-1);
+  --text-secondary:var(--ink-2);
+  --text-muted:    var(--ink-3);
+  --accent-primary:var(--accent);
+  --input-bg:      var(--surface);
+  --input-border:  var(--border);
+  --input-focus:   var(--accent);
+  --modal-bg:      var(--surface);
+  --modal-border:  var(--border);
+  --modal-shadow:  0 8px 32px rgba(28,26,23,0.12);
+  --table-th-color:var(--ink-3);
+  --table-td-color:var(--ink-2);
+  --table-hover:   var(--surface-2);
+  --table-border:  var(--border-soft);
+  --table-header-bg:var(--surface-2);
+  --sidebar-active: var(--accent-soft);
+  --sidebar-hover:  var(--surface-2);
+  --sidebar-footer: var(--surface-2);
+  --sidebar-bg-var: var(--surface);
 }
 
 /* ══════════════════════════════
    BASE RESET & TYPOGRAPHY
    ══════════════════════════════ */
-*, *::before, *::after {
-    box-sizing: border-box;
-}
+*, *::before, *::after { box-sizing: border-box; }
 
 html {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-    font-family: 'Montserrat', 'Segoe UI', -apple-system, sans-serif !important;
-    background-color: var(--bg-primary) !important;
-    color: var(--text-primary) !important;
-    transition: background-color 0.25s ease, color 0.25s ease;
-    font-weight: 400;
-    letter-spacing: -0.01em;
+  font-family: 'DM Sans', system-ui, sans-serif !important;
+  background-color: var(--bg) !important;
+  color: var(--ink-1) !important;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  letter-spacing: -0.01em;
+  color: var(--ink-1);
+}
+
+/* Tablo sayıları ve kodlar */
+.font-mono, td.mono, .tabular {
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Code', monospace !important;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ══════════════════════════════
@@ -146,346 +106,370 @@ body {
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
 ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-3); }
 
 /* ══════════════════════════════
    SIDEBAR
    ══════════════════════════════ */
 #main-sidebar {
-    background-color: var(--sidebar-bg) !important;
-    border-color: var(--sidebar-border) !important;
-    font-family: 'Montserrat', sans-serif !important;
+  background-color: var(--sidebar-bg) !important;
+  border-right: 1px solid var(--sidebar-border) !important;
+  font-family: 'DM Sans', sans-serif !important;
+  width: var(--sidebar-w) !important;
 }
 
-#main-sidebar .text-white,
-#main-sidebar .text-slate-100 {
-    color: var(--text-primary) !important;
+#main-sidebar .brand-title {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-size: 20px !important;
+  font-weight: 500 !important;
+  color: var(--ink-1) !important;
+  letter-spacing: -0.01em;
 }
 
 #main-sidebar a {
-    color: var(--text-secondary) !important;
-    transition: all 0.18s ease;
+  color: var(--ink-2) !important;
+  font-size: 13px;
+  transition: background 0.15s, color 0.15s;
 }
 
 #main-sidebar a:hover {
-    background-color: var(--sidebar-hover) !important;
-    color: var(--accent-primary) !important;
+  background-color: var(--surface-2) !important;
+  color: var(--ink-1) !important;
 }
 
-#main-sidebar a.bg-indigo-600\/20,
-#main-sidebar a[class*="bg-indigo"] {
-    background-color: var(--sidebar-active) !important;
-    color: var(--accent-primary) !important;
-    border-color: var(--accent-border) !important;
+#main-sidebar a.nav-active {
+  background-color: var(--accent-soft) !important;
+  color: var(--accent) !important;
+  font-weight: 600 !important;
+  border: none !important;
 }
 
-#main-sidebar .border-slate-800 { border-color: var(--sidebar-border) !important; }
-
+/* Legacy Tailwind sidebar renk overrides */
+#main-sidebar .text-white,
+#main-sidebar .text-slate-100 { color: var(--ink-1) !important; }
 #main-sidebar .text-slate-400,
 #main-sidebar .text-slate-500,
-#main-sidebar .text-slate-600 { color: var(--text-muted) !important; }
-
+#main-sidebar .text-slate-600 { color: var(--ink-3) !important; }
+#main-sidebar .border-slate-800 { border-color: var(--border-soft) !important; }
 #main-sidebar .bg-slate-950\/50,
-#main-sidebar .bg-slate-950\/80,
-#main-sidebar .bg-slate-900\/80 { background-color: var(--sidebar-footer) !important; }
-
-#main-sidebar .bg-slate-800 { background-color: var(--bg-tertiary) !important; }
-#main-sidebar .hover\:bg-slate-800:hover { background-color: var(--sidebar-hover) !important; }
-#main-sidebar .hover\:bg-slate-700:hover { background-color: var(--sidebar-hover) !important; }
-#main-sidebar .text-indigo-400 { color: var(--accent-primary) !important; }
-
-html.light #main-sidebar .text-white,
-html.light #main-sidebar .text-slate-100 { color: var(--text-primary) !important; }
-html.light #main-sidebar a { color: var(--text-secondary) !important; }
-html.light #main-sidebar a:hover { background-color: var(--sidebar-hover) !important; color: var(--accent-primary) !important; }
-html.light #main-sidebar a.bg-indigo-600\/20,
-html.light #main-sidebar a[class*="bg-indigo"] { background-color: var(--sidebar-active) !important; color: var(--accent-primary) !important; }
-html.light #main-sidebar .border-slate-800 { border-color: var(--sidebar-border) !important; }
-html.light #main-sidebar .text-slate-400,
-html.light #main-sidebar .text-slate-500 { color: var(--text-muted) !important; }
-html.light #main-sidebar .bg-slate-950\/50,
-html.light #main-sidebar .bg-slate-950\/80 { background-color: var(--sidebar-footer) !important; }
-html.light #main-sidebar .bg-slate-800 { background-color: var(--bg-tertiary) !important; }
-html.light #main-sidebar .hover\:bg-slate-700:hover { background-color: var(--sidebar-hover) !important; }
-html.light #main-sidebar .text-indigo-400 { color: var(--accent-primary) !important; }
+#main-sidebar .bg-slate-950\/80 { background-color: var(--surface-2) !important; }
+#main-sidebar .bg-slate-800 { background-color: var(--surface-2) !important; }
 
 /* ══════════════════════════════
    MAIN CONTENT
    ══════════════════════════════ */
-main { background-color: var(--bg-primary) !important; }
+main {
+  background-color: var(--bg) !important;
+  margin-left: var(--sidebar-w) !important;
+}
 
 /* ══════════════════════════════
-   BACKGROUND OVERRIDES
+   TAILWIND BACKGROUND OVERRIDES
    ══════════════════════════════ */
-.bg-slate-950  { background-color: var(--bg-primary) !important; }
-.bg-slate-900  { background-color: var(--bg-secondary) !important; }
-.bg-slate-800  { background-color: var(--bg-tertiary) !important; }
-
-html.light .bg-slate-950  { background-color: var(--bg-primary) !important; }
-html.light .bg-slate-900  { background-color: var(--bg-secondary) !important; }
-html.light .bg-slate-800  { background-color: var(--bg-tertiary) !important; }
-
-html.light .bg-slate-900\/40,
-html.light .bg-slate-900\/50,
-html.light .bg-slate-900\/30 { background-color: rgba(248, 247, 245, 0.9) !important; }
-
-html.light .bg-slate-950\/40,
-html.light .bg-slate-950\/60,
-html.light .bg-slate-950\/80 { background-color: rgba(248, 247, 245, 0.85) !important; }
+.bg-slate-950,
+.bg-slate-900  { background-color: var(--bg) !important; }
+.bg-slate-800  { background-color: var(--surface-2) !important; }
+.bg-slate-900\/40,
+.bg-slate-900\/50,
+.bg-slate-900\/30,
+.bg-slate-900\/70,
+.bg-slate-900\/80 { background-color: var(--surface) !important; }
+.bg-slate-950\/40,
+.bg-slate-950\/50,
+.bg-slate-950\/60,
+.bg-slate-950\/80 { background-color: var(--surface-2) !important; }
 
 /* ══════════════════════════════
    BORDERS
    ══════════════════════════════ */
-.border-slate-800 { border-color: var(--border-color) !important; }
-.border-slate-700 { border-color: var(--border-strong) !important; }
-
-html.light .border-slate-800 { border-color: var(--border-color) !important; }
-html.light .border-slate-700 { border-color: var(--border-strong) !important; }
-html.light .border-slate-600 { border-color: #b8b4ae !important; }
+.border-slate-800 { border-color: var(--border-soft) !important; }
+.border-slate-700 { border-color: var(--border) !important; }
+.border-slate-600 { border-color: var(--border) !important; }
 
 /* ══════════════════════════════
    TEXT
    ══════════════════════════════ */
-html.light .text-white       { color: var(--text-accent) !important; }
-html.light .text-slate-100   { color: #1a1917 !important; }
-html.light .text-slate-200   { color: #2d2b28 !important; }
-html.light .text-slate-300   { color: #4a4540 !important; }
-html.light .text-slate-400   { color: #6a6560 !important; }
-html.light .text-slate-500   { color: #8a8580 !important; }
-html.light .text-indigo-400,
-html.light .text-indigo-500  { color: var(--accent-primary) !important; }
+.text-white        { color: var(--ink-1) !important; }
+.text-slate-100    { color: var(--ink-1) !important; }
+.text-slate-200    { color: var(--ink-1) !important; }
+.text-slate-300    { color: var(--ink-2) !important; }
+.text-slate-400    { color: var(--ink-2) !important; }
+.text-slate-500    { color: var(--ink-3) !important; }
+.text-slate-600    { color: var(--ink-3) !important; }
+.text-\[\#E45A80\] { color: var(--accent) !important; }
+.text-indigo-400,
+.text-indigo-500   { color: var(--accent) !important; }
 
-/* Indigo → Flormar Pink (dark mode) */
-.text-indigo-400 { color: var(--accent-primary) !important; }
-.text-indigo-500 { color: var(--accent-primary) !important; }
-.bg-indigo-600   { background-color: var(--accent-primary) !important; }
-.hover\:bg-indigo-500:hover { background-color: #d44e72 !important; }
-.focus\:ring-indigo-500:focus { --tw-ring-color: var(--accent-primary) !important; }
+/* Durum renkleri */
+.text-emerald-400  { color: var(--ok) !important; }
+.text-emerald-300  { color: var(--ok) !important; }
+.text-amber-400    { color: var(--warn) !important; }
+.text-rose-400     { color: var(--danger) !important; }
+.text-rose-300     { color: var(--danger) !important; }
 
 /* ══════════════════════════════
    INPUTS & FORM ELEMENTS
    ══════════════════════════════ */
 input, select, textarea {
-    font-family: 'Montserrat', sans-serif !important;
-    background-color: var(--input-bg) !important;
-    border-color: var(--input-border) !important;
-    color: var(--text-primary) !important;
-    transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
+  font-family: 'DM Sans', sans-serif !important;
+  background-color: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 6px !important;
+  color: var(--ink-1) !important;
+  font-size: 13px !important;
+  height: 38px;
+  padding: 0 12px !important;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
+textarea { height: auto !important; padding: 10px 12px !important; }
+
 input:focus, select:focus, textarea:focus {
-    outline: none !important;
-    border-color: var(--input-focus) !important;
-    box-shadow: 0 0 0 1px var(--input-focus) !important;
+  outline: none !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(45,74,62,0.08) !important;
 }
 
 input::placeholder, textarea::placeholder {
-    color: var(--text-muted) !important;
-    font-weight: 300;
+  color: var(--ink-3) !important;
+  font-weight: 300;
 }
 
-html.light input, html.light select, html.light textarea {
-    background-color: var(--input-bg) !important;
-    border-color: var(--input-border) !important;
-    color: var(--text-primary) !important;
-}
-
-html.light input::placeholder,
-html.light textarea::placeholder { color: var(--text-muted) !important; }
-
-html input[type="date"]        { color-scheme: dark; }
-html.light input[type="date"]  { color-scheme: light; }
+input[type="date"] { color-scheme: light; }
 
 /* ══════════════════════════════
-   TABLES
+   BUTONLAR
+   ══════════════════════════════ */
+.btn, button[class*="bg-"] {
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 12.5px !important;
+  height: 36px;
+  border-radius: 6px !important;
+  border: 1px solid var(--border) !important;
+  background: var(--surface) !important;
+  color: var(--ink-1) !important;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn:hover { background: var(--surface-2) !important; }
+
+.btn.primary,
+button[id="mainBtn"],
+button[class*="bg-\[\#E45A80\]"],
+button.bg-\[\#E45A80\] {
+  background: var(--ink-1) !important;
+  color: #fff !important;
+  border-color: var(--ink-1) !important;
+}
+
+.btn.primary:hover { background: #000 !important; }
+
+/* Yeşil/turuncu aksiyon butonları → accent */
+.bg-\[\#E45A80\],
+.bg-\[#E45A80\] { background-color: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
+.hover\:bg-\[#d44e72\]:hover { background-color: var(--accent) !important; }
+
+.bg-emerald-600, .bg-emerald-700 { background-color: var(--ok) !important; border-color: var(--ok) !important; }
+.bg-amber-600   { background-color: var(--warn) !important; border-color: var(--warn) !important; }
+.bg-rose-600    { background-color: var(--danger) !important; border-color: var(--danger) !important; }
+
+/* Sipariş sayfasındaki aksiyonlar */
+.bg-\[\#E45A80\]:hover { background-color: #1a3329 !important; }
+
+/* ══════════════════════════════
+   KARTLAR
+   ══════════════════════════════ */
+.card, .kpi-card, .section-card,
+.bg-slate-900\/40.border,
+.bg-slate-800.rounded,
+div[class*="rounded-xl"].border,
+div[class*="rounded-2xl"].border {
+  background: var(--surface) !important;
+  border: 1px solid var(--border-soft) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+.kpi-card:hover { border-color: var(--border) !important; }
+
+/* ══════════════════════════════
+   TABLOLAR
    ══════════════════════════════ */
 .custom-table-container {
-    background: var(--bg-card) !important;
-    border-color: var(--border-color) !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--border-soft) !important;
+  border-radius: 8px;
 }
 
-.custom-table th {
-    font-family: 'Montserrat', sans-serif !important;
-    font-size: 0.68rem !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.1em !important;
-    color: var(--table-th-color) !important;
-    border-color: var(--border-color) !important;
-    background: var(--table-header-bg) !important;
+.custom-table th, .inner-table th {
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  color: var(--ink-3) !important;
+  border-color: var(--border-soft) !important;
+  background: var(--surface-2) !important;
 }
 
-.custom-table td {
-    font-family: 'Montserrat', sans-serif !important;
-    font-size: 0.82rem !important;
-    color: var(--table-td-color) !important;
-    border-color: var(--table-border) !important;
+.custom-table td, .inner-table td {
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  color: var(--ink-2) !important;
+  border-color: var(--border-soft) !important;
+  padding: 14px !important;
 }
 
-.custom-table tbody tr:hover { background: var(--table-hover) !important; }
-
-.inner-table th {
-    font-family: 'Montserrat', sans-serif !important;
-    font-size: 0.62rem !important;
-    font-weight: 600 !important;
-    color: var(--table-th-color) !important;
-    background: var(--table-header-bg) !important;
-    border-color: var(--border-color) !important;
-}
-
-.inner-table td {
-    font-family: 'Montserrat', sans-serif !important;
-    font-size: 0.78rem !important;
-    color: var(--table-td-color) !important;
-    border-color: var(--border-color) !important;
-}
-
-html.light .inner-table th { background-color: var(--bg-tertiary) !important; }
+.custom-table tbody tr:hover { background: var(--surface-2) !important; }
 
 /* ══════════════════════════════
    MODALS
    ══════════════════════════════ */
 .modal-content {
-    font-family: 'Montserrat', sans-serif !important;
-    background-color: var(--modal-bg) !important;
-    border-color: var(--modal-border) !important;
-    box-shadow: var(--modal-shadow) !important;
+  font-family: 'DM Sans', sans-serif !important;
+  background-color: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+  box-shadow: var(--modal-shadow) !important;
 }
 
-.modal-backdrop { background: rgba(0, 0, 0, 0.72) !important; backdrop-filter: blur(6px) !important; }
-html.light .modal-backdrop { background: rgba(20, 18, 15, 0.5) !important; }
+.modal-backdrop {
+  background: rgba(28,26,23,0.5) !important;
+  backdrop-filter: blur(4px) !important;
+}
 
 .modal-content .border-b.border-slate-800,
-.modal-content .border-t.border-slate-800 { border-color: var(--border-color) !important; }
+.modal-content .border-t.border-slate-800 { border-color: var(--border-soft) !important; }
 
 /* ══════════════════════════════
-   KPI CARDS
+   PILLS / BADGE
+   ══════════════════════════════ */
+.pill, span[class*="rounded-full"], span[class*="rounded-xl"].text-xs {
+  font-size: 11px !important;
+  padding: 3px 9px !important;
+  border-radius: 999px !important;
+  font-weight: 500;
+}
+
+/* Durum pill renkleri — dark Tailwind → Porselen */
+.bg-emerald-950\/50, .bg-green-950\/50 { background: var(--ok-soft) !important; }
+.bg-amber-950\/50,  .bg-yellow-950\/50 { background: var(--warn-soft) !important; }
+.bg-rose-950\/50,   .bg-red-950\/50    { background: var(--danger-soft) !important; }
+.bg-slate-900\/50,  .bg-slate-800\/50  { background: var(--surface-2) !important; }
+.bg-\[rgba\(228\,90\,128\,0\.12\)\]    { background: var(--accent-soft) !important; }
+
+.border-emerald-800 { border-color: var(--ok) !important; }
+.border-amber-800   { border-color: var(--warn) !important; }
+.border-rose-800    { border-color: var(--danger) !important; }
+
+/* ══════════════════════════════
+   FX BANNER
+   ══════════════════════════════ */
+#fx-banner {
+  background: var(--surface) !important;
+  border: 1px solid var(--border-soft) !important;
+  border-radius: 8px !important;
+}
+
+.fx-dot-open  { background: var(--ok) !important; box-shadow: none !important; }
+.fx-dot-close { background: var(--ink-3) !important; }
+
+/* ══════════════════════════════
+   KPI KARTLARI
    ══════════════════════════════ */
 .kpi-card {
-    font-family: 'Montserrat', sans-serif !important;
-    background: var(--bg-card) !important;
-    border-color: var(--border-color) !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--border-soft) !important;
+  border-radius: 8px !important;
+  padding: 18px !important;
+  box-shadow: none !important;
 }
 
-.kpi-card:hover {
-    border-color: var(--accent-border) !important;
+/* KPI başlık metinleri */
+.kpi-card p.text-xs {
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 10px !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  color: var(--ink-3) !important;
 }
 
-html.light .kpi-card {
-    background: rgba(255, 255, 255, 0.98) !important;
-    border-color: var(--border-color) !important;
-    box-shadow: 0 1px 3px rgba(30, 25, 20, 0.06);
+/* KPI sayılar */
+.kpi-card .text-2xl,
+.kpi-card .text-3xl {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-size: 30px !important;
+  font-weight: 500 !important;
+  color: var(--ink-1) !important;
+}
+
+.kpi-card .text-emerald-400 { color: var(--ok) !important; }
+.kpi-card .text-amber-400   { color: var(--warn) !important; }
+
+/* ══════════════════════════════
+   SAYFA BAŞLIKLARI
+   ══════════════════════════════ */
+header h2, .page-title {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-size: 34px !important;
+  font-weight: 500 !important;
+  color: var(--ink-1) !important;
+  letter-spacing: -0.01em;
+}
+
+header .text-sm, header p {
+  color: var(--ink-2) !important;
+  font-size: 13px !important;
+  max-width: 520px;
 }
 
 /* ══════════════════════════════
-   SECTION CARDS (Orders)
+   SELECT DROPDOWN
    ══════════════════════════════ */
-.section-card {
-    background: var(--bg-card) !important;
-    border-color: var(--border-color) !important;
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23968B7A' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 16px !important;
+  appearance: none !important;
+  padding-right: 32px !important;
 }
 
-html.light .section-card {
-    background: rgba(248, 247, 245, 0.7) !important;
-    border-color: var(--border-color) !important;
+/* ══════════════════════════════
+   SECTION CARDS
+   ══════════════════════════════ */
+.section-card {
+  background: var(--surface) !important;
+  border: 1px solid var(--border-soft) !important;
+  border-radius: 8px !important;
 }
 
 .section-label {
-    font-family: 'Montserrat', sans-serif !important;
-    font-size: 0.62rem !important;
-    letter-spacing: 0.12em !important;
-    color: var(--text-muted) !important;
-    border-color: var(--border-color) !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  color: var(--ink-3) !important;
+  border-color: var(--border-soft) !important;
 }
 
-/* ══════════════════════════════
-   BUTTONS — LIGHT MODE
-   ══════════════════════════════ */
-html.light .bg-slate-900.hover\:bg-slate-800,
-html.light button.bg-slate-900 {
-    background-color: var(--bg-tertiary) !important;
-    border-color: var(--border-strong) !important;
-    color: var(--text-secondary) !important;
-}
-
-html.light .bg-slate-800.hover\:bg-slate-700,
-html.light button.bg-slate-800 {
-    background-color: var(--bg-tertiary) !important;
-    border-color: var(--border-color) !important;
-    color: var(--text-secondary) !important;
-}
-
-html.light .border-slate-700 { border-color: var(--border-strong) !important; }
-html.light .text-slate-300   { color: var(--text-secondary) !important; }
-
-/* ══════════════════════════════
-   ACCORDION / CARDS — LIGHT
-   ══════════════════════════════ */
-html.light .bg-slate-900\/40.border.border-slate-800 {
-    background: rgba(255, 255, 255, 0.92) !important;
-    border-color: var(--border-color) !important;
-}
-
-html.light .bg-slate-900\/80 {
-    background: rgba(248, 247, 245, 0.98) !important;
-}
-
-/* ══════════════════════════════
-   FX BANNER — LIGHT
-   ══════════════════════════════ */
-html.light #fx-banner {
-    background: rgba(255, 255, 255, 0.95) !important;
-    border-color: var(--border-color) !important;
-}
-
-html.light #fx-banner .text-slate-500 { color: var(--text-muted) !important; }
-
-/* ══════════════════════════════
-   GREIGE ACCENT — LIGHT STRUCTURAL ELEMENTS
-   ══════════════════════════════ */
-html.light .bg-indigo-950\/30,
-html.light .border-indigo-900\/40 {
-    background: rgba(228, 90, 128, 0.06) !important;
-    border-color: rgba(228, 90, 128, 0.18) !important;
-}
-
-/* ══════════════════════════════
-   DELETE BUTTONS (ROSE)
-   ══════════════════════════════ */
-.bg-rose-950\/40   { background: rgba(120, 20, 20, 0.15) !important; }
-.border-rose-900\/50 { border-color: rgba(180, 50, 50, 0.3) !important; }
-
-html.light .bg-rose-950\/40    { background: rgba(254, 242, 242, 1) !important; }
-html.light .border-rose-900\/50 { border-color: #fca5a5 !important; }
-html.light .text-rose-400       { color: #dc2626 !important; }
-
-/* ══════════════════════════════
-   FORM SECTION TITLES
-   ══════════════════════════════ */
 .form-section-title {
-    font-family: 'Montserrat', sans-serif !important;
-    font-size: 0.62rem !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.12em !important;
-    color: var(--text-muted) !important;
-    border-color: var(--border-color) !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  color: var(--ink-3) !important;
 }
 
 /* ══════════════════════════════
-   TYPOGRAPHY GLOBAL
+   ROSE (DELETE) BUTTONS
    ══════════════════════════════ */
-h1, h2, h3, h4, h5, h6,
-button, label, th, td, p, span, a, li {
-    font-family: 'Montserrat', sans-serif !important;
-}
-
-h1, h2, h3, h4 { letter-spacing: -0.02em; }
-
-.text-xs.uppercase,
-.uppercase.tracking-wider,
-.uppercase.tracking-widest {
-    letter-spacing: 0.08em;
-    font-weight: 500;
-}
+.bg-rose-950\/40, .bg-rose-950\/50 { background: var(--danger-soft) !important; }
+.border-rose-900\/50  { border-color: rgba(159,61,61,0.25) !important; }
+.text-rose-400        { color: var(--danger) !important; }
 
 /* ══════════════════════════════
    SMOOTH TRANSITIONS
@@ -496,7 +480,18 @@ input, select, textarea,
 .custom-table-container,
 .custom-table th, .custom-table td,
 .section-card {
-    transition-property: background-color, border-color, color, box-shadow;
-    transition-duration: 0.2s;
-    transition-timing-function: ease;
+  transition-property: background-color, border-color, color;
+  transition-duration: 0.18s;
+  transition-timing-function: ease;
+}
+
+/* ══════════════════════════════
+   GLOBAL TYPOGRAPHY OVERRIDE
+   ══════════════════════════════ */
+button, label, th, td, p, span, a, li, div {
+  font-family: 'DM Sans', sans-serif !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
 }

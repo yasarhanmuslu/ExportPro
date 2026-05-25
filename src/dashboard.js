@@ -66,9 +66,9 @@ function calculateKPIs(orders) {
     const currencySymbols = { 'EUR': '€', 'USD': '$', 'TRY': '₺', 'GBP': '£' };
 
     if (currencies.length === 0) {
-        ciroContainer.innerHTML = `<div class="text-slate-500 text-sm">Henüz sipariş yok</div>`;
-        avansContainer.innerHTML = `<div class="text-slate-500 text-sm">--</div>`;
-        bakiyeContainer.innerHTML = `<div class="text-slate-500 text-sm">--</div>`;
+        ciroContainer.innerHTML = `<div class="text-[#968B7A] text-sm">Henüz sipariş yok</div>`;
+        avansContainer.innerHTML = `<div class="text-[#968B7A] text-sm">--</div>`;
+        bakiyeContainer.innerHTML = `<div class="text-[#968B7A] text-sm">--</div>`;
         return;
     }
 
@@ -76,8 +76,8 @@ function calculateKPIs(orders) {
         const symbol = currencySymbols[curr] || curr;
         const fmt = (v) => v.toLocaleString('tr-TR', { minimumFractionDigits: 2 });
         ciroContainer.innerHTML += `<div class="flex justify-between"><span>${fmt(summary[curr].total)}</span><span class="text-xs text-purple-400 font-semibold">${symbol}</span></div>`;
-        avansContainer.innerHTML += `<div class="flex justify-between"><span>${fmt(summary[curr].advance)}</span><span class="text-xs text-emerald-400 font-semibold">${symbol}</span></div>`;
-        bakiyeContainer.innerHTML += `<div class="flex justify-between"><span>${fmt(summary[curr].remaining)}</span><span class="text-xs text-amber-400 font-semibold">${symbol}</span></div>`;
+        avansContainer.innerHTML += `<div class="flex justify-between"><span>${fmt(summary[curr].advance)}</span><span class="text-xs text-[#3D6E50] font-semibold">${symbol}</span></div>`;
+        bakiyeContainer.innerHTML += `<div class="flex justify-between"><span>${fmt(summary[curr].remaining)}</span><span class="text-xs text-[#B26B33] font-semibold">${symbol}</span></div>`;
     });
 }
 

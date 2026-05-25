@@ -4,15 +4,30 @@
     <meta charset="UTF-8">
     <script>/* Flash önle */ (function(){var t=localStorage.getItem("ep-theme")||"dark";document.documentElement.classList.add(t==="light"?"light":"dark");})();</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Export Manager Pro</title>
+    <title>Dashboard — Export Suite</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./src/assets/css/theme.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        .kpi-card { background: rgba(20,20,20,0.8); border: 1px solid #242424; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 20px 25px -5px rgb(0 0 0/.1); transition: border-color .3s; }
-        .kpi-card:hover { border-color: rgba(228,90,128,0.25); }
+        /* ── Porselen iç sayfa overrides ── */
+        body { background: #F6F3EC !important; color: #1C1A17 !important; }
+        .modal-backdrop { background: rgba(28,26,23,0.50) !important; backdrop-filter: blur(4px); }
+        input, select, textarea {
+            background: #fff !important; border: 1px solid #E4DDCE !important;
+            border-radius: 6px !important; color: #1C1A17 !important;
+            font-family: 'DM Sans', sans-serif !important; font-size: 13px !important;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none !important; border-color: #2D4A3E !important;
+            box-shadow: 0 0 0 3px rgba(45,74,62,0.08) !important;
+        }
+
+        .kpi-card { background: #fff; border: 1px solid #EFEAE0; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 20px 25px -5px rgb(0 0 0/.1); transition: border-color .3s; }
+        .kpi-card:hover { border-color: #E4DDCE; }
 
         #fx-banner { animation: fx-fadein 0.5s ease; }
         @keyframes fx-fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
@@ -24,32 +39,32 @@
         .fx-dot-close { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #5a5855; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100">
+<body class="min-h-screen">
 
     <div id="navbar-target"></div>
 
-    <main class="ml-64 p-8 min-h-screen">
+    <main class="min-h-screen" style="margin-left:230px;padding:32px;">
 
         <!-- ═══════════════════════════════════════════
              TCMB DÖVİZ KURU BANNER
         ════════════════════════════════════════════ -->
-        <div id="fx-banner" class="flex flex-wrap items-center gap-x-6 gap-y-2 mb-6 px-5 py-3 rounded-xl bg-slate-900/70 border border-slate-800">
+        <div id="fx-banner" class="flex flex-wrap items-center gap-x-6 gap-y-2 mb-6 px-5 py-3" style="background:#fff;border:1px solid #EFEAE0;border-radius:8px;">
 
             <!-- Sol: Kaynak etiketi -->
             <div class="flex items-center gap-2 shrink-0">
                 <i class="fa-solid fa-landmark text-slate-500 text-xs"></i>
-                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">TCMB</span>
+                <span style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;">TCMB</span>
             </div>
 
             <!-- Ayırıcı -->
-            <div class="w-px h-4 bg-slate-800 shrink-0"></div>
+            <div class="w-px h-4 shrink-0" style="background:#EFEAE0;"></div>
 
             <!-- USD/TRY -->
             <div class="flex items-center gap-2 shrink-0">
                 <span class="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">USD</span>
                 <i class="fa-solid fa-arrow-right-long text-slate-700 text-[10px]"></i>
                 <span class="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">TRY</span>
-                <span id="fx-usd-val" class="fx-value fx-loading text-sm font-bold text-emerald-400 font-mono tracking-tight ml-1">...</span>
+                <span id="fx-usd-val" class="fx-value fx-loading style="font-size:12px;font-weight:600;font-family:monospace;color:#3D6E50;margin-left:4px;">...</span>
             </div>
 
             <!-- EUR/TRY -->
@@ -57,7 +72,7 @@
                 <span class="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">EUR</span>
                 <i class="fa-solid fa-arrow-right-long text-slate-700 text-[10px]"></i>
                 <span class="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">TRY</span>
-                <span id="fx-eur-val" class="fx-value fx-loading text-sm font-bold text-[#E45A80] font-mono tracking-tight ml-1">...</span>
+                <span id="fx-eur-val" class="fx-value fx-loading style="font-size:12px;font-weight:600;font-family:monospace;color:#3F5C7A;margin-left:4px;">...</span>
             </div>
 
             <!-- Sağ: Durum göstergesi -->
@@ -71,16 +86,17 @@
         <!-- ═══════════════════════════════════════════
              SAYFA BAŞLIĞI
         ════════════════════════════════════════════ -->
-        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b border-slate-800">
+        <div style="font-size:10px;font-weight:600;letter-spacing:0.22em;text-transform:uppercase;color:#B58858;margin-bottom:8px;">Analitik · Özet</div>
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5" style="border-bottom:1px solid #EFEAE0;">
             <div>
-                <h2 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                    <i class="fa-solid fa-chart-pie text-[#E45A80]"></i> Yönetici Analiz Paneli
+                <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px;">
+                    <i class="fa-solid fa-chart-pie" style="color:#2D4A3E;font-size:18px;"></i> Genel Görünüm.
                 </h2>
-                <p class="text-sm text-slate-400 mt-1">Şirketinizin ihracat performansına anlık genel bakış.</p>
+                <p style="font-size:13px;color:#6B655B;margin-top:6px;">Şirketinizin ihracat performansına anlık genel bakış.</p>
             </div>
-            <div class="flex items-center gap-3 bg-slate-900/50 px-4 py-2 rounded-xl border border-slate-800">
+            <div class="flex items-center gap-3 px-4 py-2 rounded-xl border border-slate-800">
                 <label for="year-select" class="text-xs font-semibold text-slate-400 tracking-wider uppercase">Analiz Yılı:</label>
-                <select id="year-select" class="bg-slate-950 border border-slate-800 py-1 px-3 text-sm font-medium rounded-lg text-slate-100 focus:ring-[#E45A80] focus:outline-none"></select>
+                <select id="year-select" class="bg-[#F6F3EC] border border-slate-800 py-1 px-3 text-sm font-medium rounded-lg text-slate-100 focus:ring-[#E45A80] focus:outline-none"></select>
             </div>
         </header>
 
@@ -89,21 +105,21 @@
         ════════════════════════════════════════════ -->
         <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div class="kpi-card">
-                <p class="text-xs font-semibold text-slate-400 tracking-wider uppercase mb-2">Toplam Brüt Ciro</p>
-                <div id="kpi-ciro-container" class="space-y-1 text-2xl font-bold text-white tracking-tight">
-                    <div class="text-slate-500 text-sm font-normal animate-pulse">Veriler yükleniyor...</div>
+                <p style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;margin-bottom:8px;">Toplam Brüt Ciro</p>
+                <div id="kpi-ciro-container" style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:500;color:#1C1A17;">
+                    <div class="text-[#968B7A] text-sm font-normal animate-pulse">Veriler yükleniyor...</div>
                 </div>
             </div>
             <div class="kpi-card">
-                <p class="text-xs font-semibold text-slate-400 tracking-wider uppercase mb-2">Tahsil Edilen Avanslar</p>
-                <div id="kpi-avans-container" class="space-y-1 text-2xl font-bold text-emerald-400 tracking-tight">
-                    <div class="text-slate-500 text-sm font-normal">--</div>
+                <p style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;margin-bottom:8px;">Tahsil Edilen Avanslar</p>
+                <div id="kpi-avans-container" style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:500;color:#3D6E50;">
+                    <div class="text-[#968B7A] text-sm font-normal">--</div>
                 </div>
             </div>
             <div class="kpi-card">
-                <p class="text-xs font-semibold text-slate-400 tracking-wider uppercase mb-2">Kalan Vadeli Bakiye</p>
-                <div id="kpi-bakiye-container" class="space-y-1 text-2xl font-bold text-amber-400 tracking-tight">
-                    <div class="text-slate-500 text-sm font-normal">--</div>
+                <p style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;margin-bottom:8px;">Kalan Vadeli Bakiye</p>
+                <div id="kpi-bakiye-container" style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:500;color:#B26B33;">
+                    <div class="text-[#968B7A] text-sm font-normal">--</div>
                 </div>
             </div>
         </section>
@@ -112,15 +128,15 @@
              GRAFİKLER
         ════════════════════════════════════════════ -->
         <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-6 shadow-xl">
-                <h3 class="text-sm font-semibold text-slate-300 tracking-wide uppercase flex items-center gap-2 mb-4">
-                    <i class="fa-solid fa-chart-line text-[#E45A80]"></i> Aylık Sipariş Hacmi Dağılımı
+            <div style="background:#fff;border:1px solid #EFEAE0;border-radius:8px;padding:24px;">
+                <h3 style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;display:flex;align-items:center;gap:6px;margin-bottom:16px;">
+                    <i class="fa-solid fa-chart-line text-[#2D4A3E]"></i> Aylık Sipariş Hacmi Dağılımı
                 </h3>
                 <div class="h-80 relative"><canvas id="chart-monthly-performance"></canvas></div>
             </div>
-            <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-6 shadow-xl">
-                <h3 class="text-sm font-semibold text-slate-300 tracking-wide uppercase flex items-center gap-2 mb-4">
-                    <i class="fa-solid fa-chart-pie text-emerald-400"></i> Döviz Cinsine Göre Sipariş Oranları
+            <div style="background:#fff;border:1px solid #EFEAE0;border-radius:8px;padding:24px;">
+                <h3 style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;display:flex;align-items:center;gap:6px;margin-bottom:16px;">
+                    <i class="fa-solid fa-chart-pie style="color:#B58858"></i> Döviz Cinsine Göre Sipariş Oranları
                 </h3>
                 <div class="h-80 relative"><canvas id="chart-currency-distribution"></canvas></div>
             </div>
