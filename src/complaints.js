@@ -345,7 +345,7 @@ function renderDecisionChart() {
     legend.innerHTML = labels.map((label, i) => `
         <div style="display:flex;align-items:center;gap:6px;">
             <span style="width:10px;height:10px;border-radius:50%;background:${colors[i]};display:inline-block;"></span>
-            <span style="font-size:11px;color:#6B655B;font-family:'DM Sans',sans-serif;">
+            <span style="font-size:11px;color:#6B655B;font-family:Verdana, Geneva, sans-serif;">
                 ${label}: <strong>${values[i]}</strong>
                 ${total > 0 ? `<span style="color:#968B7A;">(%${((values[i]/total)*100).toFixed(0)})</span>` : ''}
             </span>
@@ -423,14 +423,14 @@ function renderMonthlyChart() {
                 scales: {
                     x: {
                         grid: { color: '#EFEAE0' },
-                        ticks: { color: '#968B7A', font: { size: 10, family: 'DM Sans' } }
+                        ticks: { color: '#968B7A', font: { size: 10, family: 'Verdana' } }
                     },
                     y: {
                         beginAtZero: true,
                         grid: { color: '#EFEAE0' },
                         ticks: {
                             color: '#968B7A',
-                            font: { size: 10, family: 'DM Sans' },
+                            font: { size: 10, family: 'Verdana' },
                             stepSize: 1
                         }
                     }

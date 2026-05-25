@@ -1,6 +1,6 @@
 import { supabase } from '../utils/supabaseClient.js';
 
-const APP_VERSION = 'V: 1.0.31';
+const APP_VERSION = 'V: 1.0.32';
 
 export async function renderNavbar(activeTab) {
     const { data: { session } } = await supabase.auth.getSession();
@@ -75,8 +75,8 @@ export async function renderNavbar(activeTab) {
                         ${globeSvg}
                     </div>
                     <div>
-                        <div style="font-family:'Cormorant Garamond',Georgia,serif;font-size:20px;font-weight:500;color:var(--ink-1,#1C1A17);line-height:1.1;letter-spacing:-0.01em;transition:color 0.2s;">Export Suite</div>
-                        <div style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-3,#968B7A);font-family:'DM Sans',sans-serif;font-weight:500;transition:color 0.2s;">İhracat Yönetimi</div>
+                        <div style="font-family:Verdana, Geneva, sans-serif;font-size:20px;font-weight:500;color:var(--ink-1,#1C1A17);line-height:1.1;letter-spacing:-0.01em;transition:color 0.2s;">Export Suite</div>
+                        <div style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-3,#968B7A);font-family:Verdana, Geneva, sans-serif;font-weight:500;transition:color 0.2s;">İhracat Yönetimi</div>
                     </div>
                 </div>
                 <!-- Nav -->
@@ -90,18 +90,18 @@ export async function renderNavbar(activeTab) {
                 <div style="font-size:11px;color:var(--ink-2,#6B655B);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.2s;">
                     <i class="fa-solid fa-user" style="font-size:9px;margin-right:4px;color:var(--ink-3,#968B7A);"></i>${userEmail}
                 </div>
-                <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-3,#968B7A);font-family:'DM Sans',sans-serif;margin-bottom:10px;transition:color 0.2s;">${APP_VERSION}</div>
+                <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-3,#968B7A);font-family:Verdana, Geneva, sans-serif;margin-bottom:10px;transition:color 0.2s;">${APP_VERSION}</div>
 
                 <!-- Tema Toggle -->
                 <button id="btn-theme-sidebar"
-                    style="width:100%;height:32px;border-radius:6px;border:1px solid var(--border,#E4DDCE);background:var(--surface,#fff);color:var(--ink-2,#6B655B);font-size:11px;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px;transition:background 0.15s,border-color 0.25s,color 0.2s;">
+                    style="width:100%;height:32px;border-radius:6px;border:1px solid var(--border,#E4DDCE);background:var(--surface,#fff);color:var(--ink-2,#6B655B);font-size:11px;font-family:Verdana, Geneva, sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px;transition:background 0.15s,border-color 0.25s,color 0.2s;">
                     <i class="fa-solid ${themeIcon}" style="font-size:11px;"></i>
                     <span>${themeLabel}</span>
                 </button>
 
                 <!-- Çıkış -->
                 <button id="btn-logout"
-                    style="width:100%;height:32px;border-radius:6px;border:1px solid var(--border,#E4DDCE);background:transparent;color:var(--danger,#9F3D3D);font-size:11px;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background 0.15s,color 0.2s;">
+                    style="width:100%;height:32px;border-radius:6px;border:1px solid var(--border,#E4DDCE);background:transparent;color:var(--danger,#9F3D3D);font-size:11px;font-family:Verdana, Geneva, sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background 0.15s,color 0.2s;">
                     <i class="fa-solid fa-right-from-bracket" style="font-size:11px;"></i>
                     Çıkış Yap
                 </button>

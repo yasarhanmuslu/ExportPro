@@ -6,8 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Şikayet Panosu — Export Suite</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./src/assets/css/theme.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -18,7 +16,7 @@
         input, select, textarea {
             background: #fff !important; border: 1px solid #E4DDCE !important;
             border-radius: 6px !important; color: #1C1A17 !important;
-            font-family: 'DM Sans', sans-serif !important; font-size: 13px !important;
+            font-family: Verdana, Geneva, sans-serif !important; font-size: 13px !important;
         }
         input:focus, select:focus, textarea:focus {
             outline: none !important; border-color: #2D4A3E !important;
@@ -125,16 +123,16 @@
         <!-- ── Başlık ── -->
         <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b" style="border-color:#EFEAE0;">
             <div>
-                <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:10px;">
+                <h2 style="font-family:Verdana, Geneva, sans-serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:10px;">
                     <i class="fa-solid fa-triangle-exclamation" style="color:#B26B33;font-size:28px;"></i>
                     Şikayet Panosu
                 </h2>
-                <p style="font-size:13px;color:#968B7A;margin-top:4px;font-family:'DM Sans',sans-serif;">
+                <p style="font-size:13px;color:#968B7A;margin-top:4px;font-family:Verdana, Geneva, sans-serif;">
                     Ürün ve müşteri bazlı şikayet analizi · Karar dağılımı · Zaman serisi trendi
                 </p>
             </div>
             <button id="btn-refresh" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer"
-                style="background:#fff;border:1px solid #E4DDCE;color:#6B655B;font-family:'DM Sans',sans-serif;">
+                style="background:#fff;border:1px solid #E4DDCE;color:#6B655B;font-family:Verdana, Geneva, sans-serif;">
                 <i class="fa-solid fa-rotate-right" style="font-size:12px;"></i> Yenile
             </button>
         </header>
@@ -174,11 +172,11 @@
                 </div>
             </div>
             <div class="flex items-center justify-between mt-3 pt-3" style="border-top:1px solid #EFEAE0;">
-                <span style="font-size:11px;color:#968B7A;font-family:'DM Sans',sans-serif;">
+                <span style="font-size:11px;color:#968B7A;font-family:Verdana, Geneva, sans-serif;">
                     <i class="fa-solid fa-circle-info" style="margin-right:4px;"></i>
                     <span id="filter-result-count">—</span> kayıt gösteriliyor
                 </span>
-                <button id="btn-clear-filters" style="font-size:11px;color:#9F3D3D;background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;">
+                <button id="btn-clear-filters" style="font-size:11px;color:#9F3D3D;background:none;border:none;cursor:pointer;font-family:Verdana, Geneva, sans-serif;">
                     <i class="fa-solid fa-xmark" style="margin-right:3px;"></i> Filtreleri Temizle
                 </button>
             </div>
@@ -190,29 +188,29 @@
                 <div style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#968B7A;margin-bottom:8px;">
                     <i class="fa-solid fa-list-check" style="margin-right:5px;color:#B26B33;"></i>Toplam Şikayet
                 </div>
-                <div id="kpi-total" style="font-size:32px;font-weight:600;color:#1C1A17;font-family:'Cormorant Garamond',serif;line-height:1;">—</div>
-                <div style="font-size:11px;color:#968B7A;margin-top:4px;font-family:'DM Sans',sans-serif;">toplam kalem sayısı</div>
+                <div id="kpi-total" style="font-size:32px;font-weight:600;color:#1C1A17;font-family:Verdana, Geneva, sans-serif;line-height:1;">—</div>
+                <div style="font-size:11px;color:#968B7A;margin-top:4px;font-family:Verdana, Geneva, sans-serif;">toplam kalem sayısı</div>
             </div>
             <div class="kpi-card">
                 <div style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#968B7A;margin-bottom:8px;">
                     <i class="fa-solid fa-circle-check" style="margin-right:5px;color:#3D6E50;"></i>Kabul Edilen
                 </div>
-                <div id="kpi-accepted" style="font-size:32px;font-weight:600;color:#3D6E50;font-family:'Cormorant Garamond',serif;line-height:1;">—</div>
-                <div style="font-size:11px;color:#968B7A;margin-top:4px;font-family:'DM Sans',sans-serif;" id="kpi-accepted-rate">— kabul oranı</div>
+                <div id="kpi-accepted" style="font-size:32px;font-weight:600;color:#3D6E50;font-family:Verdana, Geneva, sans-serif;line-height:1;">—</div>
+                <div style="font-size:11px;color:#968B7A;margin-top:4px;font-family:Verdana, Geneva, sans-serif;" id="kpi-accepted-rate">— kabul oranı</div>
             </div>
             <div class="kpi-card">
                 <div style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#968B7A;margin-bottom:8px;">
                     <i class="fa-solid fa-circle-xmark" style="margin-right:5px;color:#9F3D3D;"></i>Reddedilen
                 </div>
-                <div id="kpi-rejected" style="font-size:32px;font-weight:600;color:#9F3D3D;font-family:'Cormorant Garamond',serif;line-height:1;">—</div>
-                <div style="font-size:11px;color:#968B7A;margin-top:4px;font-family:'DM Sans',sans-serif;" id="kpi-rejected-rate">— red oranı</div>
+                <div id="kpi-rejected" style="font-size:32px;font-weight:600;color:#9F3D3D;font-family:Verdana, Geneva, sans-serif;line-height:1;">—</div>
+                <div style="font-size:11px;color:#968B7A;margin-top:4px;font-family:Verdana, Geneva, sans-serif;" id="kpi-rejected-rate">— red oranı</div>
             </div>
             <div class="kpi-card">
                 <div style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#968B7A;margin-bottom:8px;">
                     <i class="fa-solid fa-hourglass-half" style="margin-right:5px;color:#3F5C7A;"></i>Bekleyen CN'ler
                 </div>
-                <div id="kpi-pending" style="font-size:32px;font-weight:600;color:#3F5C7A;font-family:'Cormorant Garamond',serif;line-height:1;">—</div>
-                <div style="font-size:11px;color:#968B7A;margin-top:4px;font-family:'DM Sans',sans-serif;">process_status = İncelemede</div>
+                <div id="kpi-pending" style="font-size:32px;font-weight:600;color:#3F5C7A;font-family:Verdana, Geneva, sans-serif;line-height:1;">—</div>
+                <div style="font-size:11px;color:#968B7A;margin-top:4px;font-family:Verdana, Geneva, sans-serif;">process_status = İncelemede</div>
             </div>
         </section>
 
@@ -222,10 +220,10 @@
             <!-- B) Ürün Bazında -->
             <div class="section-card">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:20px;font-weight:500;color:#1C1A17;display:flex;align-items:center;gap:8px;">
+                    <h3 style="font-family:Verdana, Geneva, sans-serif;font-size:20px;font-weight:500;color:#1C1A17;display:flex;align-items:center;gap:8px;">
                         <i class="fa-solid fa-box" style="color:#B26B33;font-size:16px;"></i> Ürün Bazında Şikayet
                     </h3>
-                    <span style="font-size:10px;color:#968B7A;font-family:'DM Sans',sans-serif;">Tıkla → Detayları Gör</span>
+                    <span style="font-size:10px;color:#968B7A;font-family:Verdana, Geneva, sans-serif;">Tıkla → Detayları Gör</span>
                 </div>
                 <div style="overflow-x:auto;">
                     <table class="data-table">
@@ -247,10 +245,10 @@
             <!-- C) Müşteri Bazında -->
             <div class="section-card">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:20px;font-weight:500;color:#1C1A17;display:flex;align-items:center;gap:8px;">
+                    <h3 style="font-family:Verdana, Geneva, sans-serif;font-size:20px;font-weight:500;color:#1C1A17;display:flex;align-items:center;gap:8px;">
                         <i class="fa-solid fa-users" style="color:#2D4A3E;font-size:16px;"></i> Müşteri Bazında Şikayet
                     </h3>
-                    <span style="font-size:10px;color:#968B7A;font-family:'DM Sans',sans-serif;">En çok şikayet → Üstte</span>
+                    <span style="font-size:10px;color:#968B7A;font-family:Verdana, Geneva, sans-serif;">En çok şikayet → Üstte</span>
                 </div>
                 <div style="overflow-x:auto;">
                     <table class="data-table">
@@ -275,7 +273,7 @@
 
             <!-- D) Karar Dağılımı Doughnut -->
             <div class="section-card">
-                <h3 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:20px;font-weight:500;color:#1C1A17;display:flex;align-items:center;gap:8px;margin-bottom:1rem;">
+                <h3 style="font-family:Verdana, Geneva, sans-serif;font-size:20px;font-weight:500;color:#1C1A17;display:flex;align-items:center;gap:8px;margin-bottom:1rem;">
                     <i class="fa-solid fa-chart-pie" style="color:#3F5C7A;font-size:16px;"></i> Karar Dağılımı
                 </h3>
                 <div class="chart-container" style="height:280px;display:flex;align-items:center;justify-content:center;">
@@ -287,10 +285,10 @@
             <!-- E) Zaman Serisi Line -->
             <div class="section-card">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:20px;font-weight:500;color:#1C1A17;display:flex;align-items:center;gap:8px;">
+                    <h3 style="font-family:Verdana, Geneva, sans-serif;font-size:20px;font-weight:500;color:#1C1A17;display:flex;align-items:center;gap:8px;">
                         <i class="fa-solid fa-chart-line" style="color:#2D4A3E;font-size:16px;"></i> Aylık Şikayet Trendi
                     </h3>
-                    <span id="trend-badge" style="font-size:11px;font-family:'DM Sans',sans-serif;"></span>
+                    <span id="trend-badge" style="font-size:11px;font-family:Verdana, Geneva, sans-serif;"></span>
                 </div>
                 <div class="chart-container" style="height:280px;">
                     <canvas id="chart-monthly-line"></canvas>
@@ -304,7 +302,7 @@
     <div id="product-detail-modal" class="modal-backdrop hidden">
         <div class="modal-content">
             <div class="flex items-center justify-between p-5" style="border-bottom:1px solid #EFEAE0;">
-                <h3 id="product-modal-title" style="font-family:'Cormorant Garamond',Georgia,serif;font-size:22px;font-weight:500;color:#1C1A17;display:flex;align-items:center;gap:8px;">
+                <h3 id="product-modal-title" style="font-family:Verdana, Geneva, sans-serif;font-size:22px;font-weight:500;color:#1C1A17;display:flex;align-items:center;gap:8px;">
                     <i class="fa-solid fa-box" style="color:#B26B33;"></i> Ürün Şikayet Detayları
                 </h3>
                 <button id="btn-close-product-modal" style="background:none;border:none;cursor:pointer;color:#968B7A;font-size:18px;">
@@ -329,7 +327,7 @@
                 </div>
             </div>
             <div class="flex justify-end p-5" style="border-top:1px solid #EFEAE0;">
-                <button id="btn-close-product-modal-footer" style="padding:8px 20px;border-radius:6px;border:1px solid #E4DDCE;background:#FBF8F1;color:#6B655B;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;">Kapat</button>
+                <button id="btn-close-product-modal-footer" style="padding:8px 20px;border-radius:6px;border:1px solid #E4DDCE;background:#FBF8F1;color:#6B655B;font-family:Verdana, Geneva, sans-serif;font-size:13px;cursor:pointer;">Kapat</button>
             </div>
         </div>
     </div>

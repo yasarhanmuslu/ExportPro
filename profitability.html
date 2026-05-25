@@ -6,8 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Karlılık Analizi — Export Suite</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./src/assets/css/theme.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -18,7 +16,7 @@
         input, select, textarea {
             background: #fff !important; border: 1px solid #E4DDCE !important;
             border-radius: 6px !important; color: #1C1A17 !important;
-            font-family: 'DM Sans', sans-serif !important; font-size: 13px !important;
+            font-family: Verdana, Geneva, sans-serif !important; font-size: 13px !important;
         }
         input:focus, select:focus, textarea:focus {
             outline: none !important; border-color: #2D4A3E !important;
@@ -66,7 +64,7 @@
             display: inline-flex; align-items: center; justify-content: center;
             min-width: 44px; padding: 3px 8px;
             border-radius: 20px; font-size: 11px; font-weight: 600;
-            font-family: 'DM Sans', sans-serif;
+            font-family: Verdana, Geneva, sans-serif;
         }
         .score-green { background: #E1EBE4; color: #3D6E50; }
         .score-yellow { background: #F3E5D2; color: #B26B33; }
@@ -96,7 +94,7 @@
 
         .stat-item { display: flex; flex-direction: column; gap: 2px; }
         .stat-label { font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #968B7A; }
-        .stat-value { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 500; color: #1C1A17; line-height: 1.1; }
+        .stat-value { font-family: Verdana, Geneva, sans-serif; font-size: 22px; font-weight: 500; color: #1C1A17; line-height: 1.1; }
         .stat-sub { font-size: 11px; color: #6B655B; }
 
         .section-title {
@@ -144,12 +142,12 @@
         <div style="font-size:10px;font-weight:600;letter-spacing:0.22em;text-transform:uppercase;color:#B58858;margin-bottom:8px;">Analitik · Karlılık</div>
         <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5" style="border-bottom:1px solid #EFEAE0;">
             <div>
-                <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:10px;">
+                <h2 style="font-family:Verdana, Geneva, sans-serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:10px;">
                     <i class="fa-solid fa-chart-line" style="color:#2D4A3E;font-size:20px;"></i> Karlılık Analizi.
                 </h2>
                 <p style="font-size:13px;color:#6B655B;margin-top:6px;">İskonto profilleri, müşteri skor tablosu ve ürün fiyat tutarsızlıkları.</p>
             </div>
-            <button id="btn-refresh" style="display:flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;border:1px solid #E4DDCE;background:#fff;color:#6B655B;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:border-color .15s;">
+            <button id="btn-refresh" style="display:flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;border:1px solid #E4DDCE;background:#fff;color:#6B655B;font-size:12px;font-family:Verdana, Geneva, sans-serif;cursor:pointer;transition:border-color .15s;">
                 <i class="fa-solid fa-arrows-rotate" style="font-size:11px;"></i> Yenile
             </button>
         </header>
@@ -274,7 +272,7 @@
             <div class="flex items-start justify-between mb-5">
                 <div>
                     <div style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;margin-bottom:4px;">Müşteri Karlılık Detayı</div>
-                    <h3 id="modal-customer-name" style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:500;color:#1C1A17;"></h3>
+                    <h3 id="modal-customer-name" style="font-family:Verdana, Geneva, sans-serif;font-size:26px;font-weight:500;color:#1C1A17;"></h3>
                 </div>
                 <button id="modal-close-btn" style="width:32px;height:32px;border-radius:8px;border:1px solid #EFEAE0;background:#FBF8F1;cursor:pointer;display:flex;align-items:center;justify-content:center;">
                     <i class="fa-solid fa-xmark" style="font-size:13px;color:#6B655B;"></i>
@@ -285,15 +283,15 @@
             <div class="grid grid-cols-3 gap-3 mb-6">
                 <div style="background:#FBF8F1;border:1px solid #EFEAE0;border-radius:8px;padding:12px;">
                     <div style="font-size:9px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#968B7A;margin-bottom:4px;">Ort. İskonto</div>
-                    <div id="modal-avg-discount" style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;color:#B26B33;"></div>
+                    <div id="modal-avg-discount" style="font-family:Verdana, Geneva, sans-serif;font-size:22px;font-weight:500;color:#B26B33;"></div>
                 </div>
                 <div style="background:#FBF8F1;border:1px solid #EFEAE0;border-radius:8px;padding:12px;">
                     <div style="font-size:9px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#968B7A;margin-bottom:4px;">Toplam Sipariş</div>
-                    <div id="modal-total-orders" style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;color:#2D4A3E;"></div>
+                    <div id="modal-total-orders" style="font-family:Verdana, Geneva, sans-serif;font-size:22px;font-weight:500;color:#2D4A3E;"></div>
                 </div>
                 <div style="background:#FBF8F1;border:1px solid #EFEAE0;border-radius:8px;padding:12px;">
                     <div style="font-size:9px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#968B7A;margin-bottom:4px;">Karlılık Skoru</div>
-                    <div id="modal-score" style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;"></div>
+                    <div id="modal-score" style="font-family:Verdana, Geneva, sans-serif;font-size:22px;font-weight:500;"></div>
                 </div>
             </div>
 

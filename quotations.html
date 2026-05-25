@@ -6,8 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Teklifler — Export Suite</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./src/assets/css/theme.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -17,7 +15,7 @@
         input, select, textarea {
             background: #fff !important; border: 1px solid #E4DDCE !important;
             border-radius: 6px !important; color: #1C1A17 !important;
-            font-family: 'DM Sans', sans-serif !important; font-size: 13px !important;
+            font-family: Verdana, Geneva, sans-serif !important; font-size: 13px !important;
         }
         input:focus, select:focus, textarea:focus {
             outline: none !important; border-color: #2D4A3E !important;
@@ -58,14 +56,14 @@
     <main class="min-h-screen" style="margin-left:230px;padding:32px;">
         <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b" style="border-color:#E4DDCE;">
             <div>
-                <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px;">
+                <h2 style="font-family:Verdana, Geneva, sans-serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px;">
                     <i class="fa-solid fa-file-contract" style="font-size:26px;color:#2D4A3E;"></i>
                     Teklif Yönetimi
                 </h2>
-                <p style="font-size:13px;color:#968B7A;margin-top:2px;font-family:'DM Sans',sans-serif;">Proforma fatura ve teklif takibi</p>
+                <p style="font-size:13px;color:#968B7A;margin-top:2px;font-family:Verdana, Geneva, sans-serif;">Proforma fatura ve teklif takibi</p>
             </div>
             <button id="btn-new-quotation"
-                style="height:40px;padding:0 20px;background:#2D4A3E;color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;">
+                style="height:40px;padding:0 20px;background:#2D4A3E;color:#fff;border:none;border-radius:8px;font-family:Verdana, Geneva, sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;">
                 <i class="fa-solid fa-plus"></i> Yeni Teklif
             </button>
         </header>
@@ -128,7 +126,7 @@
     <div id="quotation-modal" class="modal-backdrop hidden">
         <div class="modal-content" style="max-width:64rem;">
             <div class="flex items-center justify-between mb-6">
-                <h3 id="modal-title" style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;color:rgb(226 232 240);">Yeni Teklif</h3>
+                <h3 id="modal-title" style="font-family:Verdana, Geneva, sans-serif;font-size:22px;font-weight:500;color:rgb(226 232 240);">Yeni Teklif</h3>
                 <button id="btn-modal-close" style="background:none;border:none;color:rgb(100 116 139);cursor:pointer;font-size:18px;"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
@@ -141,11 +139,11 @@
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
                             <label style="font-size:11px;color:rgb(100 116 139);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Teklif No</label>
-                            <input type="text" id="q-number" placeholder="QT-2025-001" style="font-family:'DM Sans',sans-serif;">
+                            <input type="text" id="q-number" placeholder="QT-2025-001" style="font-family:Verdana, Geneva, sans-serif;">
                         </div>
                         <div>
                             <label style="font-size:11px;color:rgb(100 116 139);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Müşteri *</label>
-                            <select id="q-customer" required style="font-family:'DM Sans',sans-serif;">
+                            <select id="q-customer" required style="font-family:Verdana, Geneva, sans-serif;">
                                 <option value="">-- Müşteri Seçin --</option>
                             </select>
                         </div>
@@ -159,7 +157,7 @@
                         </div>
                         <div>
                             <label style="font-size:11px;color:rgb(100 116 139);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Döviz</label>
-                            <select id="q-currency" style="font-family:'DM Sans',sans-serif;">
+                            <select id="q-currency" style="font-family:Verdana, Geneva, sans-serif;">
                                 <option value="USD">USD</option>
                                 <option value="EUR">EUR</option>
                                 <option value="GBP">GBP</option>
@@ -168,7 +166,7 @@
                         </div>
                         <div>
                             <label style="font-size:11px;color:rgb(100 116 139);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Durum</label>
-                            <select id="q-status" style="font-family:'DM Sans',sans-serif;">
+                            <select id="q-status" style="font-family:Verdana, Geneva, sans-serif;">
                                 <option value="Bekliyor">Bekliyor</option>
                                 <option value="Kabul">Kabul</option>
                                 <option value="Red">Red</option>
@@ -187,7 +185,7 @@
                     <div class="section-label" style="display:flex;justify-content:space-between;align-items:center;">
                         <span>Ürün Kalemleri</span>
                         <button type="button" id="btn-add-item"
-                            style="font-size:11px;color:rgb(52 211 153);background:none;border:1px solid rgba(52,211,153,0.3);border-radius:5px;padding:3px 10px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;">
+                            style="font-size:11px;color:rgb(52 211 153);background:none;border:1px solid rgba(52,211,153,0.3);border-radius:5px;padding:3px 10px;cursor:pointer;font-family:Verdana, Geneva, sans-serif;font-weight:600;">
                             + Satır Ekle
                         </button>
                     </div>
@@ -201,20 +199,20 @@
                 <!-- Butonlar -->
                 <div class="flex items-center justify-between pt-2">
                     <button type="button" id="btn-delete-quotation"
-                        style="display:none;padding:8px 16px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);color:rgb(248 113 113);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">
+                        style="display:none;padding:8px 16px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);color:rgb(248 113 113);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Verdana, Geneva, sans-serif;">
                         <i class="fa-solid fa-trash-can"></i> Teklifi Sil
                     </button>
                     <div class="flex gap-3 ml-auto">
                         <button type="button" id="btn-convert-order"
-                            style="display:none;padding:8px 16px;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.3);color:rgb(96 165 250);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">
+                            style="display:none;padding:8px 16px;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.3);color:rgb(96 165 250);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Verdana, Geneva, sans-serif;">
                             <i class="fa-solid fa-arrows-rotate"></i> Siparişe Dönüştür
                         </button>
                         <button type="button" id="btn-q-cancel"
-                            style="padding:8px 16px;background:transparent;border:1px solid rgb(30 41 59);color:rgb(148 163 184);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">
+                            style="padding:8px 16px;background:transparent;border:1px solid rgb(30 41 59);color:rgb(148 163 184);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Verdana, Geneva, sans-serif;">
                             İptal
                         </button>
                         <button type="submit"
-                            style="padding:8px 20px;background:#2D4A3E;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">
+                            style="padding:8px 20px;background:#2D4A3E;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Verdana, Geneva, sans-serif;">
                             Kaydet
                         </button>
                     </div>

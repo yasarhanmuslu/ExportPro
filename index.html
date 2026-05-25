@@ -6,8 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard — Export Suite</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./src/assets/css/theme.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -69,7 +67,7 @@
         input, select, textarea {
             background:#fff !important; border:1px solid #E4DDCE !important;
             border-radius:6px !important; color:#1C1A17 !important;
-            font-family:'DM Sans',sans-serif !important; font-size:13px !important;
+            font-family:Verdana, Geneva, sans-serif !important; font-size:13px !important;
         }
         input:focus, select:focus, textarea:focus {
             outline:none !important; border-color:#2D4A3E !important;
@@ -109,7 +107,7 @@
         <div class="flex items-center justify-between mb-4">
             <div>
                 <div style="font-size:9px;font-weight:600;letter-spacing:0.22em;text-transform:uppercase;color:#B58858;margin-bottom:3px;">Analitik · Özet</div>
-                <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:26px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:7px;">
+                <h2 style="font-family:Verdana, Geneva, sans-serif;font-size:26px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:7px;">
                     <i class="fa-solid fa-chart-pie" style="color:#2D4A3E;font-size:15px;"></i> Genel Görünüm.
                 </h2>
             </div>
@@ -160,7 +158,7 @@
                     <i class="fa-solid fa-boxes-stacked" style="color:#2D4A3E;font-size:12px;"></i>
                 </div>
                 <div>
-                    <div id="op-active-orders" style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;color:#1C1A17;line-height:1;">—</div>
+                    <div id="op-active-orders" style="font-family:Verdana, Geneva, sans-serif;font-size:22px;font-weight:500;color:#1C1A17;line-height:1;">—</div>
                     <div style="font-size:9px;color:#968B7A;letter-spacing:0.06em;">Aktif Sipariş</div>
                 </div>
             </a>
@@ -170,7 +168,7 @@
                     <i class="fa-solid fa-file-contract" style="color:#92400E;font-size:12px;"></i>
                 </div>
                 <div>
-                    <div id="op-pending-quotes" style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;color:#1C1A17;line-height:1;">—</div>
+                    <div id="op-pending-quotes" style="font-family:Verdana, Geneva, sans-serif;font-size:22px;font-weight:500;color:#1C1A17;line-height:1;">—</div>
                     <div style="font-size:9px;color:#968B7A;letter-spacing:0.06em;">Bekleyen Teklif</div>
                 </div>
             </a>
@@ -180,7 +178,7 @@
                     <i class="fa-solid fa-triangle-exclamation" style="color:#9F3D3D;font-size:12px;"></i>
                 </div>
                 <div>
-                    <div id="op-open-complaints" style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;color:#1C1A17;line-height:1;">—</div>
+                    <div id="op-open-complaints" style="font-family:Verdana, Geneva, sans-serif;font-size:22px;font-weight:500;color:#1C1A17;line-height:1;">—</div>
                     <div style="font-size:9px;color:#968B7A;letter-spacing:0.06em;">Açık Şikayet</div>
                 </div>
             </a>
@@ -190,7 +188,7 @@
                     <i class="fa-solid fa-ship" style="color:#3F5C7A;font-size:12px;"></i>
                 </div>
                 <div>
-                    <div id="op-delayed-ships" style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;color:#1C1A17;line-height:1;">—</div>
+                    <div id="op-delayed-ships" style="font-family:Verdana, Geneva, sans-serif;font-size:22px;font-weight:500;color:#1C1A17;line-height:1;">—</div>
                     <div style="font-size:9px;color:#968B7A;letter-spacing:0.06em;">Geciken Sevkiyat</div>
                 </div>
             </a>
@@ -258,19 +256,19 @@
 
             <a href="profitability.html" class="c-card c-card-link" style="text-decoration:none;display:block;">
                 <div class="sec-label"><i class="fa-solid fa-chart-line text-[#2D4A3E]"></i> Karlılık</div>
-                <div id="sec-profitability-val" style="font-family:'Cormorant Garamond',serif;font-size:16px;color:#2D4A3E;font-weight:500;">—</div>
+                <div id="sec-profitability-val" style="font-family:Verdana, Geneva, sans-serif;font-size:16px;color:#2D4A3E;font-weight:500;">—</div>
                 <div style="font-size:9px;color:#968B7A;margin-top:3px;">Müşteri iskontoları · Detay →</div>
             </a>
 
             <a href="market-analysis.html" class="c-card c-card-link" style="text-decoration:none;display:block;">
                 <div class="sec-label"><i class="fa-solid fa-globe text-[#3F5C7A]"></i> Pazar Analizi</div>
-                <div id="sec-market-val" style="font-family:'Cormorant Garamond',serif;font-size:16px;color:#3F5C7A;font-weight:500;">—</div>
+                <div id="sec-market-val" style="font-family:Verdana, Geneva, sans-serif;font-size:16px;color:#3F5C7A;font-weight:500;">—</div>
                 <div style="font-size:9px;color:#968B7A;margin-top:3px;">Ülke & Segment · Detay →</div>
             </a>
 
             <a href="complaints.html" class="c-card c-card-link" style="text-decoration:none;display:block;">
                 <div class="sec-label"><i class="fa-solid fa-triangle-exclamation text-[#9F3D3D]"></i> Şikayetler</div>
-                <div id="sec-complaints-val" style="font-family:'Cormorant Garamond',serif;font-size:16px;color:#9F3D3D;font-weight:500;">—</div>
+                <div id="sec-complaints-val" style="font-family:Verdana, Geneva, sans-serif;font-size:16px;color:#9F3D3D;font-weight:500;">—</div>
                 <div style="font-size:9px;color:#968B7A;margin-top:3px;">Credit Notes · Detay →</div>
             </a>
 

@@ -265,8 +265,8 @@ function renderDiscountChart() {
                 legend: { display: false },
                 tooltip: {
                     backgroundColor: '#1C1A17',
-                    titleFont: { family: 'DM Sans', size: 11 },
-                    bodyFont: { family: 'DM Sans', size: 12 },
+                    titleFont: { family: 'Verdana', size: 11 },
+                    bodyFont: { family: 'Verdana', size: 12 },
                     padding: 10,
                     callbacks: {
                         label: ctx => ` % ${ctx.raw} iskonto`
@@ -277,7 +277,7 @@ function renderDiscountChart() {
                 x: {
                     grid: { display: false },
                     ticks: {
-                        font: { family: 'DM Sans', size: 10 },
+                        font: { family: 'Verdana', size: 10 },
                         color: '#968B7A',
                         maxRotation: 35,
                         minRotation: 20
@@ -287,7 +287,7 @@ function renderDiscountChart() {
                     beginAtZero: true,
                     grid: { color: '#F4F0E8' },
                     ticks: {
-                        font: { family: 'DM Sans', size: 10 },
+                        font: { family: 'Verdana', size: 10 },
                         color: '#968B7A',
                         callback: v => `%${v}`
                     }

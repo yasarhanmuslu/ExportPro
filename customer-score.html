@@ -6,8 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Müşteri Performans Skoru — Export Suite</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./src/assets/css/theme.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -18,7 +16,7 @@
         input, select, textarea {
             background: #fff !important; border: 1px solid #E4DDCE !important;
             border-radius: 6px !important; color: #1C1A17 !important;
-            font-family: 'DM Sans', sans-serif !important; font-size: 13px !important;
+            font-family: Verdana, Geneva, sans-serif !important; font-size: 13px !important;
         }
         input:focus, select:focus, textarea:focus {
             outline: none !important; border-color: #2D4A3E !important;
@@ -38,7 +36,7 @@
         /* Filter buttons */
         .filter-btn { padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: 600;
                       border: 1px solid #E4DDCE; background: #fff; color: #6B655B;
-                      cursor: pointer; transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
+                      cursor: pointer; transition: all 0.15s; font-family: Verdana, Geneva, sans-serif; }
         .filter-btn:hover { border-color: #2D4A3E; color: #2D4A3E; }
         .filter-btn.active { background: #2D4A3E; color: #fff; border-color: #2D4A3E; }
         .filter-btn.active-a { background: #065F46; color: #fff; border-color: #065F46; }
@@ -51,7 +49,7 @@
         .score-table th {
             padding: 10px 14px; text-align: left;
             font-size: 10px; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase;
-            color: #968B7A; font-family: 'DM Sans', sans-serif;
+            color: #968B7A; font-family: Verdana, Geneva, sans-serif;
         }
         .score-table tbody tr {
             border-bottom: 1px solid #F0EDE5;
@@ -94,14 +92,14 @@
         <div style="font-size:10px;font-weight:600;letter-spacing:0.22em;text-transform:uppercase;color:#B58858;margin-bottom:8px;">Analitik · Müşteri Segmentasyonu</div>
         <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5" style="border-bottom:1px solid #EFEAE0;">
             <div>
-                <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px;">
+                <h2 style="font-family:Verdana, Geneva, sans-serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px;">
                     <i class="fa-solid fa-ranking-star" style="color:#2D4A3E;font-size:18px;"></i> Müşteri Performans Skoru.
                 </h2>
                 <p style="font-size:13px;color:#6B655B;margin-top:6px;">Sipariş hacmi, ödeme düzeni, şikayet ve iskonto verilerine göre otomatik müşteri puanlaması.</p>
             </div>
             <!-- Export CSV -->
             <button id="btn-export-csv"
-                style="display:flex;align-items:center;gap:8px;padding:9px 18px;border-radius:8px;border:1px solid #2D4A3E;background:#2D4A3E;color:#fff;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;transition:opacity 0.15s;">
+                style="display:flex;align-items:center;gap:8px;padding:9px 18px;border-radius:8px;border:1px solid #2D4A3E;background:#2D4A3E;color:#fff;font-size:12px;font-weight:600;font-family:Verdana, Geneva, sans-serif;cursor:pointer;white-space:nowrap;transition:opacity 0.15s;">
                 <i class="fa-solid fa-file-csv"></i> Excel'e Aktar (CSV)
             </button>
         </header>
@@ -141,7 +139,7 @@
                 </div>
                 <div>
                     <div style="font-size:10px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:#065F46;margin-bottom:2px;">A Sınıfı</div>
-                    <div id="kpi-a" style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:500;color:#065F46;">—</div>
+                    <div id="kpi-a" style="font-family:Verdana, Geneva, sans-serif;font-size:26px;font-weight:500;color:#065F46;">—</div>
                     <div style="font-size:10px;color:#065F46;opacity:0.7;">Stratejik Müşteri</div>
                 </div>
             </div>
@@ -151,7 +149,7 @@
                 </div>
                 <div>
                     <div style="font-size:10px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:#92400E;margin-bottom:2px;">B Sınıfı</div>
-                    <div id="kpi-b" style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:500;color:#92400E;">—</div>
+                    <div id="kpi-b" style="font-family:Verdana, Geneva, sans-serif;font-size:26px;font-weight:500;color:#92400E;">—</div>
                     <div style="font-size:10px;color:#92400E;opacity:0.7;">Geliştirilecek</div>
                 </div>
             </div>
@@ -161,7 +159,7 @@
                 </div>
                 <div>
                     <div style="font-size:10px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:#991B1B;margin-bottom:2px;">C Sınıfı</div>
-                    <div id="kpi-c" style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:500;color:#991B1B;">—</div>
+                    <div id="kpi-c" style="font-family:Verdana, Geneva, sans-serif;font-size:26px;font-weight:500;color:#991B1B;">—</div>
                     <div style="font-size:10px;color:#991B1B;opacity:0.7;">Riskli / Az Karlı</div>
                 </div>
             </div>
@@ -255,7 +253,7 @@
             <div style="padding:20px 24px;border-bottom:1px solid #EFEAE0;display:flex;align-items:center;justify-content:space-between;">
                 <div>
                     <div style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;margin-bottom:4px;">Müşteri Detay Kartı</div>
-                    <div id="modal-customer-name" style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;color:#1C1A17;"></div>
+                    <div id="modal-customer-name" style="font-family:Verdana, Geneva, sans-serif;font-size:22px;font-weight:500;color:#1C1A17;"></div>
                 </div>
                 <button id="modal-close" style="width:32px;height:32px;border-radius:6px;border:1px solid #E4DDCE;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;">
                     <i class="fa-solid fa-xmark" style="color:#6B655B;font-size:12px;"></i>
@@ -266,7 +264,7 @@
                 <div id="modal-score-banner" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-radius:10px;margin-bottom:20px;">
                     <div>
                         <div style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;opacity:0.7;margin-bottom:4px;">Toplam Performans Skoru</div>
-                        <div id="modal-total-score" style="font-family:'Cormorant Garamond',serif;font-size:42px;font-weight:500;line-height:1;"></div>
+                        <div id="modal-total-score" style="font-family:Verdana, Geneva, sans-serif;font-size:42px;font-weight:500;line-height:1;"></div>
                     </div>
                     <div id="modal-class-badge" style="padding:8px 20px;border-radius:8px;font-size:14px;font-weight:700;"></div>
                 </div>

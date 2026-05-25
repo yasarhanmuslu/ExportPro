@@ -6,8 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Takip Takvimi — Export Suite</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./src/assets/css/theme.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -33,7 +31,7 @@
             text-transform: uppercase;
             letter-spacing: 0.1em;
             color: var(--ink-3, #968B7A);
-            font-family: 'DM Sans', sans-serif;
+            font-family: Verdana, Geneva, sans-serif;
         }
         .cal-day-cell {
             background: var(--surface, #fff);
@@ -50,7 +48,7 @@
             font-size: 11px;
             font-weight: 600;
             color: var(--ink-2, #6B655B);
-            font-family: 'DM Sans', sans-serif;
+            font-family: Verdana, Geneva, sans-serif;
             margin-bottom: 3px;
         }
         .cal-day-cell.today .cal-day-number {
@@ -64,7 +62,7 @@
         .cal-event-badge {
             display: block;
             font-size: 9px;
-            font-family: 'DM Sans', sans-serif;
+            font-family: Verdana, Geneva, sans-serif;
             font-weight: 500;
             border-radius: 3px;
             padding: 1px 4px;
@@ -90,7 +88,7 @@
             padding: 10px 16px;
             gap: 8px;
             transition: background 0.1s;
-            font-family: 'DM Sans', sans-serif;
+            font-family: Verdana, Geneva, sans-serif;
         }
         .timeline-row:hover { background: var(--surface-2, #FBF8F1); }
         .timeline-row.header {
@@ -107,7 +105,7 @@
             display: inline-flex; align-items: center; gap: 4px;
             font-size: 10px; font-weight: 600;
             padding: 2px 8px; border-radius: 20px;
-            font-family: 'DM Sans', sans-serif;
+            font-family: Verdana, Geneva, sans-serif;
         }
         .status-ok       { background: var(--ok-soft, #E1EBE4);    color: var(--ok, #3D6E50); }
         .status-warn     { background: var(--warn-soft, #F3E5D2);   color: var(--warn, #B26B33); }
@@ -121,7 +119,7 @@
             cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 6px;
             border: 1px solid var(--border, #E4DDCE);
             background: transparent; color: var(--ink-2, #6B655B);
-            font-family: 'DM Sans', sans-serif;
+            font-family: Verdana, Geneva, sans-serif;
         }
         .view-toggle-btn.active {
             background: var(--accent, #2D4A3E); color: #fff; border-color: var(--accent, #2D4A3E);
@@ -131,7 +129,7 @@
             cursor: pointer; transition: all 0.15s;
             border: 1px solid var(--border, #E4DDCE);
             background: transparent; color: var(--ink-2, #6B655B);
-            font-family: 'DM Sans', sans-serif;
+            font-family: Verdana, Geneva, sans-serif;
         }
         .filter-btn.active {
             background: var(--ink-1, #1C1A17); color: #fff; border-color: var(--ink-1, #1C1A17);
@@ -163,7 +161,7 @@
             position: fixed; z-index: 200;
             background: var(--ink-1, #1C1A17); color: #fff;
             padding: 8px 12px; border-radius: 6px;
-            font-size: 11px; font-family: 'DM Sans', sans-serif;
+            font-size: 11px; font-family: Verdana, Geneva, sans-serif;
             pointer-events: none; white-space: nowrap;
             box-shadow: 0 4px 16px rgba(28,26,23,0.2);
             display: none;
@@ -180,11 +178,11 @@
         <!-- Header -->
         <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-5" style="border-bottom:1px solid var(--border,#E4DDCE);">
             <div>
-                <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:34px;font-weight:500;color:var(--ink-1,#1C1A17);letter-spacing:-0.01em;display:flex;align-items:center;gap:10px;">
+                <h2 style="font-family:Verdana, Geneva, sans-serif;font-size:34px;font-weight:500;color:var(--ink-1,#1C1A17);letter-spacing:-0.01em;display:flex;align-items:center;gap:10px;">
                     <i class="fa-solid fa-calendar-check" style="color:var(--accent,#2D4A3E);font-size:26px;"></i>
                     Sipariş Takip Takvimi
                 </h2>
-                <p style="font-size:13px;color:var(--ink-3,#968B7A);margin-top:4px;font-family:'DM Sans',sans-serif;">
+                <p style="font-size:13px;color:var(--ink-3,#968B7A);margin-top:4px;font-family:Verdana, Geneva, sans-serif;">
                     Sipariş, sevkiyat ve vade tarihlerini takvimde ve liste görünümünde takip edin.
                 </p>
             </div>
@@ -204,10 +202,10 @@
         <div id="alert-overdue" class="alert-card" style="display:none;">
             <i class="fa-solid fa-triangle-exclamation" style="color:var(--danger,#9F3D3D);font-size:18px;"></i>
             <div>
-                <div style="font-size:13px;font-weight:700;color:var(--danger,#9F3D3D);font-family:'DM Sans',sans-serif;">
+                <div style="font-size:13px;font-weight:700;color:var(--danger,#9F3D3D);font-family:Verdana, Geneva, sans-serif;">
                     <span id="overdue-count">0</span> sipariş vadesini geçti!
                 </div>
-                <div style="font-size:11px;color:var(--ink-2,#6B655B);font-family:'DM Sans',sans-serif;">
+                <div style="font-size:11px;color:var(--ink-2,#6B655B);font-family:Verdana, Geneva, sans-serif;">
                     Bu siparişlerin vade tarihi geçmiş ve henüz tamamlanmamış.
                 </div>
             </div>
@@ -218,7 +216,7 @@
 
         <!-- Filtreler -->
         <div class="flex items-center gap-2 mb-5" id="filter-bar">
-            <span style="font-size:11px;font-weight:600;color:var(--ink-3,#968B7A);text-transform:uppercase;letter-spacing:0.08em;font-family:'DM Sans',sans-serif;">Filtre:</span>
+            <span style="font-size:11px;font-weight:600;color:var(--ink-3,#968B7A);text-transform:uppercase;letter-spacing:0.08em;font-family:Verdana, Geneva, sans-serif;">Filtre:</span>
             <button class="filter-btn active" data-filter="all">Tümü</button>
             <button class="filter-btn" data-filter="active">Aktif</button>
             <button class="filter-btn" data-filter="overdue">Geciken</button>
@@ -230,13 +228,13 @@
             <!-- Ay navigasyon -->
             <div class="flex items-center justify-between mb-4">
                 <button id="cal-prev" class="cal-nav-btn"><i class="fa-solid fa-chevron-left"></i></button>
-                <h3 id="cal-month-label" style="font-family:'Cormorant Garamond',Georgia,serif;font-size:22px;font-weight:500;color:var(--ink-1,#1C1A17);"></h3>
+                <h3 id="cal-month-label" style="font-family:Verdana, Geneva, sans-serif;font-size:22px;font-weight:500;color:var(--ink-1,#1C1A17);"></h3>
                 <button id="cal-next" class="cal-nav-btn"><i class="fa-solid fa-chevron-right"></i></button>
             </div>
 
             <!-- Legend -->
             <div class="flex items-center gap-4 mb-4">
-                <span style="font-size:10px;font-weight:600;color:var(--ink-3,#968B7A);text-transform:uppercase;letter-spacing:0.08em;font-family:'DM Sans',sans-serif;">Gösterge:</span>
+                <span style="font-size:10px;font-weight:600;color:var(--ink-3,#968B7A);text-transform:uppercase;letter-spacing:0.08em;font-family:Verdana, Geneva, sans-serif;">Gösterge:</span>
                 <span class="cal-event-badge badge-order" style="display:inline-block;"><i class="fa-solid fa-circle" style="font-size:6px;"></i> Sipariş</span>
                 <span class="cal-event-badge badge-shipment" style="display:inline-block;"><i class="fa-solid fa-truck" style="font-size:7px;"></i> Sevkiyat</span>
                 <span class="cal-event-badge badge-due" style="display:inline-block;"><i class="fa-solid fa-clock" style="font-size:7px;"></i> Vade</span>
@@ -258,7 +256,7 @@
                     <span>Ödeme</span>
                 </div>
                 <div id="list-body"></div>
-                <div id="list-empty" style="display:none;padding:40px;text-align:center;color:var(--ink-3,#968B7A);font-family:'DM Sans',sans-serif;font-size:13px;">
+                <div id="list-empty" style="display:none;padding:40px;text-align:center;color:var(--ink-3,#968B7A);font-family:Verdana, Geneva, sans-serif;font-size:13px;">
                     <i class="fa-solid fa-calendar-xmark" style="font-size:24px;margin-bottom:8px;display:block;opacity:0.4;"></i>
                     Gösterilecek sipariş bulunamadı.
                 </div>

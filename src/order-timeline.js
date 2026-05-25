@@ -148,7 +148,7 @@ function renderCalendar() {
                 style="font-size:8.5px;"><i class="fa-solid ${icon}" style="font-size:6px;margin-right:2px;"></i>${shortName}</span>`;
         });
         if (events.length > 3) {
-            html += `<span style="font-size:9px;color:var(--ink-3,#968B7A);font-family:'DM Sans',sans-serif;padding:1px 4px;">+${events.length-3} daha</span>`;
+            html += `<span style="font-size:9px;color:var(--ink-3,#968B7A);font-family:Verdana, Geneva, sans-serif;padding:1px 4px;">+${events.length-3} daha</span>`;
         }
 
         html += `</div>`;

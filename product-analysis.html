@@ -6,8 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ürün Analizi — Export Suite</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./src/assets/css/theme.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -37,19 +35,19 @@
     <!-- Yükleme overlay -->
     <div id="loading-overlay">
         <div class="spinner"></div>
-        <div style="font-size:13px;color:rgb(249,115,22);font-family:'DM Sans',sans-serif;letter-spacing:0.05em;">Analiz yükleniyor...</div>
+        <div style="font-size:13px;color:rgb(249,115,22);font-family:Verdana, Geneva, sans-serif;letter-spacing:0.05em;">Analiz yükleniyor...</div>
     </div>
 
     <main class="min-h-screen" style="margin-left:230px;padding:32px;">
         <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b">
             <div>
-                <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px;">
+                <h2 style="font-family:Verdana, Geneva, sans-serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px;">
                     <i class="fa-solid fa-boxes-stacked text-[#2D4A3E]"></i> Ürün Analizi
                 </h2>
-                <p style="font-size:13px;color:#968B7A;margin-top:4px;font-family:'DM Sans',sans-serif;">Son 12 aya ait sipariş kalemlerinden hesaplanan ürün bazlı satış ve ciro analizleri.</p>
+                <p style="font-size:13px;color:#968B7A;margin-top:4px;font-family:Verdana, Geneva, sans-serif;">Son 12 aya ait sipariş kalemlerinden hesaplanan ürün bazlı satış ve ciro analizleri.</p>
             </div>
             <div class="flex items-center gap-2">
-                <span id="data-period" style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#968B7A;font-family:'DM Sans',sans-serif;background:#FBF8F1;border:1px solid #EFEAE0;border-radius:20px;padding:6px 14px;"></span>
+                <span id="data-period" style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#968B7A;font-family:Verdana, Geneva, sans-serif;background:#FBF8F1;border:1px solid #EFEAE0;border-radius:20px;padding:6px 14px;"></span>
             </div>
         </header>
 
@@ -61,7 +59,7 @@
                 </div>
                 <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#065F46;margin-bottom:2px;">Toplam Kalem</div>
-                    <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:500;color:#065F46;line-height:1;" id="kpi-total-items">—</div>
+                    <div style="font-family:Verdana, Geneva, sans-serif;font-size:26px;font-weight:500;color:#065F46;line-height:1;" id="kpi-total-items">—</div>
                     <div style="font-size:10px;color:#065F46;opacity:0.7;">Son 12 ay sipariş kalemi</div>
                 </div>
             </div>
@@ -71,7 +69,7 @@
                 </div>
                 <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#92400E;margin-bottom:2px;">Ürün Çeşidi</div>
-                    <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:500;color:#92400E;line-height:1;" id="kpi-unique-products">—</div>
+                    <div style="font-family:Verdana, Geneva, sans-serif;font-size:26px;font-weight:500;color:#92400E;line-height:1;" id="kpi-unique-products">—</div>
                     <div style="font-size:10px;color:#92400E;opacity:0.7;">Farklı ürün adedi</div>
                 </div>
             </div>
@@ -81,7 +79,7 @@
                 </div>
                 <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#0C4A6E;margin-bottom:2px;">Toplam Ciro</div>
-                    <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:500;color:#0C4A6E;line-height:1;" id="kpi-total-revenue">—</div>
+                    <div style="font-family:Verdana, Geneva, sans-serif;font-size:26px;font-weight:500;color:#0C4A6E;line-height:1;" id="kpi-total-revenue">—</div>
                     <div style="font-size:10px;color:#0C4A6E;opacity:0.7;">Sipariş kalemlerinden</div>
                 </div>
             </div>
@@ -91,7 +89,7 @@
                 </div>
                 <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#6B21A8;margin-bottom:2px;">Müşteri Sayısı</div>
-                    <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:500;color:#6B21A8;line-height:1;" id="kpi-customer-count">—</div>
+                    <div style="font-family:Verdana, Geneva, sans-serif;font-size:26px;font-weight:500;color:#6B21A8;line-height:1;" id="kpi-customer-count">—</div>
                     <div style="font-size:10px;color:#6B21A8;opacity:0.7;">Aktif alıcı sayısı</div>
                 </div>
             </div>

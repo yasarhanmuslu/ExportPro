@@ -356,14 +356,14 @@ function renderCiroChart(rows) {
                 x: {
                     grid: { color: '#F0EBE1' },
                     ticks: {
-                        font: { family: 'DM Sans', size: 10 },
+                        font: { family: 'Verdana', size: 10 },
                         color: '#968B7A',
                         callback: v => `$${(v/1000).toFixed(0)}K`
                     }
                 },
                 y: {
                     grid: { display: false },
-                    ticks: { font: { family: 'DM Sans', size: 11 }, color: '#3D3A34' }
+                    ticks: { font: { family: 'Verdana', size: 11 }, color: '#3D3A34' }
                 }
             }
         }
@@ -437,7 +437,7 @@ function renderTrendChart(country) {
             plugins: {
                 legend: {
                     display: true,
-                    labels: { font: { family: 'DM Sans', size: 11 }, color: '#3D3A34', boxWidth: 12 }
+                    labels: { font: { family: 'Verdana', size: 11 }, color: '#3D3A34', boxWidth: 12 }
                 },
                 tooltip: {
                     callbacks: {
@@ -448,12 +448,12 @@ function renderTrendChart(country) {
             scales: {
                 x: {
                     grid: { color: '#F0EBE1' },
-                    ticks: { font: { family: 'DM Sans', size: 10 }, color: '#968B7A' }
+                    ticks: { font: { family: 'Verdana', size: 10 }, color: '#968B7A' }
                 },
                 y: {
                     grid: { color: '#F0EBE1' },
                     ticks: {
-                        font: { family: 'DM Sans', size: 10 },
+                        font: { family: 'Verdana', size: 10 },
                         color: '#968B7A',
                         callback: v => `$${(v/1000).toFixed(0)}K`
                     }

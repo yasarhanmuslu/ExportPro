@@ -1,10 +1,10 @@
 /* ═══════════════════════════════════════════════════════════════
    EXPORT SUITE — PORSELEN TASARIM SİSTEMİ
    Estetik: Minimal · Seramik · Kurumsal · Hassas
-   Tipografi: Cormorant Garamond (başlık) + DM Sans (gövde)
+   Tipografi: Verdana (tüm arayüz)
    ═══════════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap');
+/* Google Fonts kaldırıldı - Verdana sistem fontu kullanılıyor */
 
 /* ══════════════════════════════
    DESIGN TOKENS
@@ -80,7 +80,7 @@ html {
 }
 
 body {
-  font-family: 'DM Sans', system-ui, sans-serif !important;
+  font-family: Verdana, Geneva, sans-serif !important;
   background-color: var(--bg) !important;
   color: var(--ink-1) !important;
   font-size: 14px;
@@ -89,14 +89,14 @@ body {
 }
 
 h1, h2, h3, h4 {
-  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-family: Verdana, Geneva, sans-serif !important;
   letter-spacing: -0.01em;
   color: var(--ink-1);
 }
 
 /* Tablo sayıları ve kodlar */
 .font-mono, td.mono, .tabular {
-  font-family: ui-monospace, 'SF Mono', 'Cascadia Code', monospace !important;
+  font-family: Verdana, Geneva, sans-serif !important;
   font-variant-numeric: tabular-nums;
 }
 
@@ -114,12 +114,12 @@ h1, h2, h3, h4 {
 #main-sidebar {
   background-color: var(--sidebar-bg) !important;
   border-right: 1px solid var(--sidebar-border) !important;
-  font-family: 'DM Sans', sans-serif !important;
+  font-family: Verdana, Geneva, sans-serif !important;
   width: var(--sidebar-w) !important;
 }
 
 #main-sidebar .brand-title {
-  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-family: Verdana, Geneva, sans-serif !important;
   font-size: 20px !important;
   font-weight: 500 !important;
   color: var(--ink-1) !important;
@@ -211,7 +211,7 @@ main {
    INPUTS & FORM ELEMENTS
    ══════════════════════════════ */
 input, select, textarea {
-  font-family: 'DM Sans', sans-serif !important;
+  font-family: Verdana, Geneva, sans-serif !important;
   background-color: var(--surface) !important;
   border: 1px solid var(--border) !important;
   border-radius: 6px !important;
@@ -241,7 +241,7 @@ input[type="date"] { color-scheme: light; }
    BUTONLAR
    ══════════════════════════════ */
 .btn, button[class*="bg-"] {
-  font-family: 'DM Sans', sans-serif !important;
+  font-family: Verdana, Geneva, sans-serif !important;
   font-size: 12.5px !important;
   height: 36px;
   border-radius: 6px !important;
@@ -303,7 +303,7 @@ div[class*="rounded-2xl"].border {
 }
 
 .custom-table th, .inner-table th {
-  font-family: 'DM Sans', sans-serif !important;
+  font-family: Verdana, Geneva, sans-serif !important;
   font-size: 10px !important;
   font-weight: 600 !important;
   letter-spacing: 0.18em !important;
@@ -314,7 +314,7 @@ div[class*="rounded-2xl"].border {
 }
 
 .custom-table td, .inner-table td {
-  font-family: 'DM Sans', sans-serif !important;
+  font-family: Verdana, Geneva, sans-serif !important;
   font-size: 13px !important;
   color: var(--ink-2) !important;
   border-color: var(--border-soft) !important;
@@ -327,7 +327,7 @@ div[class*="rounded-2xl"].border {
    MODALS
    ══════════════════════════════ */
 .modal-content {
-  font-family: 'DM Sans', sans-serif !important;
+  font-family: Verdana, Geneva, sans-serif !important;
   background-color: var(--surface) !important;
   border: 1px solid var(--border) !important;
   border-radius: 10px !important;
@@ -388,7 +388,7 @@ div[class*="rounded-2xl"].border {
 
 /* KPI başlık metinleri */
 .kpi-card p.text-xs {
-  font-family: 'DM Sans', sans-serif !important;
+  font-family: Verdana, Geneva, sans-serif !important;
   font-size: 10px !important;
   letter-spacing: 0.18em !important;
   text-transform: uppercase !important;
@@ -398,7 +398,7 @@ div[class*="rounded-2xl"].border {
 /* KPI sayılar */
 .kpi-card .text-2xl,
 .kpi-card .text-3xl {
-  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-family: Verdana, Geneva, sans-serif !important;
   font-size: 30px !important;
   font-weight: 500 !important;
   color: var(--ink-1) !important;
@@ -411,7 +411,7 @@ div[class*="rounded-2xl"].border {
    SAYFA BAŞLIKLARI
    ══════════════════════════════ */
 header h2, .page-title {
-  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-family: Verdana, Geneva, sans-serif !important;
   font-size: 34px !important;
   font-weight: 500 !important;
   color: var(--ink-1) !important;
@@ -446,7 +446,7 @@ select {
 }
 
 .section-label {
-  font-family: 'DM Sans', sans-serif !important;
+  font-family: Verdana, Geneva, sans-serif !important;
   font-size: 10px !important;
   font-weight: 600 !important;
   letter-spacing: 0.18em !important;
@@ -456,7 +456,7 @@ select {
 }
 
 .form-section-title {
-  font-family: 'DM Sans', sans-serif !important;
+  font-family: Verdana, Geneva, sans-serif !important;
   font-size: 10px !important;
   font-weight: 600 !important;
   letter-spacing: 0.18em !important;
@@ -489,11 +489,11 @@ input, select, textarea,
    GLOBAL TYPOGRAPHY OVERRIDE
    ══════════════════════════════ */
 button, label, th, td, p, span, a, li, div {
-  font-family: 'DM Sans', sans-serif !important;
+  font-family: Verdana, Geneva, sans-serif !important;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-family: Verdana, Geneva, sans-serif !important;
 }
 
 /* ══════════════════════════════

@@ -122,7 +122,7 @@ function renderFinanceKPIs(yearOrders, allOrders) {
         el.innerHTML = currencies.map(curr => {
             const symbol = currencySymbols[curr] || curr;
             return `<div class="flex justify-between items-baseline gap-2">
-                <span style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:500;">${fmt(data[curr])}</span>
+                <span style="font-family:Verdana, Geneva, sans-serif;font-size:20px;font-weight:500;">${fmt(data[curr])}</span>
                 <span class="text-xs font-semibold ${colorClass}">${symbol}</span>
             </div>`;
         }).join('');

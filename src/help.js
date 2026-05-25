@@ -301,11 +301,11 @@ window.showPage = function(index) {
                     font-size:20px;flex-shrink:0;
                 "><i class="fa-solid ${p.icon}"></i></div>
                 <div>
-                    <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:26px;font-weight:500;color:var(--ink-1,#1C1A17);margin:0 0 4px;">${p.label}</h2>
+                    <h2 style="font-family:Verdana, Geneva, sans-serif;font-size:26px;font-weight:500;color:var(--ink-1,#1C1A17);margin:0 0 4px;">${p.label}</h2>
                     <p style="margin:0;font-size:13px;color:var(--ink-3,#968B7A);">${p.short}</p>
                 </div>
             </div>
-            <div class="help-content" style="font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.75;color:var(--ink-2,#6B655B);">
+            <div class="help-content" style="font-family:Verdana, Geneva, sans-serif;font-size:14px;line-height:1.75;color:var(--ink-2,#6B655B);">
                 ${p.desc}
             </div>
             <div style="margin-top:32px;">
@@ -313,7 +313,7 @@ window.showPage = function(index) {
                     display:inline-flex;align-items:center;gap:8px;
                     padding:10px 20px;border-radius:8px;
                     background:${p.color};color:#fff;
-                    font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;
+                    font-family:Verdana, Geneva, sans-serif;font-size:13px;font-weight:500;
                     text-decoration:none;transition:opacity 0.15s;
                 " onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
                     <i class="fa-solid fa-arrow-right" style="font-size:11px;"></i>
@@ -324,7 +324,7 @@ window.showPage = function(index) {
     `;
 
     detail.querySelectorAll('.help-content h4').forEach(h => {
-        h.style.cssText = `font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:${p.color};font-weight:600;margin:24px 0 10px;`;
+        h.style.cssText = `font-family:Verdana, Geneva, sans-serif;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:${p.color};font-weight:600;margin:24px 0 10px;`;
     });
     detail.querySelectorAll('.help-content p').forEach(el => { el.style.cssText = 'margin:0 0 14px;'; });
     detail.querySelectorAll('.help-content ul').forEach(el => { el.style.cssText = 'margin:0 0 14px;padding-left:20px;display:flex;flex-direction:column;gap:6px;'; });
@@ -349,7 +349,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 position:sticky;top:0;height:100vh;overflow-y:auto;
             ">
                 <div style="padding:0 18px 16px;border-bottom:1px solid var(--sidebar-border,#EFEAE0);margin-bottom:12px;">
-                    <div style="font-family:'Cormorant Garamond',Georgia,serif;font-size:20px;font-weight:500;color:var(--ink-1,#1C1A17);line-height:1.2;">Kullanım Kılavuzu</div>
+                    <div style="font-family:Verdana, Geneva, sans-serif;font-size:20px;font-weight:500;color:var(--ink-1,#1C1A17);line-height:1.2;">Kullanım Kılavuzu</div>
                     <div style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-3,#968B7A);margin-top:3px;">Export Suite — Tüm Sayfalar</div>
                 </div>
                 <nav style="display:flex;flex-direction:column;gap:1px;padding:0 10px;">
@@ -359,7 +359,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             width:100%;text-align:left;
                             padding:9px 10px;border-radius:7px;
                             border:none;background:transparent;cursor:pointer;
-                            font-family:'DM Sans',sans-serif;font-size:13px;
+                            font-family:Verdana, Geneva, sans-serif;font-size:13px;
                             color:var(--ink-2,#6B655B);
                             transition:background 0.15s,color 0.15s;
                         ">

@@ -88,7 +88,7 @@ function renderTable(list) {
             ? 'style="color:rgb(251 146 60);"' : '';
 
         return `<tr style="cursor:pointer;" onclick="window._openEdit('${q.id}')">
-            <td style="font-weight:600;color:rgb(226 232 240);font-family:'DM Sans',sans-serif;">${q.quotation_number || '—'}</td>
+            <td style="font-weight:600;color:rgb(226 232 240);font-family:Verdana, Geneva, sans-serif;">${q.quotation_number || '—'}</td>
             <td>${cust}</td>
             <td>${formatDate(q.quotation_date)}</td>
             <td ${validClass}>${formatDate(q.valid_until)}</td>
@@ -96,7 +96,7 @@ function renderTable(list) {
             <td>${badge}</td>
             <td>
                 <button onclick="event.stopPropagation();window._openEdit('${q.id}')"
-                    style="font-size:11px;padding:4px 10px;border-radius:5px;border:1px solid rgb(30 41 59);background:none;color:rgb(148 163 184);cursor:pointer;font-family:'DM Sans',sans-serif;">
+                    style="font-size:11px;padding:4px 10px;border-radius:5px;border:1px solid rgb(30 41 59);background:none;color:rgb(148 163 184);cursor:pointer;font-family:Verdana, Geneva, sans-serif;">
                     <i class="fa-solid fa-pen-to-square"></i> Düzenle
                 </button>
             </td>
