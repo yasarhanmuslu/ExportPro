@@ -37,11 +37,11 @@
         .custom-table td { padding: 0.75rem 1rem; font-size: 0.8rem; color: rgb(148 163 184); border-bottom: 1px solid rgb(15 23 42); vertical-align: middle; }
         .custom-table tbody tr:hover { background: rgba(30,41,59,0.5); }
         .custom-table tbody tr:last-child td { border-bottom: none; }
-        .section-card { background: rgba(15,23,42,0.6); border: 1px solid rgb(30 41 59); border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem; }
+        
         .section-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgb(249 115 22); border-bottom: 1px solid rgb(30 41 59); padding-bottom: 0.5rem; margin-bottom: 0.75rem; }
         .item-row { background: rgba(30,41,59,0.5); border: 1px solid rgb(30 41 59); border-radius: 8px; padding: 12px; margin-bottom: 8px; }
         .item-row input, .item-row select { height: 34px; font-size: 12px; }
-        .kpi-card { background: rgba(15,23,42,0.6); border: 1px solid rgb(30 41 59); border-radius: 12px; padding: 20px; }
+        
         .badge-bekliyor  { background: rgba(100,116,139,0.15); color: rgb(148 163 184); padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
         .badge-kabul     { background: rgba(52,211,153,0.15); color: rgb(52 211 153); padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
         .badge-red       { background: rgba(248,113,113,0.15); color: rgb(248 113 113); padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
@@ -56,7 +56,7 @@
     <main class="min-h-screen" style="margin-left:230px;padding:32px;">
         <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b" style="border-color:#E4DDCE;">
             <div>
-                <h2 style="font-family:Verdana, Geneva, sans-serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px;">
+                <h2 class="page-title">
                     <i class="fa-solid fa-file-contract" style="font-size:26px;color:#2D4A3E;"></i>
                     Teklif Yönetimi
                 </h2>
@@ -72,17 +72,17 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8" id="kpi-section">
             <div class="kpi-card">
                 <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:rgb(100 116 139);font-weight:700;margin-bottom:8px;">Açık Teklifler</div>
-                <div id="kpi-open-count" style="font-size:28px;font-weight:700;color:rgb(148 163 184);">—</div>
+                <div id="kpi-open-count" class="kpi-value" style="color:rgb(148 163 184)">—</div>
                 <div id="kpi-open-amount" style="font-size:12px;color:rgb(100 116 139);margin-top:4px;">toplam tutar</div>
             </div>
             <div class="kpi-card">
                 <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:rgb(100 116 139);font-weight:700;margin-bottom:8px;">Bu Ay Dönüşüm</div>
-                <div id="kpi-conversion" style="font-size:28px;font-weight:700;color:rgb(52 211 153);">—</div>
+                <div id="kpi-conversion" class="kpi-value" style="color:rgb(52 211 153)">—</div>
                 <div style="font-size:12px;color:rgb(100 116 139);margin-top:4px;">Kabul / Toplam</div>
             </div>
             <div class="kpi-card">
                 <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:rgb(100 116 139);font-weight:700;margin-bottom:8px;">Ort. Kapanma Süresi</div>
-                <div id="kpi-avg-days" style="font-size:28px;font-weight:700;color:rgb(251 146 60);">—</div>
+                <div id="kpi-avg-days" class="kpi-value" style="color:rgb(251 146 60)">—</div>
                 <div style="font-size:12px;color:rgb(100 116 139);margin-top:4px;">gün (kabul edilen)</div>
             </div>
         </div>
@@ -126,7 +126,7 @@
     <div id="quotation-modal" class="modal-backdrop hidden">
         <div class="modal-content" style="max-width:64rem;">
             <div class="flex items-center justify-between mb-6">
-                <h3 id="modal-title" style="font-family:Verdana, Geneva, sans-serif;font-size:22px;font-weight:500;color:rgb(226 232 240);">Yeni Teklif</h3>
+                <h3 id="modal-title" class="modal-title">Yeni Teklif</h3>
                 <button id="btn-modal-close" style="background:none;border:none;color:rgb(100 116 139);cursor:pointer;font-size:18px;"><i class="fa-solid fa-xmark"></i></button>
             </div>
 

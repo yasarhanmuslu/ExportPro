@@ -12,33 +12,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         body { background: #F6F3EC !important; color: #1C1A17 !important; }
-        .stat-card {
-            background: #fff;
-            border: 1px solid #EFEAE0;
-            border-radius: 0.75rem;
-            padding: 1.25rem;
-            box-shadow: 0 1px 3px rgba(28,26,23,0.06);
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
+        
         .stat-card:hover { border-color: #D4CEC3; box-shadow: 0 4px 12px rgba(28,26,23,0.08); }
-        .section-title {
-            font-size: 0.62rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.14em;
-            color: #2D4A3E;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .chart-card {
-            background: #fff;
-            border: 1px solid #EFEAE0;
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            box-shadow: 0 1px 3px rgba(28,26,23,0.06);
-        }
+        
+        
         .mkt-table { width: 100%; border-collapse: collapse; font-size: 12px; }
         .mkt-table th {
             padding: 8px 12px;
@@ -144,7 +121,7 @@
         <!-- Header -->
         <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5" style="border-bottom:1px solid #EFEAE0;">
             <div>
-                <h2 style="font-family:Verdana, Geneva, sans-serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:10px;">
+                <h2 class="page-title">
                     <i class="fa-solid fa-globe" style="color:#2D4A3E;font-size:28px;"></i>
                     Ülke / Pazar Analizi
                 </h2>
@@ -163,25 +140,25 @@
 
             <div class="stat-card">
                 <div class="section-title"><i class="fa-solid fa-earth-europe"></i> İhracat Pazarı</div>
-                <div style="font-size:36px;font-weight:700;color:#1C1A17;font-family:Verdana, Geneva, sans-serif;line-height:1;" id="kpi-country-count">—</div>
+                <div class="kpi-value" style="color:#1C1A17" id="kpi-country-count">—</div>
                 <div style="font-size:11px;color:#968B7A;margin-top:6px;">Toplam ülke sayısı</div>
             </div>
 
             <div class="stat-card">
                 <div class="section-title"><i class="fa-solid fa-trophy"></i> En Yüksek Ciro</div>
-                <div style="font-size:22px;font-weight:700;color:#2D4A3E;font-family:Verdana, Geneva, sans-serif;line-height:1.2;" id="kpi-top-country">—</div>
+                <div class="kpi-value" style="color:#2D4A3E" id="kpi-top-country">—</div>
                 <div style="font-size:11px;color:#968B7A;margin-top:6px;" id="kpi-top-amount">—</div>
             </div>
 
             <div class="stat-card">
                 <div class="section-title"><i class="fa-solid fa-triangle-exclamation"></i> En Yüksek Şikayet</div>
-                <div style="font-size:22px;font-weight:700;color:#C97B4B;font-family:Verdana, Geneva, sans-serif;line-height:1.2;" id="kpi-complaint-country">—</div>
+                <div class="kpi-value" style="color:#C97B4B" id="kpi-complaint-country">—</div>
                 <div style="font-size:11px;color:#968B7A;margin-top:6px;" id="kpi-complaint-rate">—</div>
             </div>
 
             <div class="stat-card">
                 <div class="section-title"><i class="fa-solid fa-sparkles"></i> Bu Yıl Yeni</div>
-                <div style="font-size:36px;font-weight:700;color:#1C1A17;font-family:Verdana, Geneva, sans-serif;line-height:1;" id="kpi-new-countries">—</div>
+                <div class="kpi-value" style="color:#1C1A17" id="kpi-new-countries">—</div>
                 <div style="font-size:11px;color:#968B7A;margin-top:6px;">Yeni eklenen ülke</div>
             </div>
 
@@ -251,7 +228,7 @@
         <div id="modal-box">
             <div id="modal-header">
                 <div>
-                    <div style="font-family:Verdana, Geneva, sans-serif;font-size:20px;font-weight:500;color:#1C1A17;" id="modal-title">Ülke Müşterileri</div>
+                    <div class="kpi-value" style="color:#1C1A17" id="modal-title">Ülke Müşterileri</div>
                     <div style="font-size:11px;color:#968B7A;margin-top:2px;" id="modal-subtitle"></div>
                 </div>
                 <button id="modal-close" style="width:28px;height:28px;border-radius:6px;border:1px solid #EFEAE0;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#968B7A;">

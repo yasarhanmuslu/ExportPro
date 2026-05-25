@@ -12,11 +12,11 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         body { background: #F6F3EC !important; color: #1C1A17 !important; }
-        .stat-card { background: #fff; border: 1px solid #EFEAE0; border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(28,26,23,0.06); transition: box-shadow 0.2s; }
+        
         .stat-card:hover { box-shadow: 0 4px 12px rgba(28,26,23,0.10); }
         .stat-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .section-title { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: #2D4A3E; margin-bottom: 1rem; display: flex; align-items: center; gap: 6px; }
-        .chart-card { background: #fff; border: 1px solid #EFEAE0; border-radius: 0.75rem; padding: 1.25rem; box-shadow: 0 1px 3px rgba(28,26,23,0.06); }
+        
+        
         .matrix-table { width: 100%; border-collapse: collapse; font-size: 11px; }
         .matrix-table th { padding: 6px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #968B7A; border-bottom: 2px solid #EFEAE0; text-align: left; white-space: nowrap; background: #FDFAF6; }
         .matrix-table td { padding: 6px 10px; border-bottom: 1px solid #F0EBE1; color: #3D3A34; vertical-align: middle; }
@@ -41,7 +41,7 @@
     <main class="min-h-screen" style="margin-left:230px;padding:32px;">
         <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b">
             <div>
-                <h2 style="font-family:Verdana, Geneva, sans-serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px;">
+                <h2 class="page-title">
                     <i class="fa-solid fa-boxes-stacked text-[#2D4A3E]"></i> Ürün Analizi
                 </h2>
                 <p style="font-size:13px;color:#968B7A;margin-top:4px;font-family:Verdana, Geneva, sans-serif;">Son 12 aya ait sipariş kalemlerinden hesaplanan ürün bazlı satış ve ciro analizleri.</p>
@@ -59,7 +59,7 @@
                 </div>
                 <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#065F46;margin-bottom:2px;">Toplam Kalem</div>
-                    <div style="font-family:Verdana, Geneva, sans-serif;font-size:26px;font-weight:500;color:#065F46;line-height:1;" id="kpi-total-items">—</div>
+                    <div class="kpi-value" style="color:#065F46" id="kpi-total-items">—</div>
                     <div style="font-size:10px;color:#065F46;opacity:0.7;">Son 12 ay sipariş kalemi</div>
                 </div>
             </div>
@@ -69,7 +69,7 @@
                 </div>
                 <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#92400E;margin-bottom:2px;">Ürün Çeşidi</div>
-                    <div style="font-family:Verdana, Geneva, sans-serif;font-size:26px;font-weight:500;color:#92400E;line-height:1;" id="kpi-unique-products">—</div>
+                    <div class="kpi-value" style="color:#92400E" id="kpi-unique-products">—</div>
                     <div style="font-size:10px;color:#92400E;opacity:0.7;">Farklı ürün adedi</div>
                 </div>
             </div>
@@ -79,7 +79,7 @@
                 </div>
                 <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#0C4A6E;margin-bottom:2px;">Toplam Ciro</div>
-                    <div style="font-family:Verdana, Geneva, sans-serif;font-size:26px;font-weight:500;color:#0C4A6E;line-height:1;" id="kpi-total-revenue">—</div>
+                    <div class="kpi-value" style="color:#0C4A6E" id="kpi-total-revenue">—</div>
                     <div style="font-size:10px;color:#0C4A6E;opacity:0.7;">Sipariş kalemlerinden</div>
                 </div>
             </div>
@@ -89,7 +89,7 @@
                 </div>
                 <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#6B21A8;margin-bottom:2px;">Müşteri Sayısı</div>
-                    <div style="font-family:Verdana, Geneva, sans-serif;font-size:26px;font-weight:500;color:#6B21A8;line-height:1;" id="kpi-customer-count">—</div>
+                    <div class="kpi-value" style="color:#6B21A8" id="kpi-customer-count">—</div>
                     <div style="font-size:10px;color:#6B21A8;opacity:0.7;">Aktif alıcı sayısı</div>
                 </div>
             </div>

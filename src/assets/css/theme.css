@@ -43,6 +43,43 @@
   --scrollbar-track: #EFEAE0;
   --scrollbar-thumb: #D6CEBC;
 
+  /* ── Tipografi Tokens ──────────────────────────────────────────
+     Tüm font boyutları buradan yönetilir.
+     Değiştirmek için sadece bu değerleri güncelleyin.
+     ────────────────────────────────────────────────────────────── */
+  --font-base:          Verdana, Geneva, sans-serif;
+
+  /* Sayfa başlığı (her sayfanın üst h2'si) */
+  --text-page-title:    24px;
+  --weight-page-title:  500;
+
+  /* Kart / bölüm başlığı (section-card, chart-card içindeki h3) */
+  --text-card-title:    16px;
+  --weight-card-title:  600;
+
+  /* KPI değerleri — büyük (4 veya daha az kart yan yana) */
+  --text-kpi-lg:        28px;
+  --weight-kpi:         600;
+
+  /* KPI değerleri — küçük (5+ kart yan yana veya dar alan) */
+  --text-kpi-sm:        22px;
+
+  /* Küçük üst etiket (uppercase kart etiketi) */
+  --text-label-caps:    10px;
+  --weight-label-caps:  600;
+  --ls-label-caps:      0.12em;
+
+  /* Genel gövde metni */
+  --text-body:          13px;
+  --weight-body:        400;
+
+  /* Açıklama / alt not */
+  --text-caption:       11px;
+
+  /* Tablo başlığı (th) */
+  --text-table-header:  10px;
+  --ls-table-header:    0.12em;
+
   /* Legacy compat — mevcut JS/HTML'de kullanılan var() referansları */
   --bg-primary:    var(--bg);
   --bg-secondary:  var(--surface);
@@ -101,8 +138,160 @@ h1, h2, h3, h4 {
 }
 
 /* ══════════════════════════════
-   SCROLLBAR
+   TİPOGRAFİ UTILITY CLASS'LARI
+   Tüm sayfalarda ortak kullanım.
+   Boyut/stil değiştirmek için yukarıdaki token'ları güncelleyin.
    ══════════════════════════════ */
+
+/* Sayfa başlığı — her sayfanın ana h2'si */
+.page-title {
+  font-family: var(--font-base) !important;
+  font-size: var(--text-page-title) !important;
+  font-weight: var(--weight-page-title) !important;
+  color: var(--ink-1) !important;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Kart / bölüm başlığı — section-card, chart-card içi */
+.card-title {
+  font-family: var(--font-base) !important;
+  font-size: var(--text-card-title) !important;
+  font-weight: var(--weight-card-title) !important;
+  color: var(--ink-1) !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* KPI değeri — büyük (≤4 kart yan yana) */
+.kpi-value {
+  font-family: var(--font-base) !important;
+  font-size: var(--text-kpi-lg) !important;
+  font-weight: var(--weight-kpi) !important;
+  line-height: 1;
+}
+
+/* KPI değeri — küçük (≥5 kart yan yana / dar alan) */
+.kpi-value-sm {
+  font-family: var(--font-base) !important;
+  font-size: var(--text-kpi-sm) !important;
+  font-weight: var(--weight-kpi) !important;
+  line-height: 1;
+}
+
+/* Küçük uppercase kart etiketi */
+.label-caps {
+  font-family: var(--font-base) !important;
+  font-size: var(--text-label-caps) !important;
+  font-weight: var(--weight-label-caps) !important;
+  letter-spacing: var(--ls-label-caps);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Açıklama / alt not metni */
+.text-caption {
+  font-family: var(--font-base) !important;
+  font-size: var(--text-caption) !important;
+  color: var(--ink-3);
+}
+
+/* Tablo başlığı */
+.table-header {
+  font-family: var(--font-base) !important;
+  font-size: var(--text-table-header) !important;
+  font-weight: var(--weight-label-caps) !important;
+  letter-spacing: var(--ls-table-header);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* ══════════════════════════════
+   KART BİLEŞENLERİ — Ortak tanım
+   Sayfaların kendi <style> bloğuna gerek yok.
+   ══════════════════════════════ */
+
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 20px 22px;
+  transition: border-color .2s, box-shadow .2s;
+}
+.kpi-card:hover {
+  border-color: var(--border);
+  box-shadow: 0 4px 12px rgba(28,26,23,0.07);
+}
+
+.section-card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 22px;
+  margin-bottom: 1.5rem;
+}
+
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 22px;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 18px 20px;
+}
+
+/* Kart içi section-title */
+.section-title {
+  font-family: var(--font-base) !important;
+  font-size: var(--text-label-caps) !important;
+  font-weight: var(--weight-label-caps) !important;
+  letter-spacing: var(--ls-label-caps);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+/* ══════════════════════════════
+   TABLO — Ortak tanım
+   ══════════════════════════════ */
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.data-table th {
+  font-family: var(--font-base) !important;
+  font-size: var(--text-table-header) !important;
+  font-weight: var(--weight-label-caps) !important;
+  letter-spacing: var(--ls-table-header);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  background: var(--surface-2);
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-soft);
+}
+.data-table td {
+  font-family: var(--font-base) !important;
+  font-size: var(--text-body) !important;
+  color: var(--ink-2);
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.data-table tbody tr:hover { background: var(--surface-2); }
+
+
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
 ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
@@ -411,9 +600,9 @@ div[class*="rounded-2xl"].border {
    SAYFA BAŞLIKLARI
    ══════════════════════════════ */
 header h2, .page-title {
-  font-family: Verdana, Geneva, sans-serif !important;
-  font-size: 34px !important;
-  font-weight: 500 !important;
+  font-family: var(--font-base) !important;
+  font-size: var(--text-page-title) !important;
+  font-weight: var(--weight-page-title) !important;
   color: var(--ink-1) !important;
   letter-spacing: -0.01em;
 }
@@ -471,6 +660,17 @@ select {
 .border-rose-900\/50  { border-color: rgba(159,61,61,0.25) !important; }
 .text-rose-400        { color: var(--danger) !important; }
 
+
+/* Modal başlığı */
+.modal-title {
+  font-family: var(--font-base) !important;
+  font-size: 22px !important;
+  font-weight: 500 !important;
+  color: var(--ink-1) !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 /* ══════════════════════════════
    SMOOTH TRANSITIONS
    ══════════════════════════════ */

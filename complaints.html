@@ -26,40 +26,14 @@
             padding: 0 12px; height: 36px; width: 100%;
         }
 
-        .kpi-card {
-            background: #fff;
-            border: 1px solid #EFEAE0;
-            border-radius: 0.75rem;
-            padding: 1.25rem 1.5rem;
-            box-shadow: 0 4px 12px rgba(28,26,23,0.06);
-            transition: border-color .2s, box-shadow .2s;
-        }
-        .kpi-card:hover { border-color: #D6CEBC; box-shadow: 0 6px 18px rgba(28,26,23,0.09); }
+        
+        
 
-        .section-card {
-            background: #fff;
-            border: 1px solid #EFEAE0;
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            box-shadow: 0 2px 8px rgba(28,26,23,0.04);
-        }
+        
 
-        .data-table { width: 100%; border-collapse: collapse; }
-        .data-table th {
-            padding: 9px 14px;
-            font-size: 10px; font-weight: 600;
-            letter-spacing: 0.14em; text-transform: uppercase;
-            color: #968B7A; text-align: left;
-            border-bottom: 1px solid #EFEAE0;
-            background: #FBF8F1;
-            white-space: nowrap;
-        }
-        .data-table td {
-            padding: 9px 14px;
-            font-size: 12.5px;
-            color: #1C1A17;
-            border-bottom: 1px solid #F4F0E8;
-        }
+        
+        
+        
         .data-table tbody tr:hover { background: #FBF8F1; cursor: pointer; }
         .data-table tbody tr:last-child td { border-bottom: none; }
 
@@ -123,7 +97,7 @@
         <!-- ── Başlık ── -->
         <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b" style="border-color:#EFEAE0;">
             <div>
-                <h2 style="font-family:Verdana, Geneva, sans-serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:10px;">
+                <h2 class="page-title">
                     <i class="fa-solid fa-triangle-exclamation" style="color:#B26B33;font-size:28px;"></i>
                     Şikayet Panosu
                 </h2>
@@ -185,32 +159,32 @@
         <!-- ── A) KPI Kartları ── -->
         <section class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="kpi-section">
             <div class="kpi-card">
-                <div style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#968B7A;margin-bottom:8px;">
+                <div class="label-caps" style="margin-bottom:8px">
                     <i class="fa-solid fa-list-check" style="margin-right:5px;color:#B26B33;"></i>Toplam Şikayet
                 </div>
-                <div id="kpi-total" style="font-size:32px;font-weight:600;color:#1C1A17;font-family:Verdana, Geneva, sans-serif;line-height:1;">—</div>
-                <div style="font-size:11px;color:#968B7A;margin-top:4px;font-family:Verdana, Geneva, sans-serif;">toplam kalem sayısı</div>
+                <div id="kpi-total" class="kpi-value" style="color:#1C1A17">—</div>
+                <div class="text-caption" style="margin-top:4px">toplam kalem sayısı</div>
             </div>
             <div class="kpi-card">
-                <div style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#968B7A;margin-bottom:8px;">
+                <div class="label-caps" style="margin-bottom:8px">
                     <i class="fa-solid fa-circle-check" style="margin-right:5px;color:#3D6E50;"></i>Kabul Edilen
                 </div>
-                <div id="kpi-accepted" style="font-size:32px;font-weight:600;color:#3D6E50;font-family:Verdana, Geneva, sans-serif;line-height:1;">—</div>
+                <div id="kpi-accepted" class="kpi-value" style="color:#3D6E50">—</div>
                 <div style="font-size:11px;color:#968B7A;margin-top:4px;font-family:Verdana, Geneva, sans-serif;" id="kpi-accepted-rate">— kabul oranı</div>
             </div>
             <div class="kpi-card">
-                <div style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#968B7A;margin-bottom:8px;">
+                <div class="label-caps" style="margin-bottom:8px">
                     <i class="fa-solid fa-circle-xmark" style="margin-right:5px;color:#9F3D3D;"></i>Reddedilen
                 </div>
-                <div id="kpi-rejected" style="font-size:32px;font-weight:600;color:#9F3D3D;font-family:Verdana, Geneva, sans-serif;line-height:1;">—</div>
+                <div id="kpi-rejected" class="kpi-value" style="color:#9F3D3D">—</div>
                 <div style="font-size:11px;color:#968B7A;margin-top:4px;font-family:Verdana, Geneva, sans-serif;" id="kpi-rejected-rate">— red oranı</div>
             </div>
             <div class="kpi-card">
-                <div style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#968B7A;margin-bottom:8px;">
+                <div class="label-caps" style="margin-bottom:8px">
                     <i class="fa-solid fa-hourglass-half" style="margin-right:5px;color:#3F5C7A;"></i>Bekleyen CN'ler
                 </div>
-                <div id="kpi-pending" style="font-size:32px;font-weight:600;color:#3F5C7A;font-family:Verdana, Geneva, sans-serif;line-height:1;">—</div>
-                <div style="font-size:11px;color:#968B7A;margin-top:4px;font-family:Verdana, Geneva, sans-serif;">process_status = İncelemede</div>
+                <div id="kpi-pending" class="kpi-value" style="color:#3F5C7A">—</div>
+                <div class="text-caption" style="margin-top:4px">process_status = İncelemede</div>
             </div>
         </section>
 
@@ -220,7 +194,7 @@
             <!-- B) Ürün Bazında -->
             <div class="section-card">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 style="font-family:Verdana, Geneva, sans-serif;font-size:20px;font-weight:500;color:#1C1A17;display:flex;align-items:center;gap:8px;">
+                    <h3 class="card-title">
                         <i class="fa-solid fa-box" style="color:#B26B33;font-size:16px;"></i> Ürün Bazında Şikayet
                     </h3>
                     <span style="font-size:10px;color:#968B7A;font-family:Verdana, Geneva, sans-serif;">Tıkla → Detayları Gör</span>
@@ -245,7 +219,7 @@
             <!-- C) Müşteri Bazında -->
             <div class="section-card">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 style="font-family:Verdana, Geneva, sans-serif;font-size:20px;font-weight:500;color:#1C1A17;display:flex;align-items:center;gap:8px;">
+                    <h3 class="card-title">
                         <i class="fa-solid fa-users" style="color:#2D4A3E;font-size:16px;"></i> Müşteri Bazında Şikayet
                     </h3>
                     <span style="font-size:10px;color:#968B7A;font-family:Verdana, Geneva, sans-serif;">En çok şikayet → Üstte</span>
@@ -273,7 +247,7 @@
 
             <!-- D) Karar Dağılımı Doughnut -->
             <div class="section-card">
-                <h3 style="font-family:Verdana, Geneva, sans-serif;font-size:20px;font-weight:500;color:#1C1A17;display:flex;align-items:center;gap:8px;margin-bottom:1rem;">
+                <h3 class="card-title">
                     <i class="fa-solid fa-chart-pie" style="color:#3F5C7A;font-size:16px;"></i> Karar Dağılımı
                 </h3>
                 <div class="chart-container" style="height:280px;display:flex;align-items:center;justify-content:center;">
@@ -285,7 +259,7 @@
             <!-- E) Zaman Serisi Line -->
             <div class="section-card">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 style="font-family:Verdana, Geneva, sans-serif;font-size:20px;font-weight:500;color:#1C1A17;display:flex;align-items:center;gap:8px;">
+                    <h3 class="card-title">
                         <i class="fa-solid fa-chart-line" style="color:#2D4A3E;font-size:16px;"></i> Aylık Şikayet Trendi
                     </h3>
                     <span id="trend-badge" style="font-size:11px;font-family:Verdana, Geneva, sans-serif;"></span>
@@ -302,7 +276,7 @@
     <div id="product-detail-modal" class="modal-backdrop hidden">
         <div class="modal-content">
             <div class="flex items-center justify-between p-5" style="border-bottom:1px solid #EFEAE0;">
-                <h3 id="product-modal-title" style="font-family:Verdana, Geneva, sans-serif;font-size:22px;font-weight:500;color:#1C1A17;display:flex;align-items:center;gap:8px;">
+                <h3 id="product-modal-title" class="modal-title">
                     <i class="fa-solid fa-box" style="color:#B26B33;"></i> Ürün Şikayet Detayları
                 </h3>
                 <button id="btn-close-product-modal" style="background:none;border:none;cursor:pointer;color:#968B7A;font-size:18px;">
