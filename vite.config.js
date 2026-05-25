@@ -13,7 +13,8 @@ export default defineConfig({
         creditNotes: resolve(__dirname, 'credit-notes.html'),
         orderTimeline: resolve(__dirname, 'order-timeline.html'),
         profitability: resolve(__dirname, 'profitability.html'),
-        complaints: resolve(__dirname, 'complaints.html')
+        complaints: resolve(__dirname, 'complaints.html'),
+        payments: resolve(__dirname, 'payments.html')
       }
     }
   }
