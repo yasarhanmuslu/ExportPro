@@ -21,24 +21,43 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ── Veri yükleme ─────────────────────────────────────────────────────────────
 async function loadData(session) {
     try {
-        const { data, error } = await supabase
+        // 1) credit_notes + customers (tek ilişki - çoklu ilişki hatasını önler)
+        const { data: notes, error: notesErr } = await supabase
             .from('credit_notes')
-            .select('*, customers(company_name, country), credit_note_items(*)')
+            .select('*, customers(company_name, country)')
             .eq('user_id', session.user.id)
             .order('cn_date', { ascending: false });
+        if (notesErr) throw notesErr;
 
-        if (error) throw error;
-        rawData = data || [];
+        // 2) credit_note_items (ayrı sorgu)
+        const cnIds = (notes || []).map(n => n.id);
+        let itemsMap = {}; // { cn_id: [items] }
 
-        // Filtre seçeneklerini doldur
+        if (cnIds.length > 0) {
+            const { data: items, error: itemsErr } = await supabase
+                .from('credit_note_items')
+                .select('*')
+                .in('credit_note_id', cnIds);
+            if (itemsErr) throw itemsErr;
+
+            (items || []).forEach(item => {
+                if (!itemsMap[item.credit_note_id]) itemsMap[item.credit_note_id] = [];
+                itemsMap[item.credit_note_id].push(item);
+            });
+        }
+
+        // 3) Manuel birleştir
+        rawData = (notes || []).map(cn => ({
+            ...cn,
+            credit_note_items: itemsMap[cn.id] || []
+        }));
+
         populateFilterOptions();
-
-        // İlk render (filtre yok)
         applyFiltersAndRender();
 
     } catch (err) {
-        console.error('Şikayet verisi yüklenemedi:', err.message);
-        showError('Veriler yüklenirken bir hata oluştu: ' + err.message);
+        console.error('Sikayet verisi yuklenemedi:', err.message);
+        showError('Veriler yuklenirken bir hata olustu: ' + err.message);
     }
 }
 
