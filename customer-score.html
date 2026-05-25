@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <script>/* Flash önle */ (function(){var t=localStorage.getItem('ep-theme')||'light';document.documentElement.classList.add(t==='dark'?'dark':'light');})();</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Müşteri Performans Skoru — Export Suite</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./src/assets/css/theme.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background: #F6F3EC !important; color: #1C1A17 !important; }
+        .modal-backdrop { background: rgba(28,26,23,0.50) !important; backdrop-filter: blur(4px); }
+        input, select, textarea {
+            background: #fff !important; border: 1px solid #E4DDCE !important;
+            border-radius: 6px !important; color: #1C1A17 !important;
+            font-family: 'DM Sans', sans-serif !important; font-size: 13px !important;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none !important; border-color: #2D4A3E !important;
+            box-shadow: 0 0 0 3px rgba(45,74,62,0.08) !important;
+        }
+
+        /* Skor Kartları */
+        .score-badge-a { background: #D1FAE5; color: #065F46; border: 1px solid #6EE7B7; }
+        .score-badge-b { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; }
+        .score-badge-c { background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
+
+        /* Dark mode badge fixes */
+        .dark .score-badge-a { background: #064E3B; color: #6EE7B7; border-color: #065F46; }
+        .dark .score-badge-b { background: #451A03; color: #FCD34D; border-color: #92400E; }
+        .dark .score-badge-c { background: #450A0A; color: #FCA5A5; border-color: #991B1B; }
+
+        /* Filter buttons */
+        .filter-btn { padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: 600;
+                      border: 1px solid #E4DDCE; background: #fff; color: #6B655B;
+                      cursor: pointer; transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
+        .filter-btn:hover { border-color: #2D4A3E; color: #2D4A3E; }
+        .filter-btn.active { background: #2D4A3E; color: #fff; border-color: #2D4A3E; }
+        .filter-btn.active-a { background: #065F46; color: #fff; border-color: #065F46; }
+        .filter-btn.active-b { background: #92400E; color: #fff; border-color: #92400E; }
+        .filter-btn.active-c { background: #991B1B; color: #fff; border-color: #991B1B; }
+
+        /* Table */
+        .score-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .score-table thead tr { border-bottom: 2px solid #EFEAE0; }
+        .score-table th {
+            padding: 10px 14px; text-align: left;
+            font-size: 10px; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase;
+            color: #968B7A; font-family: 'DM Sans', sans-serif;
+        }
+        .score-table tbody tr {
+            border-bottom: 1px solid #F0EDE5;
+            cursor: pointer; transition: background 0.1s;
+        }
+        .score-table tbody tr:hover { background: #F6F3EC; }
+        .score-table td { padding: 11px 14px; color: #1C1A17; }
+
+        /* Score bar */
+        .score-bar-wrap { width: 80px; height: 6px; background: #EFEAE0; border-radius: 99px; overflow: hidden; }
+        .score-bar-fill { height: 100%; border-radius: 99px; transition: width 0.4s; }
+
+        /* Detail Modal */
+        .score-modal { display: none; position: fixed; inset: 0; z-index: 100; align-items: center; justify-content: center; }
+        .score-modal.open { display: flex; }
+        .score-modal-card {
+            background: #fff; border: 1px solid #EFEAE0; border-radius: 14px;
+            width: 560px; max-width: 95vw; box-shadow: 0 32px 64px rgba(0,0,0,0.12);
+            animation: modalIn 0.2s ease;
+        }
+        @keyframes modalIn { from { opacity:0; transform:translateY(8px) scale(0.98); } to { opacity:1; transform:none; } }
+
+        /* Score component bar */
+        .comp-bar-wrap { flex: 1; height: 8px; background: #F0EDE5; border-radius: 99px; overflow: hidden; margin: 0 12px; }
+        .comp-bar-fill { height: 100%; border-radius: 99px; }
+
+        /* Loading state */
+        .skeleton { background: linear-gradient(90deg, #EFEAE0 25%, #F6F3EC 50%, #EFEAE0 75%);
+                    background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; }
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div id="navbar-target"></div>
+
+    <main class="min-h-screen" style="margin-left:230px; padding:32px;">
+
+        <!-- Başlık -->
+        <div style="font-size:10px;font-weight:600;letter-spacing:0.22em;text-transform:uppercase;color:#B58858;margin-bottom:8px;">Analitik · Müşteri Segmentasyonu</div>
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5" style="border-bottom:1px solid #EFEAE0;">
+            <div>
+                <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:34px;font-weight:500;color:#1C1A17;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px;">
+                    <i class="fa-solid fa-ranking-star" style="color:#2D4A3E;font-size:18px;"></i> Müşteri Performans Skoru.
+                </h2>
+                <p style="font-size:13px;color:#6B655B;margin-top:6px;">Sipariş hacmi, ödeme düzeni, şikayet ve iskonto verilerine göre otomatik müşteri puanlaması.</p>
+            </div>
+            <!-- Export CSV -->
+            <button id="btn-export-csv"
+                style="display:flex;align-items:center;gap:8px;padding:9px 18px;border-radius:8px;border:1px solid #2D4A3E;background:#2D4A3E;color:#fff;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;transition:opacity 0.15s;">
+                <i class="fa-solid fa-file-csv"></i> Excel'e Aktar (CSV)
+            </button>
+        </header>
+
+        <!-- Filtreler + Özet KPI -->
+        <div class="flex flex-col lg:flex-row gap-4 mb-6">
+
+            <!-- Sınıf Filtreleri -->
+            <div class="flex items-center gap-2 flex-wrap">
+                <span style="font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#968B7A;margin-right:4px;">Sınıf:</span>
+                <button class="filter-btn active" data-class="all">Tümü</button>
+                <button class="filter-btn" data-class="A">
+                    <i class="fa-solid fa-circle text-green-600 text-[8px] mr-1"></i>A Sınıfı
+                </button>
+                <button class="filter-btn" data-class="B">
+                    <i class="fa-solid fa-circle text-yellow-600 text-[8px] mr-1"></i>B Sınıfı
+                </button>
+                <button class="filter-btn" data-class="C">
+                    <i class="fa-solid fa-circle text-red-600 text-[8px] mr-1"></i>C Sınıfı
+                </button>
+            </div>
+
+            <!-- Ülke Filtresi -->
+            <div class="flex items-center gap-2 ml-auto">
+                <span style="font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#968B7A;">Ülke:</span>
+                <select id="country-filter" style="padding:6px 12px;min-width:150px;">
+                    <option value="">Tüm Ülkeler</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- KPI Özet Satırı -->
+        <div class="grid grid-cols-3 gap-4 mb-6">
+            <div style="background:#D1FAE5;border:1px solid #6EE7B7;border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;">
+                <div style="width:36px;height:36px;border-radius:8px;background:#065F46;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fa-solid fa-star text-white" style="font-size:14px;"></i>
+                </div>
+                <div>
+                    <div style="font-size:10px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:#065F46;margin-bottom:2px;">A Sınıfı</div>
+                    <div id="kpi-a" style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:500;color:#065F46;">—</div>
+                    <div style="font-size:10px;color:#065F46;opacity:0.7;">Stratejik Müşteri</div>
+                </div>
+            </div>
+            <div style="background:#FEF3C7;border:1px solid #FCD34D;border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;">
+                <div style="width:36px;height:36px;border-radius:8px;background:#92400E;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fa-solid fa-chart-line text-white" style="font-size:14px;"></i>
+                </div>
+                <div>
+                    <div style="font-size:10px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:#92400E;margin-bottom:2px;">B Sınıfı</div>
+                    <div id="kpi-b" style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:500;color:#92400E;">—</div>
+                    <div style="font-size:10px;color:#92400E;opacity:0.7;">Geliştirilecek</div>
+                </div>
+            </div>
+            <div style="background:#FEE2E2;border:1px solid #FCA5A5;border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;">
+                <div style="width:36px;height:36px;border-radius:8px;background:#991B1B;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fa-solid fa-triangle-exclamation text-white" style="font-size:14px;"></i>
+                </div>
+                <div>
+                    <div style="font-size:10px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:#991B1B;margin-bottom:2px;">C Sınıfı</div>
+                    <div id="kpi-c" style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:500;color:#991B1B;">—</div>
+                    <div style="font-size:10px;color:#991B1B;opacity:0.7;">Riskli / Az Karlı</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ana Layout: Tablo + Grafik -->
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+            <!-- Skor Tablosu (2/3) -->
+            <div style="grid-column:span 2;" class="xl:col-span-2">
+                <div style="background:#fff;border:1px solid #EFEAE0;border-radius:12px;overflow:hidden;">
+                    <div style="padding:16px 20px;border-bottom:1px solid #EFEAE0;display:flex;align-items:center;justify-content:space-between;">
+                        <h3 style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;display:flex;align-items:center;gap:6px;">
+                            <i class="fa-solid fa-table-list" style="color:#2D4A3E;"></i> Müşteri Skor Tablosu
+                        </h3>
+                        <span id="table-count" style="font-size:11px;color:#968B7A;"></span>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="score-table">
+                            <thead>
+                                <tr>
+                                    <th>Müşteri</th>
+                                    <th>Ülke</th>
+                                    <th style="text-align:right;">Top. Sipariş</th>
+                                    <th style="text-align:center;">Gecikme</th>
+                                    <th style="text-align:center;">Şikayet</th>
+                                    <th style="text-align:center;">İskonto%</th>
+                                    <th style="text-align:center;">Skor</th>
+                                    <th style="text-align:center;">Sınıf</th>
+                                </tr>
+                            </thead>
+                            <tbody id="score-tbody">
+                                <tr>
+                                    <td colspan="8" style="text-align:center;padding:40px;color:#968B7A;">
+                                        <i class="fa-solid fa-spinner fa-spin mr-2"></i>Veriler hesaplanıyor...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grafik (1/3) -->
+            <div class="xl:col-span-1 flex flex-col gap-4">
+                <div style="background:#fff;border:1px solid #EFEAE0;border-radius:12px;padding:20px;">
+                    <h3 style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;margin-bottom:16px;display:flex;align-items:center;gap:6px;">
+                        <i class="fa-solid fa-chart-pie" style="color:#B58858;"></i> A/B/C Dağılımı
+                    </h3>
+                    <div style="position:relative;height:220px;">
+                        <canvas id="chart-abc"></canvas>
+                    </div>
+                    <div id="chart-legend" style="margin-top:12px;display:flex;flex-direction:column;gap:6px;"></div>
+                </div>
+
+                <!-- Metodoloji Kartı -->
+                <div style="background:#F6F3EC;border:1px solid #EFEAE0;border-radius:12px;padding:18px;">
+                    <h3 style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;margin-bottom:12px;">
+                        <i class="fa-solid fa-circle-info" style="color:#2D4A3E;"></i> Skor Metodolojisi
+                    </h3>
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                            <span style="font-size:11px;color:#6B655B;">Sipariş Hacmi</span>
+                            <span style="font-size:11px;font-weight:600;color:#2D4A3E;">30 puan</span>
+                        </div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                            <span style="font-size:11px;color:#6B655B;">Ödeme Düzeni</span>
+                            <span style="font-size:11px;font-weight:600;color:#2D4A3E;">30 puan</span>
+                        </div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                            <span style="font-size:11px;color:#6B655B;">Şikayet Skoru</span>
+                            <span style="font-size:11px;font-weight:600;color:#2D4A3E;">20 puan</span>
+                        </div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                            <span style="font-size:11px;color:#6B655B;">İskonto Avantajı</span>
+                            <span style="font-size:11px;font-weight:600;color:#2D4A3E;">20 puan</span>
+                        </div>
+                        <div style="border-top:1px solid #E4DDCE;margin-top:4px;padding-top:8px;display:flex;align-items:center;justify-content:space-between;">
+                            <span style="font-size:12px;font-weight:600;color:#1C1A17;">Toplam</span>
+                            <span style="font-size:12px;font-weight:600;color:#1C1A17;">100 puan</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Detay Modalı -->
+    <div class="score-modal modal-backdrop" id="detail-modal">
+        <div class="score-modal-card">
+            <div style="padding:20px 24px;border-bottom:1px solid #EFEAE0;display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                    <div style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#968B7A;margin-bottom:4px;">Müşteri Detay Kartı</div>
+                    <div id="modal-customer-name" style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;color:#1C1A17;"></div>
+                </div>
+                <button id="modal-close" style="width:32px;height:32px;border-radius:6px;border:1px solid #E4DDCE;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                    <i class="fa-solid fa-xmark" style="color:#6B655B;font-size:12px;"></i>
+                </button>
+            </div>
+            <div style="padding:24px;">
+                <!-- Toplam Skor Banner -->
+                <div id="modal-score-banner" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-radius:10px;margin-bottom:20px;">
+                    <div>
+                        <div style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;opacity:0.7;margin-bottom:4px;">Toplam Performans Skoru</div>
+                        <div id="modal-total-score" style="font-family:'Cormorant Garamond',serif;font-size:42px;font-weight:500;line-height:1;"></div>
+                    </div>
+                    <div id="modal-class-badge" style="padding:8px 20px;border-radius:8px;font-size:14px;font-weight:700;"></div>
+                </div>
+
+                <!-- 4 Bileşen -->
+                <div style="display:flex;flex-direction:column;gap:14px;">
+                    <!-- Sipariş Hacmi -->
+                    <div style="padding:14px 16px;background:#F6F3EC;border-radius:8px;">
+                        <div style="display:flex;align-items:center;margin-bottom:8px;">
+                            <i class="fa-solid fa-boxes-stacked" style="color:#2D4A3E;width:16px;font-size:12px;"></i>
+                            <span style="font-size:12px;font-weight:600;color:#1C1A17;margin-left:8px;">Sipariş Hacmi</span>
+                            <span style="margin-left:auto;font-size:11px;color:#968B7A;">max 30 puan</span>
+                        </div>
+                        <div style="display:flex;align-items:center;">
+                            <span id="modal-score-volume" style="font-size:18px;font-weight:600;color:#2D4A3E;min-width:36px;"></span>
+                            <div class="comp-bar-wrap"><div id="modal-bar-volume" class="comp-bar-fill" style="background:#2D4A3E;width:0%;"></div></div>
+                            <span id="modal-detail-volume" style="font-size:11px;color:#6B655B;min-width:120px;text-align:right;"></span>
+                        </div>
+                    </div>
+                    <!-- Ödeme Düzeni -->
+                    <div style="padding:14px 16px;background:#F6F3EC;border-radius:8px;">
+                        <div style="display:flex;align-items:center;margin-bottom:8px;">
+                            <i class="fa-solid fa-clock" style="color:#3F5C7A;width:16px;font-size:12px;"></i>
+                            <span style="font-size:12px;font-weight:600;color:#1C1A17;margin-left:8px;">Ödeme Düzeni</span>
+                            <span style="margin-left:auto;font-size:11px;color:#968B7A;">max 30 puan</span>
+                        </div>
+                        <div style="display:flex;align-items:center;">
+                            <span id="modal-score-payment" style="font-size:18px;font-weight:600;color:#3F5C7A;min-width:36px;"></span>
+                            <div class="comp-bar-wrap"><div id="modal-bar-payment" class="comp-bar-fill" style="background:#3F5C7A;width:0%;"></div></div>
+                            <span id="modal-detail-payment" style="font-size:11px;color:#6B655B;min-width:120px;text-align:right;"></span>
+                        </div>
+                    </div>
+                    <!-- Şikayet -->
+                    <div style="padding:14px 16px;background:#F6F3EC;border-radius:8px;">
+                        <div style="display:flex;align-items:center;margin-bottom:8px;">
+                            <i class="fa-solid fa-triangle-exclamation" style="color:#B26B33;width:16px;font-size:12px;"></i>
+                            <span style="font-size:12px;font-weight:600;color:#1C1A17;margin-left:8px;">Şikayet Skoru</span>
+                            <span style="margin-left:auto;font-size:11px;color:#968B7A;">max 20 puan</span>
+                        </div>
+                        <div style="display:flex;align-items:center;">
+                            <span id="modal-score-complaint" style="font-size:18px;font-weight:600;color:#B26B33;min-width:36px;"></span>
+                            <div class="comp-bar-wrap"><div id="modal-bar-complaint" class="comp-bar-fill" style="background:#B26B33;width:0%;"></div></div>
+                            <span id="modal-detail-complaint" style="font-size:11px;color:#6B655B;min-width:120px;text-align:right;"></span>
+                        </div>
+                    </div>
+                    <!-- İskonto -->
+                    <div style="padding:14px 16px;background:#F6F3EC;border-radius:8px;">
+                        <div style="display:flex;align-items:center;margin-bottom:8px;">
+                            <i class="fa-solid fa-percent" style="color:#7C3AED;width:16px;font-size:12px;"></i>
+                            <span style="font-size:12px;font-weight:600;color:#1C1A17;margin-left:8px;">İskonto Avantajı</span>
+                            <span style="margin-left:auto;font-size:11px;color:#968B7A;">max 20 puan</span>
+                        </div>
+                        <div style="display:flex;align-items:center;">
+                            <span id="modal-score-discount" style="font-size:18px;font-weight:600;color:#7C3AED;min-width:36px;"></span>
+                            <div class="comp-bar-wrap"><div id="modal-bar-discount" class="comp-bar-fill" style="background:#7C3AED;width:0%;"></div></div>
+                            <span id="modal-detail-discount" style="font-size:11px;color:#6B655B;min-width:120px;text-align:right;"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./src/customer-score.js"></script>
+</body>
+</html>

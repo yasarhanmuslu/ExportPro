@@ -16,6 +16,7 @@ export default defineConfig({
         complaints: resolve(__dirname, 'complaints.html'),
         payments: resolve(__dirname, 'payments.html'),
         shipments: resolve(__dirname, 'shipments.html')
+        customerScore: resolve(__dirname, 'customer-score.html')
       }
     }
   }
