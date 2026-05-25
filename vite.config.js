@@ -19,6 +19,7 @@ export default defineConfig({
         shipments: resolve(__dirname, 'shipments.html'),
         customerScore: resolve(__dirname, 'customer-score.html'),
         productAnalysis: resolve(__dirname, 'product-analysis.html'),
+        marketAnalysis: resolve(__dirname, 'market-analysis.html'),
       }
     }
   }
