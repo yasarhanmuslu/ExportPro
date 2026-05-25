@@ -4,12 +4,15 @@ import { requireAuth } from './auth/auth.js';
 
 let globalOrders = [];
 let globalCustomers = [];
+let globalProducts = [];
+let currentOrderId = null;
+let orderItemsBuffer = []; // Düzenleme sırasındaki kalem buffer'ı
 
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
     await renderNavbar('orders');
-    await Promise.all([fetchCustomersData(), fetchOrdersData()]);
+    await Promise.all([fetchCustomersData(), fetchOrdersData(), fetchProductsData()]);
     initOrderEventListeners();
 });
 
@@ -36,6 +39,19 @@ async function fetchCustomersData() {
     }
 }
 
+async function fetchProductsData() {
+    try {
+        const { data: products, error } = await supabase
+            .from('products')
+            .select('id, product_code, product_name, product_group')
+            .order('product_name', { ascending: true });
+        if (error) throw error;
+        globalProducts = products || [];
+    } catch (err) {
+        console.error("Ürün listesi yüklenemedi:", err.message);
+    }
+}
+
 async function fetchOrdersData() {
     try {
         const { data: orders, error } = await supabase
@@ -48,6 +64,21 @@ async function fetchOrdersData() {
     } catch (err) {
         console.error("Sipariş verileri yüklenemedi:", err.message);
         document.getElementById('orders-table-body').innerHTML = `<tr><td colspan="9" class="text-center text-[#9F3D3D] py-4">Veriler çekilirken bir hata oluştu.</td></tr>`;
+    }
+}
+
+async function fetchOrderItems(orderId) {
+    try {
+        const { data, error } = await supabase
+            .from('order_items')
+            .select('*')
+            .eq('order_id', orderId)
+            .order('created_at', { ascending: true });
+        if (error) throw error;
+        return data || [];
+    } catch (err) {
+        console.error("Sipariş kalemleri yüklenemedi:", err.message);
+        return [];
     }
 }
 
@@ -70,7 +101,6 @@ function renderOrdersTable(ordersList) {
         const compName = order.customers ? order.customers.company_name : 'Bilinmeyen Müşteri';
         const country = order.customers ? order.customers.country : '';
 
-        // Üretim durum rengi
         const prodColors = {
             'Bekliyor': 'bg-[#FBF8F1] text-[#6B655B]',
             'Üretimde': 'bg-blue-950/60 text-blue-400',
@@ -86,7 +116,6 @@ function renderOrdersTable(ordersList) {
         const prodStatus = order.production_status || 'Bekliyor';
         const payStatus = order.payment_status || 'Ödenmedi';
 
-        // Satır durum rengi (kalan bakiyeye göre)
         let rowClass = 'row-beyaz';
         const remaining = parseFloat(order.remaining_balance || 0);
         const total = parseFloat(order.total_amount || 0);
@@ -157,6 +186,195 @@ function initOrderEventListeners() {
     });
 
     document.getElementById('btn-export-orders').addEventListener('click', exportOrdersToCSV);
+
+    // Sekme geçiş
+    document.getElementById('tab-general').addEventListener('click', () => switchTab('general'));
+    document.getElementById('tab-items').addEventListener('click', () => switchTab('items'));
+
+    // Kalem ekle butonu
+    document.getElementById('btn-add-item-row').addEventListener('click', addItemRow);
+}
+
+// --- SEKME GEÇİŞİ ---
+function switchTab(tab) {
+    const generalPanel = document.getElementById('panel-general');
+    const itemsPanel = document.getElementById('panel-items');
+    const tabGeneral = document.getElementById('tab-general');
+    const tabItems = document.getElementById('tab-items');
+
+    if (tab === 'general') {
+        generalPanel.classList.remove('hidden');
+        itemsPanel.classList.add('hidden');
+        tabGeneral.classList.add('tab-active');
+        tabItems.classList.remove('tab-active');
+    } else {
+        generalPanel.classList.add('hidden');
+        itemsPanel.classList.remove('hidden');
+        tabGeneral.classList.remove('tab-active');
+        tabItems.classList.add('tab-active');
+        renderItemsTable();
+    }
+}
+
+// --- KALEM TABLOSU ---
+function renderItemsTable() {
+    const tbody = document.getElementById('items-table-body');
+    tbody.innerHTML = '';
+
+    if (orderItemsBuffer.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-slate-500 py-6 text-sm">Henüz sipariş kalemi eklenmedi. "Satır Ekle" butonunu kullanın.</td></tr>`;
+    } else {
+        orderItemsBuffer.forEach((item, idx) => {
+            const productOptions = globalProducts.map(p =>
+                `<option value="${p.id}" data-code="${escapeHtml(p.product_code||'')}" data-name="${escapeHtml(p.product_name)}" ${item.product_id === p.id ? 'selected' : ''}>${escapeHtml(p.product_name)}</option>`
+            ).join('');
+
+            const tr = document.createElement('tr');
+            tr.dataset.idx = idx;
+            tr.innerHTML = `
+                <td style="min-width:200px;">
+                    <select class="item-product-select" data-idx="${idx}" style="height:34px;font-size:12px;">
+                        <option value="">-- Ürün Seç --</option>
+                        ${productOptions}
+                    </select>
+                    <input type="text" class="item-product-name mt-1" data-idx="${idx}" value="${escapeHtml(item.product_name||'')}" placeholder="veya serbest metin" style="height:30px;font-size:11px;">
+                </td>
+                <td style="min-width:110px;">
+                    <input type="text" class="item-product-code" data-idx="${idx}" value="${escapeHtml(item.product_code||'')}" placeholder="Ürün kodu" style="height:34px;font-size:12px;">
+                </td>
+                <td style="min-width:90px;">
+                    <input type="number" class="item-quantity" data-idx="${idx}" value="${item.quantity||''}" placeholder="0" step="any" style="height:34px;font-size:12px;text-align:right;">
+                </td>
+                <td style="min-width:120px;">
+                    <input type="number" class="item-unit-price" data-idx="${idx}" value="${item.unit_price||''}" placeholder="0.00" step="any" style="height:34px;font-size:12px;text-align:right;">
+                </td>
+                <td class="text-right font-mono text-emerald-400 text-sm item-amount" data-idx="${idx}">
+                    ${calcAmount(item.quantity, item.unit_price)}
+                </td>
+                <td class="text-center">
+                    <button class="btn-remove-item text-rose-400 hover:text-rose-300 px-2 py-1 text-xs" data-idx="${idx}">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                    <input type="text" class="item-notes" data-idx="${idx}" value="${escapeHtml(item.notes||'')}" placeholder="Not" style="height:28px;font-size:11px;margin-top:4px;display:block;">
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // Bind item events
+    tbody.querySelectorAll('.item-product-select').forEach(sel => {
+        sel.addEventListener('change', (e) => {
+            const idx = parseInt(e.target.dataset.idx);
+            const opt = e.target.selectedOptions[0];
+            if (opt && opt.value) {
+                orderItemsBuffer[idx].product_id = opt.value;
+                orderItemsBuffer[idx].product_name = opt.dataset.name || '';
+                orderItemsBuffer[idx].product_code = opt.dataset.code || '';
+                // Update name input
+                const nameInput = tbody.querySelector(`.item-product-name[data-idx="${idx}"]`);
+                const codeInput = tbody.querySelector(`.item-product-code[data-idx="${idx}"]`);
+                if (nameInput) nameInput.value = opt.dataset.name || '';
+                if (codeInput) codeInput.value = opt.dataset.code || '';
+            }
+        });
+    });
+
+    tbody.querySelectorAll('.item-product-name').forEach(inp => {
+        inp.addEventListener('input', (e) => {
+            const idx = parseInt(e.target.dataset.idx);
+            orderItemsBuffer[idx].product_name = e.target.value;
+        });
+    });
+
+    tbody.querySelectorAll('.item-product-code').forEach(inp => {
+        inp.addEventListener('input', (e) => {
+            const idx = parseInt(e.target.dataset.idx);
+            orderItemsBuffer[idx].product_code = e.target.value;
+        });
+    });
+
+    tbody.querySelectorAll('.item-quantity').forEach(inp => {
+        inp.addEventListener('input', (e) => {
+            const idx = parseInt(e.target.dataset.idx);
+            orderItemsBuffer[idx].quantity = parseFloat(e.target.value) || null;
+            updateItemAmount(tbody, idx);
+            updateItemsTotal();
+        });
+    });
+
+    tbody.querySelectorAll('.item-unit-price').forEach(inp => {
+        inp.addEventListener('input', (e) => {
+            const idx = parseInt(e.target.dataset.idx);
+            orderItemsBuffer[idx].unit_price = parseFloat(e.target.value) || null;
+            updateItemAmount(tbody, idx);
+            updateItemsTotal();
+        });
+    });
+
+    tbody.querySelectorAll('.item-notes').forEach(inp => {
+        inp.addEventListener('input', (e) => {
+            const idx = parseInt(e.target.dataset.idx);
+            orderItemsBuffer[idx].notes = e.target.value;
+        });
+    });
+
+    tbody.querySelectorAll('.btn-remove-item').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const idx = parseInt(e.currentTarget.dataset.idx);
+            orderItemsBuffer.splice(idx, 1);
+            renderItemsTable();
+            updateItemsTotal();
+        });
+    });
+
+    updateItemsTotal();
+}
+
+function calcAmount(qty, price) {
+    const q = parseFloat(qty) || 0;
+    const p = parseFloat(price) || 0;
+    return (q * p).toLocaleString('tr-TR', { minimumFractionDigits: 2 });
+}
+
+function updateItemAmount(tbody, idx) {
+    const item = orderItemsBuffer[idx];
+    const amountCell = tbody.querySelector(`.item-amount[data-idx="${idx}"]`);
+    if (amountCell) {
+        amountCell.textContent = calcAmount(item.quantity, item.unit_price);
+    }
+}
+
+function updateItemsTotal() {
+    const total = orderItemsBuffer.reduce((sum, item) => {
+        return sum + ((parseFloat(item.quantity)||0) * (parseFloat(item.unit_price)||0));
+    }, 0);
+
+    document.getElementById('items-total').textContent = total.toLocaleString('tr-TR', { minimumFractionDigits: 2 });
+
+    // Sipariş tutarıyla karşılaştır
+    const orderTotal = parseTurkishFloat(document.getElementById('total_amount').value);
+    const warningEl = document.getElementById('items-total-warning');
+    if (orderTotal > 0 && Math.abs(total - orderTotal) > 0.01) {
+        warningEl.classList.remove('hidden');
+        warningEl.textContent = `⚠ Kalem toplamı (${total.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}) sipariş tutarından (${orderTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}) farklı!`;
+    } else {
+        warningEl.classList.add('hidden');
+    }
+}
+
+function addItemRow() {
+    orderItemsBuffer.push({
+        id: null,
+        product_id: null,
+        product_name: '',
+        product_code: '',
+        quantity: null,
+        unit_price: null,
+        notes: ''
+    });
+    // Ensure items tab is active
+    switchTab('items');
 }
 
 // --- MODAL KONTROL ---
@@ -167,12 +385,17 @@ function openModalForOrderCreate() {
     document.getElementById('live-remaining-balance').textContent = '0,00';
     document.getElementById('order-modal-title').innerHTML = `<i class="fa-solid fa-cart-plus text-[#2D4A3E]"></i> Yeni Sipariş Girişi`;
     document.getElementById('btn-delete-order').classList.add('hidden');
+    currentOrderId = null;
+    orderItemsBuffer = [];
+    switchTab('general');
     document.getElementById('order-modal').classList.remove('hidden');
 }
 
-function openModalForOrderEdit(id) {
+async function openModalForOrderEdit(id) {
     const order = globalOrders.find(o => o.id === id);
     if (!order) return;
+
+    currentOrderId = id;
 
     document.getElementById('order-id').value = order.id;
     document.getElementById('order-customer-select').value = order.customer_id;
@@ -191,11 +414,27 @@ function openModalForOrderEdit(id) {
 
     document.getElementById('order-modal-title').innerHTML = `<i class="fa-solid fa-file-pen text-amber-500"></i> Sipariş Düzenleme & Güncelleme`;
     document.getElementById('btn-delete-order').classList.remove('hidden');
+
+    // Kalemleri yükle
+    const existingItems = await fetchOrderItems(id);
+    orderItemsBuffer = existingItems.map(item => ({
+        id: item.id,
+        product_id: item.product_id,
+        product_name: item.product_name,
+        product_code: item.product_code,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        notes: item.notes
+    }));
+
+    switchTab('general');
     document.getElementById('order-modal').classList.remove('hidden');
 }
 
 function closeOrderModal() {
     document.getElementById('order-modal').classList.add('hidden');
+    orderItemsBuffer = [];
+    currentOrderId = null;
 }
 
 // --- KAYDETME ---
@@ -229,19 +468,67 @@ async function handleOrderSubmit(e) {
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
+        let orderId = id;
+
         if (id) {
             const { error } = await supabase.from('orders').update(orderPayload).eq('id', id).eq('user_id', session.user.id);
             if (error) throw error;
         } else {
             orderPayload.user_id = session.user.id;
-            const { error } = await supabase.from('orders').insert([orderPayload]);
+            const { data, error } = await supabase.from('orders').insert([orderPayload]).select().single();
             if (error) throw error;
+            orderId = data.id;
         }
+
+        // --- ORDER ITEMS KAYDET ---
+        await saveOrderItems(orderId, session.user.id);
+
         closeOrderModal();
         await fetchOrdersData();
     } catch (err) {
         console.error("Sipariş kaydedilemedi:", err.message);
         alert("Hata: " + err.message);
+    }
+}
+
+async function saveOrderItems(orderId, userId) {
+    // Mevcut kalemleri çek (veritabanındakiler)
+    const existingItems = currentOrderId ? await fetchOrderItems(orderId) : [];
+    const existingIds = existingItems.map(i => i.id);
+    const bufferIds = orderItemsBuffer.filter(i => i.id).map(i => i.id);
+
+    // Silinmesi gerekenler
+    const toDelete = existingIds.filter(eid => !bufferIds.includes(eid));
+    if (toDelete.length > 0) {
+        const { error } = await supabase.from('order_items').delete().in('id', toDelete);
+        if (error) throw error;
+    }
+
+    // Yeni veya güncellenenler
+    for (const item of orderItemsBuffer) {
+        if (!item.product_name) continue; // boş satır atla
+
+        const payload = {
+            order_id: orderId,
+            user_id: userId,
+            product_id: item.product_id || null,
+            product_name: item.product_name,
+            product_code: item.product_code || null,
+            quantity: item.quantity || null,
+            unit_price: item.unit_price || null,
+            currency: document.getElementById('currency').value,
+            notes: item.notes || null,
+        };
+
+        if (item.id) {
+            // Güncelle
+            const { error } = await supabase.from('order_items').update(payload).eq('id', item.id);
+            if (error) throw error;
+        } else {
+            // Yeni ekle
+            const { error } = await supabase.from('order_items').insert([payload]);
+            if (error) throw error;
+        }
     }
 }
 
@@ -258,7 +545,7 @@ async function handleDeleteOrder() {
     } catch (err) {
         console.error("Sipariş silinemedi:", err.message);
         if (err.code === '23503') {
-            alert("Bu sipariş silinemez!\nSiparişe bağlı credit note kaydı bulunmaktadır.\nÖnce ilgili credit note'ları siliniz.");
+            alert("Bu sipariş silinemez!\nSiparişe bağlı credit note veya sipariş kalemi kaydı bulunmaktadır.\nÖnce ilgili kayıtları siliniz.");
         } else {
             alert("Silme işlemi başarısız oldu: " + err.message);
         }

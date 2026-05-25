@@ -12,7 +12,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* ── Porselen iç sayfa overrides ── */
         body { background: #F6F3EC !important; color: #1C1A17 !important; }
         .modal-backdrop { background: rgba(28,26,23,0.50) !important; backdrop-filter: blur(4px); }
         input, select, textarea {
@@ -24,7 +23,6 @@
             outline: none !important; border-color: #2D4A3E !important;
             box-shadow: 0 0 0 3px rgba(45,74,62,0.08) !important;
         }
-
         input, select, textarea {
             background: #fff; border: 1px solid #E4DDCE;
             border-radius: 6px; padding: 0 12px;
@@ -33,14 +31,13 @@
         input:focus, select:focus, textarea:focus { outline: none; border-color: #2D4A3E; box-shadow: 0 0 0 3px rgba(45,74,62,0.08); }
         .modal-backdrop { position: fixed; inset: 0; background: rgba(28,26,23,0.5); backdrop-filter: blur(4px); display: flex; align-items: flex-start; justify-content: center; z-index: 100; padding: 1rem; overflow-y: auto; }
         .modal-backdrop.hidden { display: none; }
-        .modal-content { background: rgb(15 23 42); border: 1px solid rgb(30 41 59); border-radius: 1rem; padding: 1.5rem; width: 100%; max-width: 52rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); margin: auto; }
+        .modal-content { background: rgb(15 23 42); border: 1px solid rgb(30 41 59); border-radius: 1rem; padding: 1.5rem; width: 100%; max-width: 60rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); margin: auto; }
         .custom-table-container { overflow-x: auto; background: rgba(15,23,42,0.4); border: 1px solid rgb(30 41 59); border-radius: 0.75rem; }
         .custom-table { width: 100%; border-collapse: collapse; }
         .custom-table th { padding: 0.75rem 1rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgb(100 116 139); text-align: left; white-space: nowrap; border-bottom: 1px solid rgb(30 41 59); }
         .custom-table td { padding: 0.75rem 1rem; font-size: 0.8rem; color: rgb(148 163 184); border-bottom: 1px solid rgb(15 23 42); vertical-align: middle; }
         .custom-table tbody tr:hover { background: rgba(30,41,59,0.5); }
         .custom-table tbody tr:last-child td { border-bottom: none; }
-        /* Renk/Durum satır stilleri */
         .row-beyaz td { border-left: 3px solid rgb(100 116 139); }
         .row-sari td { border-left: 3px solid rgb(250 204 21); background: rgba(250,204,21,0.03); }
         .row-yesil td { border-left: 3px solid rgb(52 211 153); background: rgba(52,211,153,0.03); }
@@ -48,6 +45,15 @@
         .row-ten td { border-left: 3px solid rgb(251 146 60); background: rgba(251,146,60,0.03); }
         .section-card { background: rgba(15,23,42,0.6); border: 1px solid rgb(30 41 59); border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem; }
         .section-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgb(249 115 22); border-bottom: 1px solid rgb(30 41 59); padding-bottom: 0.5rem; margin-bottom: 0.75rem; }
+        /* Modal Sekmeler */
+        .modal-tab { padding: 8px 18px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 2px solid transparent; color: rgb(100 116 139); cursor: pointer; transition: all 0.15s; background: transparent; border-top: none; border-left: none; border-right: none; }
+        .modal-tab:hover { color: rgb(148 163 184); }
+        .modal-tab.tab-active { color: rgb(249 115 22); border-bottom-color: rgb(249 115 22); }
+        /* Items table */
+        .items-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .items-table th { padding: 8px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgb(100 116 139); border-bottom: 1px solid rgb(30 41 59); text-align: left; }
+        .items-table td { padding: 6px 8px; border-bottom: 1px solid rgba(30,41,59,0.5); vertical-align: top; }
+        .items-table input, .items-table select { height: 34px !important; font-size: 12px !important; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -100,7 +106,6 @@
             </select>
         </section>
 
-        <!-- Sayaç -->
         <div class="flex items-center justify-between mb-4">
             <span class="text-xs text-slate-500 font-medium">Listelenen sipariş:</span>
             <span id="total-filtered-count" class="text-orange-400 font-bold text-sm">0 Kayıt</span>
@@ -131,7 +136,8 @@
     <!-- Modal -->
     <div id="order-modal" class="modal-backdrop hidden">
         <div class="modal-content">
-            <div class="flex items-center justify-between border-b pb-4 mb-5">
+            <!-- Başlık -->
+            <div class="flex items-center justify-between border-b border-slate-700 pb-4 mb-0">
                 <h3 id="order-modal-title" class="text-lg font-bold text-white flex items-center gap-2">
                     <i class="fa-solid fa-cart-plus text-[#2D4A3E]"></i> Yeni Sipariş Girişi
                 </h3>
@@ -140,111 +146,162 @@
                 </button>
             </div>
 
-            <form id="order-form" class="space-y-4">
+            <!-- Sekmeler -->
+            <div class="flex gap-0 border-b border-slate-700 mb-4">
+                <button id="tab-general" class="modal-tab tab-active">
+                    <i class="fa-solid fa-circle-info mr-1.5"></i> Genel Bilgiler
+                </button>
+                <button id="tab-items" class="modal-tab">
+                    <i class="fa-solid fa-list-ul mr-1.5"></i> Sipariş Kalemleri
+                </button>
+            </div>
+
+            <form id="order-form">
                 <input type="hidden" id="order-id">
 
-                <!-- Bölüm 1: Temel Bilgiler -->
-                <div class="section-card">
-                    <p class="section-label"><i class="fa-solid fa-circle-info mr-1"></i> 1. Temel Bilgiler & Durum</p>
-                    <div class="grid grid-cols-2 gap-4 mb-3">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Müşteri / Firma *</label>
-                            <select id="order-customer-select" required>
-                                <option value="">-- Müşteri Seçiniz --</option>
-                            </select>
+                <!-- PANEL: Genel Bilgiler -->
+                <div id="panel-general" class="space-y-4">
+                    <div class="section-card">
+                        <p class="section-label"><i class="fa-solid fa-circle-info mr-1"></i> 1. Temel Bilgiler & Durum</p>
+                        <div class="grid grid-cols-2 gap-4 mb-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Müşteri / Firma *</label>
+                                <select id="order-customer-select" required>
+                                    <option value="">-- Müşteri Seçiniz --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sipariş No</label>
+                                <input type="text" id="order_number" placeholder="Örn: EXP-2026-001">
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sipariş No</label>
-                            <input type="text" id="order_number" placeholder="Örn: EXP-2026-001">
+                        <div class="grid grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sipariş Tarihi *</label>
+                                <input type="date" id="order_date" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sevk Tarihi</label>
+                                <input type="date" id="shipment_date">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Vade Tarihi</label>
+                                <input type="date" id="due_date">
+                            </div>
                         </div>
                     </div>
-                    <div class="grid grid-cols-3 gap-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sipariş Tarihi *</label>
-                            <input type="date" id="order_date" required>
+
+                    <div class="section-card">
+                        <p class="section-label"><i class="fa-solid fa-coins mr-1"></i> 2. Finansal Bilgiler</p>
+                        <div class="grid grid-cols-3 gap-4 mb-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Para Birimi *</label>
+                                <select id="currency" required>
+                                    <option value="EUR">EUR (€)</option>
+                                    <option value="USD">USD ($)</option>
+                                    <option value="TRY">TRY (₺)</option>
+                                    <option value="GBP">GBP (£)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Toplam Tutar *</label>
+                                <input type="text" id="total_amount" required placeholder="15.000,00" style="text-align:right;color:white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Tahsil Edilen Avans</label>
+                                <input type="text" id="advance_payment" placeholder="3.500,00" style="text-align:right;color:rgb(52 211 153)">
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sevk Tarihi</label>
-                            <input type="date" id="shipment_date">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-[#F6F3EC] p-3 border border-slate-800 rounded-xl flex justify-between items-center col-span-1">
+                                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Kalan Bakiye:</span>
+                                <span id="live-remaining-balance" class="font-mono font-bold text-lg text-[#B26B33]">0,00</span>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Adet / Miktar</label>
+                                <input type="text" id="order_quantity" placeholder="Örn: 500 adet">
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Vade Tarihi</label>
-                            <input type="date" id="due_date">
+                    </div>
+
+                    <div class="section-card">
+                        <p class="section-label"><i class="fa-solid fa-signal mr-1"></i> 3. Üretim & Ödeme Durumu</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Üretim Durumu</label>
+                                <select id="production_status">
+                                    <option value="Bekliyor">Bekliyor</option>
+                                    <option value="Üretimde">Üretimde</option>
+                                    <option value="Hazır">Hazır</option>
+                                    <option value="Sevk Edildi">Sevk Edildi</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Ödeme Durumu</label>
+                                <select id="payment_status">
+                                    <option value="Ödenmedi">Ödenmedi</option>
+                                    <option value="Kısmen Ödendi">Kısmen Ödendi</option>
+                                    <option value="Ödendi">Ödendi</option>
+                                </select>
+                            </div>
                         </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Açıklama / Not</label>
+                        <textarea id="order_notes" rows="2" placeholder="İhracat detayları, özel koşullar..." style="height:auto;padding:10px 12px;"></textarea>
                     </div>
                 </div>
 
-                <!-- Bölüm 2: Finansal -->
-                <div class="section-card">
-                    <p class="section-label"><i class="fa-solid fa-coins mr-1"></i> 2. Finansal Bilgiler</p>
-                    <div class="grid grid-cols-3 gap-4 mb-3">
+                <!-- PANEL: Sipariş Kalemleri -->
+                <div id="panel-items" class="hidden">
+                    <div class="flex items-center justify-between mb-3">
                         <div>
-                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Para Birimi *</label>
-                            <select id="currency" required>
-                                <option value="EUR">EUR (€)</option>
-                                <option value="USD">USD ($)</option>
-                                <option value="TRY">TRY (₺)</option>
-                                <option value="GBP">GBP (£)</option>
-                            </select>
+                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Kalem Listesi</p>
+                            <p class="text-xs text-slate-500 mt-0.5">Ürün seçin veya serbest metin girin. Tutar otomatik hesaplanır.</p>
                         </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Toplam Tutar *</label>
-                            <input type="text" id="total_amount" required placeholder="15.000,00" style="text-align:right;color:white">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Tahsil Edilen Avans</label>
-                            <input type="text" id="advance_payment" placeholder="3.500,00" style="text-align:right;color:rgb(52 211 153)">
-                        </div>
+                        <button type="button" id="btn-add-item-row" class="px-3 py-1.5 bg-[#2D4A3E] hover:bg-[#243f34] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-plus"></i> Satır Ekle
+                        </button>
                     </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-[#F6F3EC] p-3 border border-slate-800 rounded-xl flex justify-between items-center col-span-1">
-                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Kalan Bakiye:</span>
-                            <span id="live-remaining-balance" class="font-mono font-bold text-lg text-[#B26B33]">0,00</span>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Adet / Miktar</label>
-                            <input type="text" id="order_quantity" placeholder="Örn: 500 adet">
-                        </div>
+
+                    <div style="overflow-x:auto;background:rgba(15,23,42,0.6);border:1px solid rgb(30 41 59);border-radius:0.5rem;">
+                        <table class="items-table">
+                            <thead>
+                                <tr>
+                                    <th>Ürün Adı</th>
+                                    <th>Ürün Kodu</th>
+                                    <th class="text-right">Adet</th>
+                                    <th class="text-right">Birim Fiyat</th>
+                                    <th class="text-right">Tutar</th>
+                                    <th class="text-center">Not / Sil</th>
+                                </tr>
+                            </thead>
+                            <tbody id="items-table-body">
+                                <tr><td colspan="6" class="text-center text-slate-500 py-6 text-sm">Henüz sipariş kalemi eklenmedi.</td></tr>
+                            </tbody>
+                            <tfoot>
+                                <tr style="border-top:2px solid rgb(30 41 59);">
+                                    <td colspan="4" class="text-right text-xs font-semibold text-slate-400 uppercase tracking-wider py-3 px-4">Kalem Toplamı:</td>
+                                    <td class="text-right font-mono font-bold text-emerald-400 py-3 px-4" id="items-total">0,00</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
                     </div>
+                    <div id="items-total-warning" class="hidden mt-2 text-xs text-amber-400 font-semibold bg-amber-950/30 border border-amber-900/40 rounded-lg px-3 py-2"></div>
                 </div>
 
-                <!-- Bölüm 3: Durum -->
-                <div class="section-card">
-                    <p class="section-label"><i class="fa-solid fa-signal mr-1"></i> 3. Üretim & Ödeme Durumu</p>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Üretim Durumu</label>
-                            <select id="production_status">
-                                <option value="Bekliyor">Bekliyor</option>
-                                <option value="Üretimde">Üretimde</option>
-                                <option value="Hazır">Hazır</option>
-                                <option value="Sevk Edildi">Sevk Edildi</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Ödeme Durumu</label>
-                            <select id="payment_status">
-                                <option value="Ödenmedi">Ödenmedi</option>
-                                <option value="Kısmen Ödendi">Kısmen Ödendi</option>
-                                <option value="Ödendi">Ödendi</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Bölüm 4: Açıklama -->
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Açıklama / Not</label>
-                    <textarea id="order_notes" rows="2" placeholder="İhracat detayları, özel koşullar..."></textarea>
-                </div>
-
-                <div class="flex items-center justify-between border-t border-slate-800 pt-5 mt-2">
+                <!-- Alt butonlar -->
+                <div class="flex items-center justify-between border-t border-slate-800 pt-5 mt-4">
                     <button type="button" id="btn-delete-order" class="hidden px-4 py-2 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/50 text-[#9F3D3D] text-sm font-semibold rounded-lg cursor-pointer">
                         <i class="fa-solid fa-trash-can"></i> Siparişi Sil
                     </button>
                     <div class="flex items-center gap-3 ml-auto">
                         <button type="button" id="btn-order-cancel" class="px-4 py-2 bg-[#FBF8F1] hover:bg-[#FBF8F1] border border-slate-700 rounded-lg text-sm font-semibold text-slate-300 cursor-pointer">İptal</button>
-                        <button type="submit" class="px-4 py-2 bg-[#2D4A3E] hover:bg-[#1a3329]00 text-white rounded-lg text-sm font-semibold cursor-pointer">Siparişi Kaydet</button>
+                        <button type="submit" class="px-4 py-2 bg-[#2D4A3E] hover:bg-[#1a3329] text-white rounded-lg text-sm font-semibold cursor-pointer">
+                            <i class="fa-solid fa-floppy-disk mr-1"></i> Siparişi Kaydet
+                        </button>
                     </div>
                 </div>
             </form>
