@@ -110,8 +110,8 @@ function renderCharts(orders) {
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-                y: { grid: { color: '#1e293b' }, ticks: { color: '#94a3b8', stepSize: 1 } },
-                x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                y: { grid: { color: '#1e293b' }, ticks: { color: '#968B7A', stepSize: 1 } },
+                x: { grid: { display: false }, ticks: { color: '#968B7A' } }
             }
         }
     });
@@ -141,7 +141,7 @@ function renderCharts(orders) {
             plugins: {
                 legend: {
                     position: 'bottom',
-                    labels: { color: '#94a3b8', font: { size: 12 }, padding: 20 }
+                    labels: { color: '#968B7A', font: { size: 12 }, padding: 20 }
                 }
             }
         }

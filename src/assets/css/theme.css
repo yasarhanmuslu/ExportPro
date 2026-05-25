@@ -495,3 +495,156 @@ button, label, th, td, p, span, a, li, div {
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Cormorant Garamond', Georgia, serif !important;
 }
+
+/* ══════════════════════════════
+   DARK THEME — Koyu Porselen / Antrasit Seramik
+   html.dark class ile aktif olur
+   ══════════════════════════════ */
+html.dark {
+  --bg:           #1C1A17;
+  --surface:      #252320;
+  --surface-2:    #2A2724;
+  --border:       #3A3630;
+  --border-soft:  #302D28;
+
+  --ink-1:        #F0EDE6;
+  --ink-2:        #A8A097;
+  --ink-3:        #6B6458;
+
+  --accent:       #5A8A72;
+  --accent-soft:  rgba(90,138,114,0.15);
+  --bronze:       #C9A06A;
+  --bronze-soft:  rgba(181,136,88,0.18);
+
+  --ok:           #5A8A72;
+  --ok-soft:      rgba(61,110,80,0.20);
+  --warn:         #C98A4A;
+  --warn-soft:    rgba(178,107,51,0.20);
+  --danger:       #C05A5A;
+  --danger-soft:  rgba(159,61,61,0.20);
+  --info:         #6A8EAA;
+  --info-soft:    rgba(63,92,122,0.20);
+
+  --sidebar-bg:      #1F1D1A;
+  --sidebar-border:  #302D28;
+
+  --scrollbar-track: #252320;
+  --scrollbar-thumb: #3A3630;
+
+  /* Legacy compat */
+  --bg-primary:     var(--bg);
+  --bg-secondary:   var(--surface);
+  --bg-tertiary:    var(--surface-2);
+  --border-color:   var(--border);
+  --text-primary:   var(--ink-1);
+  --text-secondary: var(--ink-2);
+  --text-muted:     var(--ink-3);
+  --accent-primary: var(--accent);
+  --input-bg:       var(--surface);
+  --input-border:   var(--border);
+  --input-focus:    var(--accent);
+  --modal-bg:       var(--surface);
+  --modal-border:   var(--border);
+  --modal-shadow:   0 8px 40px rgba(0,0,0,0.5);
+  --table-th-color: var(--ink-3);
+  --table-td-color: var(--ink-2);
+  --table-hover:    var(--surface-2);
+  --table-border:   var(--border-soft);
+  --table-header-bg:var(--surface-2);
+  --sidebar-active: var(--accent-soft);
+  --sidebar-hover:  var(--surface-2);
+  --sidebar-footer: var(--surface-2);
+}
+
+/* ══════════════════════════════
+   DARK THEME — TAILWIND OVERRIDE'LAR
+   ══════════════════════════════ */
+html.dark body {
+  background-color: var(--bg) !important;
+  color: var(--ink-1) !important;
+}
+
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background-color: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--ink-1) !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder { color: var(--ink-3) !important; }
+
+html.dark input[type="date"] { color-scheme: dark; }
+
+html.dark .modal-content {
+  background-color: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+html.dark .modal-backdrop {
+  background: rgba(0,0,0,0.65) !important;
+}
+
+html.dark .kpi-card,
+html.dark .section-card,
+html.dark .card {
+  background: var(--surface) !important;
+  border-color: var(--border-soft) !important;
+}
+
+html.dark #fx-banner {
+  background: var(--surface) !important;
+  border-color: var(--border-soft) !important;
+}
+
+html.dark #main-sidebar {
+  background-color: var(--sidebar-bg) !important;
+  border-color: var(--sidebar-border) !important;
+}
+
+html.dark #main-sidebar a { color: var(--ink-2) !important; }
+html.dark #main-sidebar a:hover { background-color: var(--surface-2) !important; color: var(--ink-1) !important; }
+html.dark #main-sidebar a.nav-active { background-color: var(--accent-soft) !important; color: var(--accent) !important; }
+
+html.dark main { background-color: var(--bg) !important; }
+
+/* Dark'ta Tailwind card/bg sınıfları */
+html.dark .bg-\[#FBF8F1\] { background-color: var(--surface-2) !important; }
+html.dark .bg-\[#F6F3EC\] { background-color: var(--bg) !important; }
+html.dark .border-\[#EFEAE0\] { border-color: var(--border-soft) !important; }
+html.dark .border-\[#E4DDCE\] { border-color: var(--border) !important; }
+html.dark .text-\[#1C1A17\] { color: var(--ink-1) !important; }
+html.dark .text-\[#6B655B\] { color: var(--ink-2) !important; }
+html.dark .text-\[#968B7A\] { color: var(--ink-3) !important; }
+html.dark .text-\[#2D4A3E\] { color: var(--accent) !important; }
+html.dark .text-\[#B58858\] { color: var(--bronze) !important; }
+html.dark .text-\[#3D6E50\] { color: var(--ok) !important; }
+html.dark .text-\[#B26B33\] { color: var(--warn) !important; }
+html.dark .text-\[#9F3D3D\] { color: var(--danger) !important; }
+
+/* Dark'ta section/chart alanları */
+html.dark [style*="background:#fff"],
+html.dark [style*="background: #fff"],
+html.dark [style*="background:#FFFFFF"],
+html.dark [style*="background: #FFFFFF"] {
+  background: var(--surface) !important;
+}
+html.dark [style*="background:#FBF8F1"] { background: var(--surface-2) !important; }
+html.dark [style*="background:#F6F3EC"] { background: var(--bg) !important; }
+html.dark [style*="border:1px solid #EFEAE0"] { border-color: var(--border-soft) !important; }
+html.dark [style*="border: 1px solid #EFEAE0"] { border-color: var(--border-soft) !important; }
+html.dark [style*="color:#1C1A17"] { color: var(--ink-1) !important; }
+html.dark [style*="color:#6B655B"] { color: var(--ink-2) !important; }
+html.dark [style*="color:#968B7A"] { color: var(--ink-3) !important; }
+html.dark [style*="color:#B58858"] { color: var(--bronze) !important; }
+
+/* ══════════════════════════════
+   TEMA GEÇİŞ ANİMASYONU
+   ══════════════════════════════ */
+body, main, #main-sidebar,
+.kpi-card, .section-card, .card,
+.modal-content, #fx-banner,
+input, select, textarea {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.2s ease;
+}
