@@ -22,33 +22,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ── TCMB Döviz Kuru ───────────────────────────────────────────
 async function fetchRates() {
     try {
-        // TCMB XML proxy üzerinden kur çekme (dashboard ile aynı yöntem)
-        const res = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent('https://www.tcmb.gov.tr/kurlar/today.xml'));
+        // exchangerate-api üzerinden kur çekme (ücretsiz, CORS yok)
+        const res = await fetch('https://open.er-api.com/v6/latest/TRY');
         const json = await res.json();
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(json.contents, 'text/xml');
 
-        const currencies = xml.querySelectorAll('Currency');
-        currencies.forEach(c => {
-            const code = c.getAttribute('CurrencyCode');
-            const forexSelling = c.querySelector('ForexSelling')?.textContent;
-            if (!forexSelling) return;
-            const val = parseFloat(forexSelling.replace(',', '.'));
-            if (code === 'EUR') eurRate = val;
-            if (code === 'USD') usdRate = val;
-        });
+        if (json && json.rates) {
+            // TRY bazlı: 1 TRY = X EUR/USD → ters çevir: 1 EUR/USD = ? TRY
+            eurRate = json.rates['EUR'] ? parseFloat((1 / json.rates['EUR']).toFixed(4)) : null;
+            usdRate = json.rates['USD'] ? parseFloat((1 / json.rates['USD']).toFixed(4)) : null;
+        }
 
         if (eurRate) {
             document.getElementById('eur-kur-display').textContent = eurRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            document.getElementById('eur-kur-time').textContent = 'TCMB Canlı';
+            document.getElementById('eur-kur-time').textContent = 'Canlı Kur';
         }
         if (usdRate) {
             document.getElementById('usd-kur-display').textContent = usdRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            document.getElementById('usd-kur-time').textContent = 'TCMB Canlı';
+            document.getElementById('usd-kur-time').textContent = 'Canlı Kur';
         }
     } catch (err) {
         console.error('Döviz kuru çekilemedi:', err.message);
-        // Manuel giriş alanına geç
         document.getElementById('eur-kur-display').textContent = '—';
         document.getElementById('usd-kur-display').textContent = '—';
     }
