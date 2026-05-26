@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <script>/* Flash önle */ (function(){var t=localStorage.getItem('ep-theme')||'light';document.documentElement.classList.add(t==='dark'?'dark':'light');})();</script>
+    <script>(function(){var t=localStorage.getItem('ep-theme')||'light';document.documentElement.classList.add(t==='dark'?'dark':'light');})();</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fiyat Robotu — Export Suite</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
@@ -10,149 +10,336 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* ── Porselen iç sayfa overrides ── */
-        body { background: #F6F3EC !important; color: #1C1A17 !important; }
-        .modal-backdrop { background: rgba(28,26,23,0.50) !important; backdrop-filter: blur(4px); }
-        input, select, textarea {
-            background: #fff !important; border: 1px solid #E4DDCE !important;
-            border-radius: 6px !important; color: #1C1A17 !important;
-            font-family: Verdana, Geneva, sans-serif !important; font-size: 13px !important;
+        body { background: var(--bg) !important; }
+
+        /* ── Sekmeler ── */
+        .tab-btn {
+            padding: 10px 20px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            border: none;
+            background: transparent;
+            color: var(--ink-3);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: color 0.15s, border-color 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            height: 42px;
         }
-        input:focus, select:focus, textarea:focus {
-            outline: none !important; border-color: #2D4A3E !important;
-            box-shadow: 0 0 0 3px rgba(45,74,62,0.08) !important;
+        .tab-btn.active {
+            color: var(--accent);
+            border-bottom: 2px solid var(--accent);
+        }
+        .tab-btn:hover:not(.active) { color: var(--ink-1); }
+
+        /* ── İskonto Paneli ── */
+        .iskonto-panel {
+            background: var(--surface);
+            border: 1px solid var(--border-soft);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 18px;
+        }
+        .iskonto-box {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .iskonto-input {
+            width: 64px !important;
+            text-align: center !important;
+            font-weight: 600 !important;
+            font-size: 14px !important;
+            height: 36px !important;
+            border-radius: 7px !important;
+            padding: 0 8px !important;
+            color: var(--accent) !important;
+        }
+        .plus-sign {
+            color: var(--ink-3);
+            font-size: 16px;
+            font-weight: 300;
+            padding: 0 2px;
+        }
+        .kur-input {
+            width: 90px !important;
+            text-align: right !important;
+            font-weight: 700 !important;
+            font-size: 15px !important;
+            height: 40px !important;
+            color: var(--ink-1) !important;
+            padding: 0 10px !important;
+        }
+        .panel-label {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--ink-3);
+            margin-bottom: 8px;
+        }
+        .panel-divider {
+            width: 1px;
+            height: 48px;
+            background: var(--border-soft);
+            margin: 0 20px;
+        }
+        .kur-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--surface-2);
+            border: 1px solid var(--border-soft);
+            border-radius: 8px;
+            padding: 4px 10px 4px 8px;
+            font-size: 11px;
+            color: var(--ink-3);
+        }
+        .kur-badge-icon {
+            font-size: 13px;
+            color: var(--accent);
+        }
+        .kur-live-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--ok);
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
         }
 
-        input, select, textarea {
-            background: #fff; border: 1px solid #E4DDCE;
-            border-radius: 6px; padding: 0 12px;
-            color: #1C1A17; font-size: 13px; width: 100%; height: 38px;
+        /* ── Tablo ── */
+        .price-table-wrap {
+            background: var(--surface);
+            border: 1px solid var(--border-soft);
+            border-radius: 10px;
+            overflow: hidden;
         }
-        input:focus, select:focus { outline: none; border-color: #2D4A3E; box-shadow: 0 0 0 3px rgba(45,74,62,0.08); }
-        .modal-backdrop { position: fixed; inset: 0; background: rgba(28,26,23,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
-        .modal-backdrop.hidden { display: none; }
-        .modal-content { background: rgb(15 23 42); border: 1px solid rgb(30 41 59); border-radius: 1rem; padding: 1.5rem; width: 100%; max-width: 36rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
-        .custom-table-container { overflow-x: auto; background: rgba(15,23,42,0.4); border: 1px solid rgb(30 41 59); border-radius: 0.75rem; }
-        .custom-table { width: 100%; border-collapse: collapse; }
-        .custom-table th { padding: 0.75rem 1rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgb(100 116 139); text-align: left; white-space: nowrap; border-bottom: 1px solid rgb(30 41 59); }
-        .custom-table td { padding: 0.75rem 1rem; font-size: 0.875rem; color: rgb(148 163 184); border-bottom: 1px solid rgb(15 23 42); }
-        .custom-table tbody tr:hover { background: rgba(30,41,59,0.5); }
-        .custom-table tbody tr:last-child td { border-bottom: none; }
+        .price-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .price-table th {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--ink-3);
+            background: var(--surface-2);
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-soft);
+            white-space: nowrap;
+        }
+        .price-table td {
+            font-size: 12px;
+            color: var(--ink-2);
+            padding: 11px 12px;
+            border-bottom: 1px solid var(--border-soft);
+        }
+        .price-table tbody tr:last-child td { border-bottom: none; }
+        .price-table tbody tr:hover { background: var(--surface-2); }
+
+        .group-row td {
+            background: var(--surface-2) !important;
+            font-size: 10px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--ink-3) !important;
+            padding: 7px 12px !important;
+            border-top: 1px solid var(--border-soft);
+        }
+
+        .td-code { font-family: 'Courier New', monospace; font-size: 11px; color: var(--ink-3); }
+        .td-name { font-weight: 500; color: var(--ink-1); min-width: 260px; }
+        .td-num { text-align: right; font-variant-numeric: tabular-nums; }
+        .td-tl { color: var(--ink-1); font-weight: 500; }
+        .td-net { color: var(--accent); font-weight: 600; }
+        .td-eur-liste { color: var(--ink-2); }
+        .td-eur-net { color: var(--ok); font-weight: 600; }
+
+        .diff-pos { color: var(--ok); font-weight: 600; }
+        .diff-neg { color: var(--danger); font-weight: 600; }
+        .diff-zero { color: var(--ink-3); }
+
+        .empty-price { color: var(--ink-3); font-style: italic; }
+
+        /* Arama */
+        .search-wrap { position: relative; }
+        .search-wrap i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--ink-3); font-size: 12px; }
+        .search-wrap input { padding-left: 32px !important; }
+
+        /* Grup filtre */
+        .group-filter-wrap select { min-width: 180px; }
+
+        /* Yükleniyor */
+        .loading-row td { text-align: center; padding: 40px !important; color: var(--ink-3); }
+
+        /* Toplam badge */
+        .total-badge {
+            background: var(--surface-2);
+            border: 1px solid var(--border-soft);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 11px;
+            color: var(--ink-3);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .total-badge span { color: var(--accent); font-weight: 700; font-size: 13px; }
     </style>
 </head>
 <body class="min-h-screen">
 
     <div id="navbar-target"></div>
 
-    <main class="min-h-screen" style="margin-left:230px;padding:32px;">
-        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b">
+    <main class="min-h-screen" style="margin-left:230px; padding:32px;">
+
+        <!-- Sayfa Başlığı -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-5 border-b" style="border-color:var(--border-soft)">
             <div>
                 <h2 class="page-title">
-                    <i class="fa-solid fa-tags text-emerald-500"></i> Fiyat Robotu & İskonto Takip
+                    <i class="fa-solid fa-calculator" style="color:var(--accent)"></i>
+                    Fiyat Robotu & İskonto Hesaplama
                 </h2>
-                <p class="text-sm text-slate-400 mt-1">Müşteri bazlı özel iskonto tanımlamaları ve çift yönlü fiyat hesaplama.</p>
+                <p style="font-size:13px; color:var(--ink-3); margin-top:4px;">
+                    2026 TL ve 2022-3 döviz liste fiyatları karşılaştırması. Anlık iskonto hesaplama.
+                </p>
             </div>
-            <div class="flex items-center gap-3">
-                <button id="btn-export-prices" class="px-4 py-2 bg-[#FBF8F1] hover:bg-[#F0EDE4F1] border border-slate-700 rounded-lg text-sm font-semibold flex items-center gap-2 text-slate-300 cursor-pointer">
-                    <i class="fa-solid fa-file-excel text-emerald-500"></i> Fiyat Listesini Aktar
-                </button>
-                <button id="btn-open-price-modal" class="px-4 py-2 bg-[#2D4A3E] hover:bg-[#1a3329] text-white rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer">
-                    <i class="fa-solid fa-calculator"></i> Yeni Fiyat Tanımla
-                </button>
-            </div>
+            <button id="btn-export-prices" style="
+                display:flex; align-items:center; gap:7px;
+                padding:0 16px; height:36px; border-radius:7px;
+                border:1px solid var(--border); background:var(--surface);
+                color:var(--ink-2); font-size:12px; font-weight:600; cursor:pointer;
+                transition:background 0.15s;
+            ">
+                <i class="fa-solid fa-file-excel" style="color:var(--ok)"></i>
+                Listeyi Aktar
+            </button>
         </header>
 
-        <section class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div class="relative">
-                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-500 text-sm z-10"></i>
-                <input type="text" id="price-search-input" placeholder="Ürün adı veya müşteri firması ara..." style="padding-left:2.5rem">
-            </div>
-            <div class="bg-[#F6F3EC]/40 border border-slate-800 rounded-lg px-4 py-2 flex items-center justify-between text-xs text-slate-400 font-medium">
-                <span>Kayıtlı Özel Fiyatlama:</span>
-                <span id="total-price-records" class="text-[#3D6E50] font-bold text-sm">0 Tanım</span>
-            </div>
-        </section>
-
-        <section class="custom-table-container">
-            <table class="custom-table">
-                <thead>
-                    <tr>
-                        <th>Müşteri / Firma</th>
-                        <th>Ürün Adı</th>
-                        <th class="text-right">Liste Fiyatı</th>
-                        <th class="text-center">İskonto Oranı</th>
-                        <th class="text-right">Net Fiyat</th>
-                        <th class="text-center">İşlem</th>
-                    </tr>
-                </thead>
-                <tbody id="prices-table-body">
-                    <tr><td colspan="6" class="text-center text-slate-500 py-8">Yükleniyor...</td></tr>
-                </tbody>
-            </table>
-        </section>
-    </main>
-
-    <!-- Modal -->
-    <div id="price-modal" class="modal-backdrop hidden">
-        <div class="modal-content">
-            <div class="flex items-center justify-between border-b pb-4 mb-6">
-                <h3 id="price-modal-title" class="text-lg font-bold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-calculator text-emerald-500"></i> Fiyat Robotu
-                </h3>
-                <button id="btn-close-price-modal" class="text-[#968B7A] hover:text-slate-300 cursor-pointer">
-                    <i class="fa-solid fa-xmark text-lg"></i>
-                </button>
-            </div>
-
-            <form id="price-form" class="space-y-4">
-                <input type="hidden" id="price-id">
-
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Müşteri Firma *</label>
-                    <select id="price-customer-select" required>
-                        <option value="">-- Müşteri Seçiniz --</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Ürün Adı / Tanımı *</label>
-                    <input type="text" id="product_name" required placeholder="Örn: Endüstriyel Alüminyum Profil X-200">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Standart Liste Fiyatı (€) *</label>
-                    <input type="text" id="list_price" required placeholder="Örn: 100,00" style="text-align:right;color:white">
-                </div>
-
-                <div class="p-4 bg-[#FBF8F1] border border-[#EFEAE0] rounded-xl space-y-4">
-                    <div class="text-xs font-bold text-[#2D4A3E] uppercase tracking-widest flex items-center gap-2">
-                        <i class="fa-solid fa-robot"></i> Robotik Akıllı Hesaplama
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">İskonto Oranı (%)</label>
-                            <input type="text" id="discount_rate" placeholder="Örn: 15,500" style="text-align:right;color:rgb(251 191 36)">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Net Satış Fiyatı (€)</label>
-                            <input type="text" id="net_price" placeholder="Örn: 84,50" style="text-align:right;color:rgb(52 211 153)">
-                        </div>
-                    </div>
-                    <p class="text-xs text-slate-500 italic">Herhangi birini değiştirdiğinizde diğeri otomatik hesaplanır.</p>
-                </div>
-
-                <div class="flex items-center justify-between border-t border-slate-800 pt-5 mt-6">
-                    <button type="button" id="btn-delete-price" class="hidden px-4 py-2 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/50 text-[#9F3D3D] text-sm font-semibold rounded-lg cursor-pointer">
-                        <i class="fa-solid fa-trash-can"></i> Tanımı Sil
-                    </button>
-                    <div class="flex items-center gap-3 ml-auto">
-                        <button type="button" id="btn-price-cancel" class="px-4 py-2 bg-[#FBF8F1] hover:bg-[#FBF8F1] border border-slate-700 rounded-lg text-sm font-semibold text-slate-300 cursor-pointer">İptal</button>
-                        <button type="submit" class="px-4 py-2 bg-[#2D4A3E] hover:bg-[#1a3329] text-white rounded-lg text-sm font-semibold cursor-pointer">Fiyatı Kaydet</button>
-                    </div>
-                </div>
-            </form>
+        <!-- Sekmeler -->
+        <div style="border-bottom:1px solid var(--border-soft); margin-bottom:18px; display:flex; gap:0;">
+            <button class="tab-btn active" id="tab-eur" onclick="switchTab('eur')">
+                <i class="fa-solid fa-euro-sign"></i>
+                TL – EURO Karşılaştırma
+            </button>
+            <button class="tab-btn" id="tab-usd" onclick="switchTab('usd')">
+                <i class="fa-solid fa-dollar-sign"></i>
+                TL – USD Karşılaştırma
+            </button>
         </div>
-    </div>
+
+        <!-- İskonto Paneli -->
+        <div class="iskonto-panel">
+            <div style="display:flex; align-items:center; gap:0; flex-wrap:wrap; row-gap:16px;">
+
+                <!-- TL İskonto Zinciri -->
+                <div>
+                    <div class="panel-label">TL İskonto Zinciri (%)</div>
+                    <div class="iskonto-box">
+                        <input class="iskonto-input" type="number" id="tl-d1" value="50" min="0" max="99" step="0.5">
+                        <span class="plus-sign">+</span>
+                        <input class="iskonto-input" type="number" id="tl-d2" value="5" min="0" max="99" step="0.5">
+                        <span class="plus-sign">+</span>
+                        <input class="iskonto-input" type="number" id="tl-d3" value="5" min="0" max="99" step="0.5">
+                        <span class="plus-sign">+</span>
+                        <input class="iskonto-input" type="number" id="tl-d4" value="5" min="0" max="99" step="0.5">
+                    </div>
+                </div>
+
+                <div class="panel-divider"></div>
+
+                <!-- Döviz Kuru EUR -->
+                <div id="panel-eur-kur">
+                    <div class="panel-label">Güncel Döviz Kuru (€)</div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="display:flex; align-items:center; gap:6px; background:var(--surface-2); border:1px solid var(--border-soft); border-radius:8px; padding:0 12px; height:40px;">
+                            <span style="font-size:14px; color:var(--accent);">€</span>
+                            <span id="eur-kur-display" style="font-size:16px; font-weight:700; color:var(--ink-1); min-width:60px;">—</span>
+                        </div>
+                        <div class="kur-badge">
+                            <div class="kur-live-dot"></div>
+                            <span id="eur-kur-time">TCMB</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Döviz Kuru USD -->
+                <div id="panel-usd-kur" style="display:none;">
+                    <div class="panel-label">Güncel Döviz Kuru ($)</div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="display:flex; align-items:center; gap:6px; background:var(--surface-2); border:1px solid var(--border-soft); border-radius:8px; padding:0 12px; height:40px;">
+                            <span style="font-size:14px; color:var(--info);">$</span>
+                            <span id="usd-kur-display" style="font-size:16px; font-weight:700; color:var(--ink-1); min-width:60px;">—</span>
+                        </div>
+                        <div class="kur-badge">
+                            <div class="kur-live-dot"></div>
+                            <span id="usd-kur-time">TCMB</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-divider"></div>
+
+                <!-- Döviz İskonto -->
+                <div>
+                    <div class="panel-label" id="doviz-iskonto-label">Euro Fiyat İskontosu (%)</div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <input class="iskonto-input" type="number" id="doviz-iskonto" value="75" min="0" max="99" step="0.5" style="width:80px!important; color:var(--warn)!important;">
+                        <span style="font-size:14px; color:var(--ink-3);">%</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Filtreler -->
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+            <div class="search-wrap" style="flex:1; min-width:220px;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="price-search" placeholder="Ürün adı veya kodu ara...">
+            </div>
+            <div class="group-filter-wrap">
+                <select id="group-filter">
+                    <option value="">Tüm Gruplar</option>
+                </select>
+            </div>
+            <div class="total-badge">
+                Kayıt: <span id="total-count">0</span>
+            </div>
+        </div>
+
+        <!-- Tablo -->
+        <div class="price-table-wrap">
+            <div style="overflow-x:auto;">
+                <table class="price-table" id="price-table">
+                    <thead id="price-table-head">
+                        <tr>
+                            <th>Ürün Kodu</th>
+                            <th>Ürün Adı</th>
+                            <th class="text-right">2026 TL Liste</th>
+                            <th class="text-right">2026 TL Net</th>
+                            <th class="text-right" id="th-doviz-liste">2022-3 EUR Liste</th>
+                            <th class="text-right" id="th-doviz-net">2022-3 EUR Net</th>
+                            <th class="text-right">Fark (TL/EUR)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="price-table-body">
+                        <tr class="loading-row"><td colspan="7"><i class="fa-solid fa-circle-notch fa-spin" style="margin-right:8px;"></i>Yükleniyor...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
 
     <script type="module" src="./src/prices.js"></script>
 </body>
