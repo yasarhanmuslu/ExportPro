@@ -95,6 +95,7 @@ window.switchTab = function(tab) {
     document.getElementById('panel-usd-kur').style.display = tab === 'usd' ? '' : 'none';
 
     // Tablo başlığı
+    document.getElementById('th-tl-net-doviz').textContent = tab === 'eur' ? '2026 TL Net (EUR)' : '2026 TL Net (USD)';
     document.getElementById('th-doviz-liste').textContent = tab === 'eur' ? '2022-3 EUR Liste' : '2022-3 USD Liste';
     document.getElementById('th-doviz-net').textContent   = tab === 'eur' ? '2022-3 EUR Net'   : '2022-3 USD Net';
     document.getElementById('doviz-iskonto-label').textContent = tab === 'eur' ? 'Euro Fiyat İskontosu (%)' : 'USD Fiyat İskontosu (%)';
@@ -190,6 +191,7 @@ function renderTable() {
             <td class="td-name">${escapeHtml(p.product_name || '')}</td>
             <td class="td-num td-tl">${fmtTL(tlListe)}</td>
             <td class="td-num td-net">${fmtTL(tlNet)}</td>
+            <td class="td-num" style="color:var(--ink-2);font-weight:500;">${fmtDoviz(tlNetToDoviz(tlNet))}</td>
             <td class="td-num td-eur-liste">${fmtDoviz(dovizListe)}</td>
             <td class="td-num td-eur-net">${fmtDoviz(dovizNet)}</td>
             <td class="td-num">${fmtFark(fark)}</td>
@@ -247,7 +249,7 @@ function exportCSV() {
     if (globalProducts.length === 0) { alert('Aktarılacak veri yok.'); return; }
 
     const dovizKol = currentTab === 'eur' ? 'EUR' : 'USD';
-    let csv = `\uFEFFUrun Kodu;Urun Adi;Grup;2026 TL Liste;2026 TL Net;2022-3 ${dovizKol} Liste;2022-3 ${dovizKol} Net;Fark\n`;
+    let csv = `\uFEFFUrun Kodu;Urun Adi;Grup;2026 TL Liste;2026 TL Net;2026 TL Net (${dovizKol});2022-3 ${dovizKol} Liste;2022-3 ${dovizKol} Net;Fark\n`;
 
     globalProducts.forEach(p => {
         const dovizListe = currentTab === 'eur' ? p.list_price_eur : p.list_price_usd;
@@ -261,6 +263,7 @@ function exportCSV() {
         csv += `"${p.group_name||''}";`;
         csv += `"${p.list_price_tl||''}";`;
         csv += `"${tlNet !== null ? tlNet.toFixed(2) : ''}";`;
+	csv += `"${tlNetToDoviz(tlNet) !== null ? tlNetToDoviz(tlNet).toFixed(2) : ''}";`;
         csv += `"${dovizListe||''}";`;
         csv += `"${dovizNet !== null ? dovizNet.toFixed(2) : ''}";`;
         csv += `"${farkStr}"\n`;
