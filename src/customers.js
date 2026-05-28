@@ -42,6 +42,33 @@ function renderCustomersList(customersList) {
     const container = document.getElementById('customers-list-container');
     container.innerHTML = '';
 
+    // Özet banner
+    const totalAll = globalCustomers.length;
+    const totalActive = globalCustomers.filter(c => c.status === 'Aktif').length;
+    const totalFiltered = customersList.length;
+    const filteredActive = customersList.filter(c => c.status === 'Aktif').length;
+    const isFiltered = totalFiltered !== totalAll;
+
+    const summaryEl = document.createElement('div');
+    summaryEl.style.cssText = 'display:flex;align-items:center;gap:16px;padding:10px 16px;background:var(--surface);border:1px solid var(--border-soft);border-radius:8px;margin-bottom:16px;font-size:12px;';
+    summaryEl.innerHTML = `
+        <span style="color:var(--ink-3);">
+            <i class="fa-solid fa-users" style="margin-right:5px;"></i>
+            Toplam: <strong style="color:var(--ink-1);">${isFiltered ? totalFiltered + ' / ' + totalAll : totalAll}</strong>
+        </span>
+        <span style="width:1px;height:16px;background:var(--border);"></span>
+        <span style="color:var(--ok);">
+            <i class="fa-solid fa-circle-check" style="margin-right:5px;"></i>
+            Aktif: <strong>${isFiltered ? filteredActive + ' / ' + totalActive : totalActive}</strong>
+        </span>
+        <span style="width:1px;height:16px;background:var(--border);"></span>
+        <span style="color:var(--ink-3);">
+            <i class="fa-solid fa-circle-minus" style="margin-right:5px;"></i>
+            Pasif: <strong>${isFiltered ? (totalFiltered - filteredActive) + ' / ' + (totalAll - totalActive) : (totalAll - totalActive)}</strong>
+        </span>
+    `;
+    container.appendChild(summaryEl);
+
     if (customersList.length === 0) {
         container.innerHTML = `
             <div class="text-center py-12 bg-[#FBF8F1]/20 border border-[#EFEAE0] border-dashed rounded-xl">
@@ -68,7 +95,7 @@ function renderCustomersList(customersList) {
                 <div class="flex items-center gap-3">
                     <i class="fa-solid fa-chevron-down text-xs text-[#968B7A] transition-transform duration-200"></i>
                     <span class="font-bold text-[#1C1A17] tracking-wide">${country.toUpperCase()}</span>
-                    <span class="px-2 py-0.5 bg-blue-950 text-blue-400 text-[11px] font-semibold border border-blue-900/50 rounded-full">${itemCount} Müşteri</span>
+                    <span class="px-2 py-0.5 text-[11px] font-semibold border rounded-full" style="background:var(--accent-soft);color:var(--accent);border-color:rgba(45,74,62,0.20);">${itemCount} Müşteri</span>
                 </div>
             </div>
             <div class="custom-table-container border-0 rounded-none transition-all duration-200">
@@ -80,8 +107,8 @@ function renderCustomersList(customersList) {
                             <th>E-Posta / Telefon</th>
                             <th>Müşteri Tipi</th>
                             <th>Durum</th>
-                            <th>Kayıt Tarihi</th>
-                            <th class="text-right">İşlem</th>
+                            <th>Kısa Bilgi</th>
+                            <th style="text-align:right;padding-right:1rem;">İşlem</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -95,7 +122,7 @@ function renderCustomersList(customersList) {
                                 </td>
                                 <td>
                                     <span class="px-2.5 py-1 rounded-md text-xs font-medium border ${getGroupBadgeClass(cust.client_group)}">
-                                        ${cust.client_group || 'Standart'}
+                                        ${cust.client_group || 'Toptancı'}
                                     </span>
                                 </td>
                                 <td>
@@ -103,7 +130,9 @@ function renderCustomersList(customersList) {
                                         ${cust.status || 'Aktif'}
                                     </span>
                                 </td>
-                                <td class="text-[#6B655B] text-xs">${new Date(cust.created_at).toLocaleDateString('tr-TR')}</td>
+                                <td class="text-[#6B655B] text-xs max-w-[200px]">
+                                    <span class="block truncate" title="${escapeHtml(cust.short_info || '')}">${escapeHtml(cust.short_info || '—')}</span>
+                                </td>
                                 <td class="text-right">
                                     <button class="btn-edit-trigger text-xs bg-[#FBF8F1] hover:bg-slate-700 border border-[#E4DDCE] hover:border-slate-600 px-3 py-1.5 rounded-md text-blue-400 transition-colors" data-id="${cust.id}">
                                         <i class="fa-solid fa-pen-to-square"></i> Düzenle
@@ -182,6 +211,7 @@ function openModalForEdit(id) {
     document.getElementById('history_note_2').value = customer.history_note_2 || '';
     document.getElementById('history_date_3').value = customer.history_date_3 || '';
     document.getElementById('history_note_3').value = customer.history_note_3 || '';
+    document.getElementById('short_info').value = customer.short_info || '';
 
     document.getElementById('modal-title').innerHTML = `<i class="fa-solid fa-pen-to-square text-amber-500"></i> Müşteri Kaydını Düzenle`;
     document.getElementById('btn-delete-customer').classList.remove('hidden');
@@ -213,6 +243,7 @@ async function handleFormSubmit(e) {
         website:      sc('website'),
         client_group: document.getElementById('client_group').value,
         status:       document.getElementById('status').value,
+        short_info:   document.getElementById('short_info').value.trim() || null,
         history_date_1: document.getElementById('history_date_1').value || null,
         history_note_1: sc('history_note_1'),
         history_date_2: document.getElementById('history_date_2').value || null,
@@ -313,10 +344,11 @@ function populateCountryFilter(customers) {
 
 function getGroupBadgeClass(group) {
     switch(group) {
-        case 'VIP': return 'bg-amber-950/40 text-[#B26B33] border-amber-900/50';
-        case 'Stratejik': return 'bg-[#E8EEEA] text-[#2D4A3E] border-[rgba(228,90,128,0.25)]';
-        case 'Potansiyel': return 'bg-rose-950/40 text-[#9F3D3D] border-rose-900/50';
-        default: return 'bg-[#FBF8F1] text-[#6B655B] border-[#E4DDCE]/60';
+        case 'Toptancı':    return 'bg-[#E8EEEA] text-[#2D4A3E] border-[#C5D5CC]';
+        case 'Üretici':     return 'bg-[#F2E9DA] text-[#B58858] border-[#E4CCAA]';
+        case 'Perakendeci': return 'bg-[#EAE6F0] text-[#5A4A7A] border-[#C8BEE0]';
+        case 'Projeci':     return 'bg-[#E0E6EE] text-[#3F5C7A] border-[#B8C8DC]';
+        default:            return 'bg-[#FBF8F1] text-[#6B655B] border-[#E4DDCE]/60';
     }
 }
 
@@ -374,15 +406,14 @@ function exportToCSV() {
     }
 
     let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-    csvContent += "Firma Adı;Ülke;Yetkili;E-Posta;Telefon;Web;Müşteri Tipi;Durum;Kayıt Tarihi\n";
+    csvContent += "Firma Adı;Ülke;Yetkili;E-Posta;Telefon;Web;Müşteri Tipi;Durum;Kısa Bilgi\n";
 
     globalCustomers.forEach(c => {
-        const regDate = new Date(c.created_at).toLocaleDateString('tr-TR');
         const q = v => `"${(v || '').toString().replace(/"/g, '""')}"`;
         csvContent += [
             q(c.company_name), q(c.country), q(c.contact_name),
             q(c.email), q(c.phone), q(c.website),
-            q(c.client_group || 'Standart'), q(c.status || 'Aktif'), q(regDate)
+            q(c.client_group || 'Toptancı'), q(c.status || 'Aktif'), q(c.short_info)
         ].join(';') + '\n';
     });
 

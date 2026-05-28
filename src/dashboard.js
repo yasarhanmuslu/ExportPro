@@ -54,7 +54,7 @@ async function loadAllDashboardData(selectedYear) {
                 .select('id, estimated_date, actual_date, orders(order_date)')
                 .eq('user_id', uid),
             supabase.from('customers')
-                .select('id, company_name, country')
+                .select('id, company_name, country, status')
                 .eq('user_id', uid),
             supabase.from('customer_prices')
                 .select('customer_id, discount_rate, customers!customer_prices_customer_id_fkey(company_name)')
@@ -77,6 +77,7 @@ async function loadAllDashboardData(selectedYear) {
         renderPaymentStatus(orders);
         renderTopCustomers(orders, customers);
         renderSecondaryModules(orders, complaints, prices, customers);
+    	renderCustomerSummary(customers);
         renderCharts(yearOrders);
 
     } catch (err) {
@@ -408,4 +409,20 @@ function getQuoteBadge(status) {
     };
     const s = map[status] || { bg: '#F0EBE0', color: '#968B7A' };
     return `<span style="background:${s.bg};color:${s.color};font-size:9px;font-weight:600;padding:1px 6px;border-radius:4px;">${status || '—'}</span>`;
+}
+// ── MÜŞTERİ ÖZETİ ─────────────────────────────────────────────────────────────
+function renderCustomerSummary(customers) {
+    const el = document.getElementById('sec-customer-val');
+    if (!el) return;
+    const total  = customers.length;
+    const active = customers.filter(c => c.status === 'Aktif').length;
+    const pasif  = total - active;
+    el.innerHTML = `
+        <span style="font-size:16px;font-weight:500;color:var(--ink-1);">${total}</span>
+        <span style="font-size:10px;color:var(--ink-3);margin-left:4px;">müşteri</span>
+        <div style="margin-top:4px;display:flex;gap:8px;">
+            <span style="font-size:10px;color:var(--ok);"><i class="fa-solid fa-circle-check" style="font-size:8px;margin-right:2px;"></i>${active} aktif</span>
+            <span style="font-size:10px;color:var(--ink-3);"><i class="fa-solid fa-circle-minus" style="font-size:8px;margin-right:2px;"></i>${pasif} pasif</span>
+        </div>
+    `;
 }
