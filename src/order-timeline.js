@@ -1,10 +1,15 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 
-// ── Auth kontrolü
-const { data: { session } } = await supabase.auth.getSession();
-if (!session) { window.location.href = 'login.html'; }
-await renderNavbar('order-timeline');
+// ── Başlat
+async function init() {
+    // ── Auth kontrolü
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { window.location.href = 'login.html'; return; }
+    await renderNavbar('order-timeline');
+}
+
+init();
 
 // ── State
 let allOrders = [];
@@ -312,4 +317,4 @@ document.getElementById('btn-show-overdue').addEventListener('click', () => {
 });
 
 // ── Başlat
-await loadOrders();
+init().then(() => loadOrders());

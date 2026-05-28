@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <script>/* Flash önle */ (function(){var t=localStorage.getItem('ep-theme')||'light';document.documentElement.classList.add(t==='dark'?'dark':'light');})();</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Şikayet Panosu — Export Suite</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background: #F6F3EC !important; color: #1C1A17 !important; }
+
+        input, select, textarea {
+            background: #fff !important; border: 1px solid #E4DDCE !important;
+            border-radius: 6px !important; color: #1C1A17 !important;
+            font-family: Verdana, Geneva, sans-serif !important; font-size: 13px !important;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none !important; border-color: #2D4A3E !important;
+            box-shadow: 0 0 0 3px rgba(45,74,62,0.08) !important;
+        }
+        input, select {
+            padding: 0 12px; height: 36px; width: 100%;
+        }
+
+        
+        
+
+        
+
+        
+        
+        
+        .data-table tbody tr:hover { background: #FBF8F1; cursor: pointer; }
+        .data-table tbody tr:last-child td { border-bottom: none; }
+
+        .badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 2px 9px; border-radius: 999px;
+            font-size: 11px; font-weight: 600;
+        }
+        .badge-kabul   { background: #E1EBE4; color: #3D6E50; }
+        .badge-red     { background: #F1DDD9; color: #9F3D3D; }
+        .badge-bekliyor{ background: #F3E5D2; color: #B26B33; }
+        .badge-mahsup  { background: #E0E6EE; color: #3F5C7A; }
+
+        .progress-bar-bg {
+            background: #EFEAE0; border-radius: 999px; height: 6px; overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%; border-radius: 999px;
+            background: #2D4A3E;
+            transition: width 0.4s ease;
+        }
+
+        /* Ürün detay accordion */
+        .product-detail-row { display: none; }
+        .product-detail-row.open { display: table-row; }
+
+        /* Trend badge */
+        .trend-up   { color: #9F3D3D; }
+        .trend-down { color: #3D6E50; }
+        .trend-flat { color: #968B7A; }
+
+        /* Modal */
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(28,26,23,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
+        .modal-backdrop.hidden { display: none; }
+        .modal-content { background: #fff; border: 1px solid #EFEAE0; border-radius: 1rem; width: 100%; max-width: 56rem; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(28,26,23,0.18); }
+
+        /* Filtre bar */
+        .filter-bar {
+            background: #fff;
+            border: 1px solid #EFEAE0;
+            border-radius: 0.75rem;
+            padding: 1rem 1.25rem;
+            box-shadow: 0 1px 4px rgba(28,26,23,0.04);
+        }
+
+        /* Chart container */
+        .chart-container { position: relative; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #EFEAE0; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: #D6CEBC; border-radius: 3px; }
+    </style>
+  <script type="module" crossorigin src="/assets/complaints-mWzse2Jp.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/navbar-Dg2HCFHJ.js">
+  <link rel="modulepreload" crossorigin href="/assets/auth-CaJjsXSj.js">
+  <link rel="stylesheet" crossorigin href="/assets/navbar-DgWRtou4.css">
+</head>
+<body class="min-h-screen">
+
+    <div id="navbar-target"></div>
+
+    <main class="min-h-screen" style="margin-left:230px;padding:32px;">
+
+        <!-- ── Başlık ── -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b" style="border-color:#EFEAE0;">
+            <div>
+                <h2 class="page-title">
+                    <i class="fa-solid fa-triangle-exclamation" style="color:#B26B33;font-size:28px;"></i>
+                    Şikayet Panosu
+                </h2>
+                <p style="font-size:13px;color:#968B7A;margin-top:4px;font-family:Verdana, Geneva, sans-serif;">
+                    Ürün ve müşteri bazlı şikayet analizi · Karar dağılımı · Zaman serisi trendi
+                </p>
+            </div>
+            <button id="btn-refresh" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer"
+                style="background:#fff;border:1px solid #E4DDCE;color:#6B655B;font-family:Verdana, Geneva, sans-serif;">
+                <i class="fa-solid fa-rotate-right" style="font-size:12px;"></i> Yenile
+            </button>
+        </header>
+
+        <!-- ── Filtre Bar ── -->
+        <div class="filter-bar mb-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                <div>
+                    <label style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#968B7A;display:block;margin-bottom:5px;">Başlangıç Tarihi</label>
+                    <input type="date" id="filter-date-start">
+                </div>
+                <div>
+                    <label style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#968B7A;display:block;margin-bottom:5px;">Bitiş Tarihi</label>
+                    <input type="date" id="filter-date-end">
+                </div>
+                <div>
+                    <label style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#968B7A;display:block;margin-bottom:5px;">Müşteri</label>
+                    <select id="filter-customer">
+                        <option value="">Tüm Müşteriler</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#968B7A;display:block;margin-bottom:5px;">Ürün Kodu</label>
+                    <select id="filter-product-code">
+                        <option value="">Tüm Ürünler</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#968B7A;display:block;margin-bottom:5px;">Karar Durumu</label>
+                    <select id="filter-decision">
+                        <option value="">Tüm Kararlar</option>
+                        <option value="Kabul">Kabul</option>
+                        <option value="Red">Red</option>
+                        <option value="Bekliyor">Bekliyor</option>
+                        <option value="Mahsup">Mahsup</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex items-center justify-between mt-3 pt-3" style="border-top:1px solid #EFEAE0;">
+                <span style="font-size:11px;color:#968B7A;font-family:Verdana, Geneva, sans-serif;">
+                    <i class="fa-solid fa-circle-info" style="margin-right:4px;"></i>
+                    <span id="filter-result-count">—</span> kayıt gösteriliyor
+                </span>
+                <button id="btn-clear-filters" style="font-size:11px;color:#9F3D3D;background:none;border:none;cursor:pointer;font-family:Verdana, Geneva, sans-serif;">
+                    <i class="fa-solid fa-xmark" style="margin-right:3px;"></i> Filtreleri Temizle
+                </button>
+            </div>
+        </div>
+
+        <!-- ── A) KPI Kartları ── -->
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="kpi-section">
+            <div class="kpi-card">
+                <div class="label-caps" style="margin-bottom:8px">
+                    <i class="fa-solid fa-list-check" style="margin-right:5px;color:#B26B33;"></i>Toplam Şikayet
+                </div>
+                <div id="kpi-total" class="kpi-value" style="color:#1C1A17">—</div>
+                <div class="text-caption" style="margin-top:4px">toplam kalem sayısı</div>
+            </div>
+            <div class="kpi-card">
+                <div class="label-caps" style="margin-bottom:8px">
+                    <i class="fa-solid fa-circle-check" style="margin-right:5px;color:#3D6E50;"></i>Kabul Edilen
+                </div>
+                <div id="kpi-accepted" class="kpi-value" style="color:#3D6E50">—</div>
+                <div style="font-size:11px;color:#968B7A;margin-top:4px;font-family:Verdana, Geneva, sans-serif;" id="kpi-accepted-rate">— kabul oranı</div>
+            </div>
+            <div class="kpi-card">
+                <div class="label-caps" style="margin-bottom:8px">
+                    <i class="fa-solid fa-circle-xmark" style="margin-right:5px;color:#9F3D3D;"></i>Reddedilen
+                </div>
+                <div id="kpi-rejected" class="kpi-value" style="color:#9F3D3D">—</div>
+                <div style="font-size:11px;color:#968B7A;margin-top:4px;font-family:Verdana, Geneva, sans-serif;" id="kpi-rejected-rate">— red oranı</div>
+            </div>
+            <div class="kpi-card">
+                <div class="label-caps" style="margin-bottom:8px">
+                    <i class="fa-solid fa-hourglass-half" style="margin-right:5px;color:#3F5C7A;"></i>Bekleyen CN'ler
+                </div>
+                <div id="kpi-pending" class="kpi-value" style="color:#3F5C7A">—</div>
+                <div class="text-caption" style="margin-top:4px">process_status = İncelemede</div>
+            </div>
+        </section>
+
+        <!-- ── B + C: Sıralamalar (yan yana) ── -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+            <!-- B) Ürün Bazında -->
+            <div class="section-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="card-title">
+                        <i class="fa-solid fa-box" style="color:#B26B33;font-size:16px;"></i> Ürün Bazında Şikayet
+                    </h3>
+                    <span style="font-size:10px;color:#968B7A;font-family:Verdana, Geneva, sans-serif;">Tıkla → Detayları Gör</span>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Ürün Kodu / Adı</th>
+                                <th class="text-center">Şikayet</th>
+                                <th class="text-center">Kabul %</th>
+                                <th>Son Şikayet</th>
+                            </tr>
+                        </thead>
+                        <tbody id="product-ranking-body">
+                            <tr><td colspan="4" style="text-align:center;color:#968B7A;padding:24px;">Yükleniyor...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- C) Müşteri Bazında -->
+            <div class="section-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="card-title">
+                        <i class="fa-solid fa-users" style="color:#2D4A3E;font-size:16px;"></i> Müşteri Bazında Şikayet
+                    </h3>
+                    <span style="font-size:10px;color:#968B7A;font-family:Verdana, Geneva, sans-serif;">En çok şikayet → Üstte</span>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Müşteri / Ülke</th>
+                                <th class="text-center">Toplam</th>
+                                <th class="text-center">Kabul / Red</th>
+                                <th>İlk / Son</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customer-ranking-body">
+                            <tr><td colspan="4" style="text-align:center;color:#968B7A;padding:24px;">Yükleniyor...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── D + E: Grafikler (yan yana) ── -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+            <!-- D) Karar Dağılımı Doughnut -->
+            <div class="section-card">
+                <h3 class="card-title">
+                    <i class="fa-solid fa-chart-pie" style="color:#3F5C7A;font-size:16px;"></i> Karar Dağılımı
+                </h3>
+                <div class="chart-container" style="height:280px;display:flex;align-items:center;justify-content:center;">
+                    <canvas id="chart-decision-doughnut"></canvas>
+                </div>
+                <div id="chart-decision-legend" class="flex flex-wrap gap-3 justify-center mt-4"></div>
+            </div>
+
+            <!-- E) Zaman Serisi Line -->
+            <div class="section-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="card-title">
+                        <i class="fa-solid fa-chart-line" style="color:#2D4A3E;font-size:16px;"></i> Aylık Şikayet Trendi
+                    </h3>
+                    <span id="trend-badge" style="font-size:11px;font-family:Verdana, Geneva, sans-serif;"></span>
+                </div>
+                <div class="chart-container" style="height:280px;">
+                    <canvas id="chart-monthly-line"></canvas>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ── Ürün Detay Modal ── -->
+    <div id="product-detail-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <div class="flex items-center justify-between p-5" style="border-bottom:1px solid #EFEAE0;">
+                <h3 id="product-modal-title" class="modal-title">
+                    <i class="fa-solid fa-box" style="color:#B26B33;"></i> Ürün Şikayet Detayları
+                </h3>
+                <button id="btn-close-product-modal" style="background:none;border:none;cursor:pointer;color:#968B7A;font-size:18px;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-5">
+                <div style="overflow-x:auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>CN Tarihi</th>
+                                <th>Müşteri</th>
+                                <th>Şikayet ID</th>
+                                <th>Karar</th>
+                                <th>Hedef Sipariş</th>
+                                <th>Açıklama</th>
+                            </tr>
+                        </thead>
+                        <tbody id="product-modal-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="flex justify-end p-5" style="border-top:1px solid #EFEAE0;">
+                <button id="btn-close-product-modal-footer" style="padding:8px 20px;border-radius:6px;border:1px solid #E4DDCE;background:#FBF8F1;color:#6B655B;font-family:Verdana, Geneva, sans-serif;font-size:13px;cursor:pointer;">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

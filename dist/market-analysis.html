@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <script>/* Flash önle */ (function(){var t=localStorage.getItem('ep-theme')||'light';document.documentElement.classList.add(t==='dark'?'dark':'light');})();</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pazar Analizi — Export Suite</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        body { background: #F6F3EC !important; color: #1C1A17 !important; }
+        
+        .stat-card:hover { border-color: #D4CEC3; box-shadow: 0 4px 12px rgba(28,26,23,0.08); }
+        
+        
+        .mkt-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .mkt-table th {
+            padding: 8px 12px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: #968B7A;
+            border-bottom: 2px solid #EFEAE0;
+            text-align: left;
+            white-space: nowrap;
+            background: #FDFAF6;
+        }
+        .mkt-table td {
+            padding: 9px 12px;
+            border-bottom: 1px solid #F0EBE1;
+            color: #3D3A34;
+            vertical-align: middle;
+        }
+        .mkt-table tbody tr { cursor: pointer; transition: background 0.12s; }
+        .mkt-table tbody tr:hover { background: #FBF8F1; }
+        .growth-pos { color: #2D6A4F; font-weight: 600; }
+        .growth-neg { color: #9F3D3D; font-weight: 600; }
+        .growth-neu { color: #968B7A; }
+        .complaint-bar-bg { background: #F0EBE1; border-radius: 3px; height: 6px; width: 70px; display: inline-block; vertical-align: middle; }
+        .complaint-bar-fill { background: #C97B4B; border-radius: 3px; height: 6px; }
+
+        /* Modal */
+        #modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(28,26,23,0.50);
+            backdrop-filter: blur(4px);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        #modal-overlay.open { display: flex; }
+        #modal-box {
+            background: #fff;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 680px;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(28,26,23,0.20);
+        }
+        #modal-header {
+            padding: 18px 22px;
+            border-bottom: 1px solid #EFEAE0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        #modal-body { padding: 16px 22px; overflow-y: auto; flex: 1; }
+
+        /* Loading */
+        #loading-overlay {
+            position: fixed; inset: 0;
+            background: rgba(246,243,236,0.92);
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+        }
+        .spinner {
+            width: 36px; height: 36px;
+            border: 3px solid rgba(45,74,62,0.15);
+            border-top-color: #2D4A3E;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        select {
+            background: #fff !important;
+            border: 1px solid #E4DDCE !important;
+            border-radius: 6px !important;
+            color: #1C1A17 !important;
+            font-family: Verdana, Geneva, sans-serif !important;
+            font-size: 12px !important;
+            padding: 6px 10px !important;
+        }
+        select:focus { outline: none !important; border-color: #2D4A3E !important; box-shadow: 0 0 0 3px rgba(45,74,62,0.08) !important; }
+    </style>
+  <script type="module" crossorigin src="/assets/marketAnalysis-Ckmka2Nu.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/navbar-Dg2HCFHJ.js">
+  <link rel="modulepreload" crossorigin href="/assets/auth-CaJjsXSj.js">
+  <link rel="stylesheet" crossorigin href="/assets/navbar-DgWRtou4.css">
+</head>
+<body class="min-h-screen">
+
+    <div id="navbar-target"></div>
+
+    <!-- Loading -->
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div style="font-size:13px;color:#2D4A3E;font-family:Verdana, Geneva, sans-serif;letter-spacing:0.05em;">Pazar verileri yükleniyor...</div>
+    </div>
+
+    <main class="min-h-screen" style="margin-left:230px;padding:32px;">
+
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5" style="border-bottom:1px solid #EFEAE0;">
+            <div>
+                <h2 class="page-title">
+                    <i class="fa-solid fa-globe" style="color:#2D4A3E;font-size:28px;"></i>
+                    Ülke / Pazar Analizi
+                </h2>
+                <p style="font-size:13px;color:#968B7A;margin-top:4px;font-family:Verdana, Geneva, sans-serif;">
+                    Müşteri, sipariş ve credit note verilerinden hesaplanan ülke bazlı ihracat performansı.
+                </p>
+            </div>
+            <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#968B7A;font-family:Verdana, Geneva, sans-serif;background:#FBF8F1;border:1px solid #EFEAE0;border-radius:20px;padding:6px 14px;">
+                <i class="fa-solid fa-calendar-days" style="margin-right:5px;"></i>
+                <span id="data-year">—</span>
+            </div>
+        </header>
+
+        <!-- A) KPI KARTLARI -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+
+            <div class="stat-card">
+                <div class="section-title"><i class="fa-solid fa-earth-europe"></i> İhracat Pazarı</div>
+                <div class="kpi-value" style="color:#1C1A17" id="kpi-country-count">—</div>
+                <div style="font-size:11px;color:#968B7A;margin-top:6px;">Toplam ülke sayısı</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="section-title"><i class="fa-solid fa-trophy"></i> En Yüksek Ciro</div>
+                <div class="kpi-value" style="color:#2D4A3E" id="kpi-top-country">—</div>
+                <div style="font-size:11px;color:#968B7A;margin-top:6px;" id="kpi-top-amount">—</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="section-title"><i class="fa-solid fa-triangle-exclamation"></i> En Yüksek Şikayet</div>
+                <div class="kpi-value" style="color:#C97B4B" id="kpi-complaint-country">—</div>
+                <div style="font-size:11px;color:#968B7A;margin-top:6px;" id="kpi-complaint-rate">—</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="section-title"><i class="fa-solid fa-sparkles"></i> Bu Yıl Yeni</div>
+                <div class="kpi-value" style="color:#1C1A17" id="kpi-new-countries">—</div>
+                <div style="font-size:11px;color:#968B7A;margin-top:6px;">Yeni eklenen ülke</div>
+            </div>
+
+        </div>
+
+        <!-- B) ÜLKE PERFORMANS TABLOSU -->
+        <div class="chart-card mb-8">
+            <div class="section-title"><i class="fa-solid fa-table"></i> Ülke Performans Tablosu</div>
+            <div style="overflow-x:auto;">
+                <table class="mkt-table" id="country-table">
+                    <thead>
+                        <tr>
+                            <th>Ülke</th>
+                            <th>Müşteri</th>
+                            <th>Sipariş</th>
+                            <th>Toplam Ciro (USD)</th>
+                            <th>Şikayet</th>
+                            <th>Şikayet Oranı %</th>
+                            <th>Büyüme (YoY)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="country-table-body">
+                        <tr><td colspan="7" style="text-align:center;color:#968B7A;padding:24px;">Yükleniyor...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="table-empty" class="hidden" style="text-align:center;padding:32px;color:#968B7A;font-size:13px;">
+                <i class="fa-solid fa-inbox" style="font-size:28px;margin-bottom:8px;display:block;"></i>
+                Henüz yeterli veri yok.
+            </div>
+        </div>
+
+        <!-- C + D: Charts Row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+
+            <!-- C) ÜLKE CİRO GRAFİĞİ -->
+            <div class="chart-card">
+                <div class="section-title"><i class="fa-solid fa-chart-bar"></i> İlk 15 Ülke — Toplam Ciro (USD)</div>
+                <div style="position:relative;height:400px;">
+                    <canvas id="chart-ciro"></canvas>
+                </div>
+            </div>
+
+            <!-- D) YIL KARŞILAŞTIRMALI TREND -->
+            <div class="chart-card">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="section-title" style="margin-bottom:0;"><i class="fa-solid fa-chart-line"></i> Ülke Aylık Trend (Son 3 Yıl)</div>
+                    <select id="trend-country-select" style="min-width:140px;">
+                        <option value="">Ülke seçin...</option>
+                    </select>
+                </div>
+                <div style="position:relative;height:370px;">
+                    <canvas id="chart-trend"></canvas>
+                </div>
+                <div id="trend-empty" style="text-align:center;padding:32px;color:#968B7A;font-size:13px;">
+                    <i class="fa-solid fa-hand-pointer" style="font-size:24px;margin-bottom:8px;display:block;color:#C8C0B0;"></i>
+                    Trend görmek için bir ülke seçin.
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- MODAL: Ülke Müşterileri -->
+    <div id="modal-overlay">
+        <div id="modal-box">
+            <div id="modal-header">
+                <div>
+                    <div class="kpi-value" style="color:#1C1A17" id="modal-title">Ülke Müşterileri</div>
+                    <div style="font-size:11px;color:#968B7A;margin-top:2px;" id="modal-subtitle"></div>
+                </div>
+                <button id="modal-close" style="width:28px;height:28px;border-radius:6px;border:1px solid #EFEAE0;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#968B7A;">
+                    <i class="fa-solid fa-xmark" style="font-size:13px;"></i>
+                </button>
+            </div>
+            <div id="modal-body">
+                <!-- Filled by JS -->
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

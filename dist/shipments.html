@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <script>/* Flash önle */ (function(){var t=localStorage.getItem('ep-theme')||'light';document.documentElement.classList.add(t==='dark'?'dark':'light');})();</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sevkiyat & Lojistik — Export Suite</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #F6F3EC !important; color: #1C1A17 !important; }
+
+        
+        
+        .kpi-icon {
+            width: 38px; height: 38px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; margin-bottom: 12px;
+        }
+        .kpi-label { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #968B7A; margin-bottom: 4px; }
+        .kpi-value { font-family: Verdana, Geneva, sans-serif; font-size: 32px; font-weight: 500; color: #1C1A17; line-height: 1; }
+        .kpi-sub   { font-size: 11px; color: #968B7A; margin-top: 4px; }
+
+        
+        
+
+        
+        
+        
+        .data-table tbody tr:last-child td { border-bottom: none; }
+        .data-table tbody tr:hover { background: #FDFAF5; }
+
+        .badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 3px 10px; border-radius: 999px;
+            font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+        }
+        .badge-active { background: #DCFCE7; color: #166534; }
+        .badge-done   { background: #F3EFE7; color: #6B655B; }
+        .badge-grey   { background: #F3F4F6; color: #6B7280; }
+
+        .filter-select {
+            height: 36px; padding: 0 10px;
+            border: 1px solid #E4DDCE; border-radius: 6px;
+            background: #fff; color: #3A3530;
+            font-size: 12px; font-family: Verdana, Geneva, sans-serif;
+            cursor: pointer;
+        }
+        .filter-select:focus { outline: none; border-color: #2D4A3E; box-shadow: 0 0 0 3px rgba(45,74,62,0.08); }
+
+        input, select, textarea {
+            background: #fff !important; border: 1px solid #E4DDCE !important;
+            border-radius: 6px !important; color: #1C1A17 !important;
+            font-family: Verdana, Geneva, sans-serif !important; font-size: 13px !important;
+            padding: 0 12px;
+        }
+        input, select { height: 38px; }
+        textarea { padding: 10px 12px !important; height: auto; resize: vertical; }
+        input:focus, select:focus, textarea:focus {
+            outline: none !important; border-color: #2D4A3E !important;
+            box-shadow: 0 0 0 3px rgba(45,74,62,0.08) !important;
+        }
+
+        .form-label {
+            display: block; font-size: 11px; font-weight: 600;
+            letter-spacing: 0.08em; text-transform: uppercase;
+            color: #6B655B; margin-bottom: 5px;
+        }
+        .form-row { display: grid; gap: 14px; margin-bottom: 14px; }
+        .form-row-2 { grid-template-columns: 1fr 1fr; }
+        .form-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(28,26,23,0.50); backdrop-filter: blur(4px);
+            display: flex; align-items: flex-start; justify-content: center;
+            z-index: 100; padding: 2rem; overflow-y: auto;
+        }
+        .modal-overlay.hidden { display: none; }
+        .modal-box {
+            background: #fff; border: 1px solid #EFEAE0;
+            border-radius: 1rem; padding: 2rem;
+            width: 100%; max-width: 680px;
+            box-shadow: 0 25px 50px -12px rgba(28,26,23,0.18);
+            margin: auto;
+        }
+
+        .btn-primary {
+            height: 38px; padding: 0 20px; border-radius: 7px;
+            background: #2D4A3E; color: #fff; border: none;
+            font-size: 13px; font-family: Verdana, Geneva, sans-serif;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+            transition: opacity .15s;
+        }
+        .btn-primary:hover { opacity: .88; }
+        .btn-secondary {
+            height: 38px; padding: 0 18px; border-radius: 7px;
+            background: #fff; color: #6B655B;
+            border: 1px solid #E4DDCE;
+            font-size: 13px; font-family: Verdana, Geneva, sans-serif;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+            transition: background .15s;
+        }
+        .btn-secondary:hover { background: #F6F3EC; }
+        .btn-danger {
+            height: 38px; padding: 0 18px; border-radius: 7px;
+            background: #9F3D3D; color: #fff; border: none;
+            font-size: 13px; font-family: Verdana, Geneva, sans-serif; cursor: pointer;
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, #F6F3EC 25%, #EFEAE0 50%, #F6F3EC 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.2s infinite;
+            border-radius: 6px; height: 18px;
+        }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        .section-divider {
+            font-size: 10px; font-weight: 700;
+            letter-spacing: 0.12em; text-transform: uppercase;
+            color: #2D4A3E; border-bottom: 1px solid #EFEAE0;
+            padding-bottom: 6px; margin: 18px 0 12px;
+        }
+    </style>
+  <script type="module" crossorigin src="/assets/shipments-BeBoIlN_.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/navbar-Dg2HCFHJ.js">
+  <link rel="modulepreload" crossorigin href="/assets/auth-CaJjsXSj.js">
+  <link rel="stylesheet" crossorigin href="/assets/navbar-DgWRtou4.css">
+</head>
+<body class="min-h-screen">
+
+    <div id="navbar-target"></div>
+
+    <main class="min-h-screen" style="margin-left:230px;padding:32px;">
+
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b" style="border-color:#EFEAE0;">
+            <div>
+                <h2 class="page-title">
+                    <i class="fa-solid fa-ship" style="font-size:24px;color:#2D4A3E;"></i>
+                    Sevkiyat &amp; Lojistik
+                </h2>
+                <p style="font-size:13px;color:#968B7A;margin-top:4px;">BL takibi, navlun maliyetleri, taşıyıcı ve liman yönetimi</p>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;">
+                <button id="btn-refresh" class="btn-secondary">
+                    <i class="fa-solid fa-rotate-right" style="font-size:12px;"></i> Yenile
+                </button>
+                <button id="btn-new" class="btn-primary">
+                    <i class="fa-solid fa-plus" style="font-size:12px;"></i> Yeni Sevkiyat
+                </button>
+            </div>
+        </header>
+
+        <!-- KPI KARTLARI -->
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="kpi-card">
+                <div class="kpi-icon" style="background:#EEF5F2;color:#2D4A3E;"><i class="fa-solid fa-ship"></i></div>
+                <div class="kpi-label">Aktif Sevkiyat</div>
+                <div class="kpi-value" id="kpi-active"><div class="skeleton" style="width:60%;"></div></div>
+                <div class="kpi-sub">ETA &gt; bugün</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon" style="background:#FFF8EE;color:#92600A;"><i class="fa-solid fa-dollar-sign"></i></div>
+                <div class="kpi-label">Bu Ay Navlun</div>
+                <div class="kpi-value" id="kpi-freight"><div class="skeleton" style="width:70%;"></div></div>
+                <div class="kpi-sub">ETD tarihi bazında</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon" style="background:#F0F4FF;color:#3B60E4;"><i class="fa-solid fa-clock"></i></div>
+                <div class="kpi-label">Ort. Transit Süresi</div>
+                <div class="kpi-value" id="kpi-transit"><div class="skeleton" style="width:50%;"></div></div>
+                <div class="kpi-sub">ETA − ETD ortalaması</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon" style="background:#F3EFE7;color:#968B7A;"><i class="fa-solid fa-boxes-stacked"></i></div>
+                <div class="kpi-label">Toplam Sevkiyat</div>
+                <div class="kpi-value" id="kpi-total"><div class="skeleton" style="width:40%;"></div></div>
+                <div class="kpi-sub">Tüm kayıtlar</div>
+            </div>
+        </section>
+
+        <!-- FİLTRELER -->
+        <div class="section-card mb-5">
+            <div class="section-title">
+                <i class="fa-solid fa-filter" style="color:#2D4A3E;"></i>
+                Filtreler
+            </div>
+            <div class="flex flex-wrap gap-3 items-end">
+                <div>
+                    <div class="form-label">Taşıyıcı</div>
+                    <select id="filter-carrier" class="filter-select" style="width:180px;">
+                        <option value="">Tüm Taşıyıcılar</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="form-label">Liman</div>
+                    <select id="filter-port" class="filter-select" style="width:180px;">
+                        <option value="">Tüm Limanlar</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="form-label">ETD Başlangıç</div>
+                    <input type="date" id="filter-date-from" style="width:150px;">
+                </div>
+                <div>
+                    <div class="form-label">ETD Bitiş</div>
+                    <input type="date" id="filter-date-to" style="width:150px;">
+                </div>
+                <button id="btn-clear-filters" class="btn-secondary" style="margin-bottom:0;">
+                    <i class="fa-solid fa-xmark" style="font-size:11px;"></i> Temizle
+                </button>
+            </div>
+        </div>
+
+        <!-- SEVKİYAT LİSTESİ -->
+        <div class="section-card">
+            <div class="section-title">
+                <i class="fa-solid fa-table-list" style="color:#2D4A3E;"></i>
+                Sevkiyat Listesi
+                <span id="shipments-count" style="background:#EEF5F2;color:#2D4A3E;padding:2px 10px;border-radius:999px;font-size:10px;margin-left:4px;">—</span>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Durum</th>
+                            <th>Müşteri</th>
+                            <th>Sipariş No</th>
+                            <th>BL No</th>
+                            <th>Taşıyıcı</th>
+                            <th>Konteyner</th>
+                            <th>ETD</th>
+                            <th>ETA / Transit</th>
+                            <th>Navlun</th>
+                            <th style="text-align:center;">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shipments-tbody">
+                        <tr><td colspan="10" class="text-center py-10" style="color:#968B7A;">Yükleniyor...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- YENİ / DÜZENLEME MODALI -->
+    <div id="modal-overlay" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="flex items-center justify-between mb-6">
+                <h3 id="modal-title" class="modal-title">Yeni Sevkiyat</h3>
+                <button id="modal-close" style="background:none;border:none;cursor:pointer;color:#968B7A;font-size:20px;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form id="shipment-form">
+                <!-- Sipariş -->
+                <div class="section-divider">Sipariş Bağlantısı</div>
+                <div style="margin-bottom:14px;">
+                    <label class="form-label">Sipariş <span style="color:#9F3D3D;">*</span></label>
+                    <select id="form-order-id" style="width:100%;">
+                        <option value="">— Sipariş Seçiniz —</option>
+                    </select>
+                </div>
+
+                <!-- BL & Taşıyıcı -->
+                <div class="section-divider">Taşıma Bilgileri</div>
+                <div class="form-row form-row-2">
+                    <div>
+                        <label class="form-label">BL Numarası</label>
+                        <input type="text" id="form-bl-number" placeholder="örn. COSU1234567890">
+                    </div>
+                    <div>
+                        <label class="form-label">Taşıyıcı / Navlun Şirketi</label>
+                        <input type="text" id="form-carrier" placeholder="örn. COSCO, MSC, Maersk">
+                    </div>
+                </div>
+                <div style="margin-bottom:14px;">
+                    <label class="form-label">Konteyner Numarası</label>
+                    <input type="text" id="form-container" placeholder="örn. TCKU1234567">
+                </div>
+
+                <!-- Tarihler -->
+                <div class="section-divider">Tarihler</div>
+                <div class="form-row form-row-2">
+                    <div>
+                        <label class="form-label">ETD — Estimated Time of Departure</label>
+                        <input type="date" id="form-etd">
+                    </div>
+                    <div>
+                        <label class="form-label">ETA — Estimated Time of Arrival</label>
+                        <input type="date" id="form-eta">
+                    </div>
+                </div>
+
+                <!-- Navlun -->
+                <div class="section-divider">Navlun Maliyeti</div>
+                <div class="form-row form-row-3">
+                    <div style="grid-column:span 2;">
+                        <label class="form-label">Navlun Tutarı</label>
+                        <input type="number" id="form-freight-cost" placeholder="0.00" step="0.01" min="0">
+                    </div>
+                    <div>
+                        <label class="form-label">Para Birimi</label>
+                        <select id="form-freight-currency">
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                            <option value="GBP">GBP</option>
+                            <option value="TRY">TRY</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Limanlar -->
+                <div class="section-divider">Liman Bilgileri</div>
+                <div class="form-row form-row-2">
+                    <div>
+                        <label class="form-label">Yükleme Limanı</label>
+                        <input type="text" id="form-port-loading" placeholder="örn. İstanbul, Mersin">
+                    </div>
+                    <div>
+                        <label class="form-label">Boşaltma Limanı</label>
+                        <input type="text" id="form-port-discharge" placeholder="örn. Hamburg, Rotterdam">
+                    </div>
+                </div>
+
+                <!-- Notlar -->
+                <div style="margin-bottom:20px;">
+                    <label class="form-label">Notlar</label>
+                    <textarea id="form-notes" rows="3" placeholder="Ek notlar, özel talimatlar..."></textarea>
+                </div>
+
+                <!-- Butonlar -->
+                <div style="display:flex;justify-content:flex-end;gap:10px;">
+                    <button type="button" class="btn-secondary" onclick="document.getElementById('modal-overlay').classList.add('hidden')">
+                        İptal
+                    </button>
+                    <button type="submit" id="form-submit-btn" class="btn-primary">
+                        <i class="fa-solid fa-floppy-disk" style="font-size:12px;"></i> Kaydet
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SİLME ONAY MODALI -->
+    <div id="delete-overlay" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width:420px;">
+            <div style="text-align:center;padding:20px 0;">
+                <div style="width:56px;height:56px;border-radius:50%;background:#FEE2E2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+                    <i class="fa-solid fa-trash" style="font-size:22px;color:#9F3D3D;"></i>
+                </div>
+                <h3 class="card-title">Sevkiyatı Sil</h3>
+                <p style="font-size:13px;color:#6B655B;margin-bottom:24px;">Bu sevkiyat kaydı kalıcı olarak silinecektir. Bu işlem geri alınamaz.</p>
+                <div style="display:flex;gap:10px;justify-content:center;">
+                    <button id="delete-cancel" class="btn-secondary">İptal</button>
+                    <button id="delete-confirm" class="btn-danger">Evet, Sil</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

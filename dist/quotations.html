@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <script>/* Flash önle */ (function(){var t=localStorage.getItem('ep-theme')||'light';document.documentElement.classList.add(t==='dark'?'dark':'light');})();</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teklifler — Export Suite</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #F6F3EC !important; color: #1C1A17 !important; }
+        .modal-backdrop { background: rgba(28,26,23,0.50) !important; backdrop-filter: blur(4px); }
+        input, select, textarea {
+            background: #fff !important; border: 1px solid #E4DDCE !important;
+            border-radius: 6px !important; color: #1C1A17 !important;
+            font-family: Verdana, Geneva, sans-serif !important; font-size: 13px !important;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none !important; border-color: #2D4A3E !important;
+            box-shadow: 0 0 0 3px rgba(45,74,62,0.08) !important;
+        }
+        input, select, textarea {
+            background: #fff; border: 1px solid #E4DDCE;
+            border-radius: 6px; padding: 0 12px;
+            color: #1C1A17; font-size: 13px; width: 100%; height: 38px;
+        }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #2D4A3E; box-shadow: 0 0 0 3px rgba(45,74,62,0.08); }
+        textarea { height: auto; padding: 10px 12px; }
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(28,26,23,0.5); backdrop-filter: blur(4px); display: flex; align-items: flex-start; justify-content: center; z-index: 100; padding: 1rem; overflow-y: auto; }
+        .modal-backdrop.hidden { display: none; }
+        .modal-content { background: rgb(15 23 42); border: 1px solid rgb(30 41 59); border-radius: 1rem; padding: 1.5rem; width: 100%; max-width: 60rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); margin: auto; }
+        .custom-table-container { overflow-x: auto; background: rgba(15,23,42,0.4); border: 1px solid rgb(30 41 59); border-radius: 0.75rem; }
+        .custom-table { width: 100%; border-collapse: collapse; }
+        .custom-table th { padding: 0.75rem 1rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgb(100 116 139); text-align: left; white-space: nowrap; border-bottom: 1px solid rgb(30 41 59); }
+        .custom-table td { padding: 0.75rem 1rem; font-size: 0.8rem; color: rgb(148 163 184); border-bottom: 1px solid rgb(15 23 42); vertical-align: middle; }
+        .custom-table tbody tr:hover { background: rgba(30,41,59,0.5); }
+        .custom-table tbody tr:last-child td { border-bottom: none; }
+        
+        .section-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgb(249 115 22); border-bottom: 1px solid rgb(30 41 59); padding-bottom: 0.5rem; margin-bottom: 0.75rem; }
+        .item-row { background: rgba(30,41,59,0.5); border: 1px solid rgb(30 41 59); border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+        .item-row input, .item-row select { height: 34px; font-size: 12px; }
+        
+        .badge-bekliyor  { background: rgba(100,116,139,0.15); color: rgb(148 163 184); padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+        .badge-kabul     { background: rgba(52,211,153,0.15); color: rgb(52 211 153); padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+        .badge-red       { background: rgba(248,113,113,0.15); color: rgb(248 113 113); padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+        .badge-donustu   { background: rgba(96,165,250,0.15); color: rgb(96 165 250); padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+        .badge-doldu     { background: rgba(251,146,60,0.15); color: rgb(251 146 60); padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    </style>
+  <script type="module" crossorigin src="/assets/quotations-BQXXyuBm.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/navbar-Dg2HCFHJ.js">
+  <link rel="modulepreload" crossorigin href="/assets/auth-CaJjsXSj.js">
+  <link rel="stylesheet" crossorigin href="/assets/navbar-DgWRtou4.css">
+</head>
+<body class="min-h-screen">
+
+    <div id="navbar-target"></div>
+
+    <main class="min-h-screen" style="margin-left:230px;padding:32px;">
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b" style="border-color:#E4DDCE;">
+            <div>
+                <h2 class="page-title">
+                    <i class="fa-solid fa-file-contract" style="font-size:26px;color:#2D4A3E;"></i>
+                    Teklif Yönetimi
+                </h2>
+                <p style="font-size:13px;color:#968B7A;margin-top:2px;font-family:Verdana, Geneva, sans-serif;">Proforma fatura ve teklif takibi</p>
+            </div>
+            <button id="btn-new-quotation"
+                style="height:40px;padding:0 20px;background:#2D4A3E;color:#fff;border:none;border-radius:8px;font-family:Verdana, Geneva, sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;">
+                <i class="fa-solid fa-plus"></i> Yeni Teklif
+            </button>
+        </header>
+
+        <!-- KPI Kartları -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8" id="kpi-section">
+            <div class="kpi-card">
+                <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:rgb(100 116 139);font-weight:700;margin-bottom:8px;">Açık Teklifler</div>
+                <div id="kpi-open-count" class="kpi-value" style="color:rgb(148 163 184)">—</div>
+                <div id="kpi-open-amount" style="font-size:12px;color:rgb(100 116 139);margin-top:4px;">toplam tutar</div>
+            </div>
+            <div class="kpi-card">
+                <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:rgb(100 116 139);font-weight:700;margin-bottom:8px;">Bu Ay Dönüşüm</div>
+                <div id="kpi-conversion" class="kpi-value" style="color:rgb(52 211 153)">—</div>
+                <div style="font-size:12px;color:rgb(100 116 139);margin-top:4px;">Kabul / Toplam</div>
+            </div>
+            <div class="kpi-card">
+                <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:rgb(100 116 139);font-weight:700;margin-bottom:8px;">Ort. Kapanma Süresi</div>
+                <div id="kpi-avg-days" class="kpi-value" style="color:rgb(251 146 60)">—</div>
+                <div style="font-size:12px;color:rgb(100 116 139);margin-top:4px;">gün (kabul edilen)</div>
+            </div>
+        </div>
+
+        <!-- Filtreler -->
+        <div class="flex flex-wrap gap-3 mb-5 items-center">
+            <input type="text" id="filter-search" placeholder="Teklif no, müşteri ara..." style="width:240px;height:36px;font-size:12px;">
+            <select id="filter-status" style="width:180px;height:36px;font-size:12px;">
+                <option value="">Tüm Durumlar</option>
+                <option value="Bekliyor">Bekliyor</option>
+                <option value="Kabul">Kabul</option>
+                <option value="Red">Red</option>
+                <option value="Sipariş Dönüştü">Sipariş Dönüştü</option>
+                <option value="Süresi Doldu">Süresi Doldu</option>
+            </select>
+            <span id="total-filtered-count" style="font-size:12px;color:rgb(100 116 139);margin-left:auto;"></span>
+        </div>
+
+        <!-- Tablo -->
+        <div class="custom-table-container">
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Teklif No</th>
+                        <th>Müşteri</th>
+                        <th>Tarih</th>
+                        <th>Geçerlilik</th>
+                        <th>Tutar</th>
+                        <th>Durum</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody id="quotations-table-body">
+                    <tr><td colspan="7" class="text-center py-8" style="color:rgb(100 116 139);">Yükleniyor...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Yeni/Düzenle Modal -->
+    <div id="quotation-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width:64rem;">
+            <div class="flex items-center justify-between mb-6">
+                <h3 id="modal-title" class="modal-title">Yeni Teklif</h3>
+                <button id="btn-modal-close" style="background:none;border:none;color:rgb(100 116 139);cursor:pointer;font-size:18px;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form id="quotation-form">
+                <input type="hidden" id="q-id">
+
+                <!-- Üst bilgiler -->
+                <div class="section-card">
+                    <div class="section-label">Teklif Bilgileri</div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                            <label style="font-size:11px;color:rgb(100 116 139);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Teklif No</label>
+                            <input type="text" id="q-number" placeholder="QT-2025-001" style="font-family:Verdana, Geneva, sans-serif;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:rgb(100 116 139);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Müşteri *</label>
+                            <select id="q-customer" required style="font-family:Verdana, Geneva, sans-serif;">
+                                <option value="">-- Müşteri Seçin --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:rgb(100 116 139);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Teklif Tarihi</label>
+                            <input type="date" id="q-date">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:rgb(100 116 139);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Geçerlilik Tarihi</label>
+                            <input type="date" id="q-valid-until">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:rgb(100 116 139);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Döviz</label>
+                            <select id="q-currency" style="font-family:Verdana, Geneva, sans-serif;">
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                                <option value="GBP">GBP</option>
+                                <option value="TRY">TRY</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:rgb(100 116 139);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Durum</label>
+                            <select id="q-status" style="font-family:Verdana, Geneva, sans-serif;">
+                                <option value="Bekliyor">Bekliyor</option>
+                                <option value="Kabul">Kabul</option>
+                                <option value="Red">Red</option>
+                                <option value="Süresi Doldu">Süresi Doldu</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2">
+                            <label style="font-size:11px;color:rgb(100 116 139);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Notlar</label>
+                            <textarea id="q-notes" rows="2" placeholder="Teklif notları, özel koşullar..." style="height:62px;"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ürün Satırları -->
+                <div class="section-card">
+                    <div class="section-label" style="display:flex;justify-content:space-between;align-items:center;">
+                        <span>Ürün Kalemleri</span>
+                        <button type="button" id="btn-add-item"
+                            style="font-size:11px;color:rgb(52 211 153);background:none;border:1px solid rgba(52,211,153,0.3);border-radius:5px;padding:3px 10px;cursor:pointer;font-family:Verdana, Geneva, sans-serif;font-weight:600;">
+                            + Satır Ekle
+                        </button>
+                    </div>
+                    <div id="items-container"></div>
+                    <div style="border-top:1px solid rgb(30 41 59);margin-top:12px;padding-top:12px;display:flex;justify-content:flex-end;align-items:center;gap:12px;">
+                        <span style="font-size:12px;color:rgb(100 116 139);">Toplam Tutar:</span>
+                        <span id="q-total-display" style="font-size:18px;font-weight:700;color:rgb(226 232 240);">0.00</span>
+                    </div>
+                </div>
+
+                <!-- Butonlar -->
+                <div class="flex items-center justify-between pt-2">
+                    <button type="button" id="btn-delete-quotation"
+                        style="display:none;padding:8px 16px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);color:rgb(248 113 113);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Verdana, Geneva, sans-serif;">
+                        <i class="fa-solid fa-trash-can"></i> Teklifi Sil
+                    </button>
+                    <div class="flex gap-3 ml-auto">
+                        <button type="button" id="btn-convert-order"
+                            style="display:none;padding:8px 16px;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.3);color:rgb(96 165 250);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Verdana, Geneva, sans-serif;">
+                            <i class="fa-solid fa-arrows-rotate"></i> Siparişe Dönüştür
+                        </button>
+                        <button type="button" id="btn-q-cancel"
+                            style="padding:8px 16px;background:transparent;border:1px solid rgb(30 41 59);color:rgb(148 163 184);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Verdana, Geneva, sans-serif;">
+                            İptal
+                        </button>
+                        <button type="submit"
+                            style="padding:8px 20px;background:#2D4A3E;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Verdana, Geneva, sans-serif;">
+                            Kaydet
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</body>
+</html>
