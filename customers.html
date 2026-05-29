@@ -65,11 +65,18 @@
             </div>
         </header>
 
-        <section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div class="relative">
                 <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm z-10 pointer-events-none"></i>
                 <input type="text" id="search-input" placeholder="Firma adı, yetkili veya ülke ara..." style="padding-left:2.25rem !important">
             </div>
+            <select id="filter-region">
+                <option value="">Tüm Bölgeler (Filtrele)</option>
+                <option value="Avrupa">🌍 Avrupa</option>
+                <option value="Orta Doğu">🕌 Orta Doğu</option>
+                <option value="Afrika">🌍 Afrika</option>
+                <option value="Asya">🌏 Asya</option>
+            </select>
             <select id="filter-country">
                 <option value="">Tüm Ülkeler (Filtrele)</option>
             </select>

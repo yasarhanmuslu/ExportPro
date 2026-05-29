@@ -173,6 +173,7 @@ function initEventListeners() {
     document.getElementById('customer-form').addEventListener('submit', handleFormSubmit);
     document.getElementById('btn-delete-customer').addEventListener('click', handleDeleteCustomer);
     document.getElementById('search-input').addEventListener('input', applyFilters);
+    document.getElementById('filter-region').addEventListener('change', applyFilters);
     document.getElementById('filter-country').addEventListener('change', applyFilters);
     document.getElementById('filter-group').addEventListener('change', applyFilters);
     document.getElementById('btn-export-excel').addEventListener('click', exportToCSV);
@@ -308,20 +309,59 @@ async function handleDeleteCustomer() {
     }
 }
 
+// --- BÖLGE HARİTASI ---
+const REGION_MAP = {
+    // AVRUPA
+    'ALMANYA': 'Avrupa', 'ARNAVUTLUK': 'Avrupa', 'AVUSTRALYA': 'Avrupa',
+    'AVUSTURYA': 'Avrupa', 'BOSNA HERSEK': 'Avrupa',
+    'BULGARİSTAN': 'Avrupa', 'ÇEKYA': 'Avrupa', 'ESTONYA': 'Avrupa',
+    'FRANSA': 'Avrupa', 'HIRVATİSTAN': 'Avrupa', 'İNGİLTERE': 'Avrupa',
+    'İTALYA': 'Avrupa', 'KARADAĞ': 'Avrupa', 'KOSOVA': 'Avrupa',
+    'LİTVANYA': 'Avrupa', 'MACARİSTAN': 'Avrupa', 'MAKEDONYA': 'Avrupa',
+    'MOLDOVA': 'Avrupa', 'ROMANYA': 'Avrupa', 'SIRBİSTAN': 'Avrupa',
+    'YUNANİSTAN': 'Avrupa',
+    // ASYA
+    'AZERBAYCAN': 'Asya', 'GÜRCİSTAN': 'Asya', 'TÜRKİYE': 'Asya',
+    'TÜRKMENİSTAN': 'Asya', 'KIBRIS': 'Asya', 'RUSYA': 'Asya',
+    'BANGLADEŞ': 'Asya', 'HİNDİSTAN': 'Asya', 'PAKİSTAN': 'Asya',
+    // ORTA DOĞU
+    'B.A.E': 'Orta Doğu', 'BAHREYN': 'Orta Doğu',
+    'FİLİSTİN': 'Orta Doğu', 'IRAK': 'Orta Doğu',
+    'İRAN': 'Orta Doğu', 'İSRAİL': 'Orta Doğu',
+    'KATAR': 'Orta Doğu', 'KUVEYT': 'Orta Doğu', 'LÜBNAN': 'Orta Doğu',
+    'SUUDİ ARABİSTAN': 'Orta Doğu', 'UMMAN': 'Orta Doğu', 'ÜRDÜN': 'Orta Doğu',
+    // AFRİKA
+    'CEZAYİR': 'Afrika', 'ETİYOPYA': 'Afrika', 'FAS': 'Afrika',
+    'FİLDİŞİ SAHİLİ': 'Afrika', 'GANA': 'Afrika', 'GİNE': 'Afrika',
+    'KAMERUN': 'Afrika', 'LİBYA': 'Afrika',
+    'MAURİTİUS': 'Afrika', 'MISIR': 'Afrika', 'NİJERYA': 'Afrika',
+    'SENEGAL': 'Afrika', 'SOMALİ': 'Afrika', 'SUDAN': 'Afrika',
+    'TUNUS': 'Afrika',
+};
+
+function getRegion(country) {
+    if (!country) return 'Diğer';
+    // Normalize: trim + uppercase TR
+    const normalized = country.trim().toLocaleUpperCase('tr-TR');
+    return REGION_MAP[normalized] || 'Diğer';
+}
+
 // --- FİLTRELEME ---
 function applyFilters() {
-    const searchVal = document.getElementById('search-input').value.toLowerCase();
+    const searchVal  = document.getElementById('search-input').value.toLowerCase();
+    const regionVal  = document.getElementById('filter-region').value;
     const countryVal = document.getElementById('filter-country').value;
-    const groupVal = document.getElementById('filter-group').value;
+    const groupVal   = document.getElementById('filter-group').value;
 
     const filtered = globalCustomers.filter(c => {
         const matchSearch =
             c.company_name.toLowerCase().includes(searchVal) ||
             c.country.toLowerCase().includes(searchVal) ||
             (c.contact_name || '').toLowerCase().includes(searchVal);
+        const matchRegion  = regionVal  === "" || getRegion(c.country) === regionVal;
         const matchCountry = countryVal === "" || c.country === countryVal;
-        const matchGroup = groupVal === "" || c.client_group === groupVal;
-        return matchSearch && matchCountry && matchGroup;
+        const matchGroup   = groupVal   === "" || c.client_group === groupVal;
+        return matchSearch && matchRegion && matchCountry && matchGroup;
     });
 
     renderCustomersList(filtered);
