@@ -96,7 +96,6 @@
                 <option value="EUR">EUR (€)</option>
                 <option value="USD">USD ($)</option>
                 <option value="TRY">TRY (₺)</option>
-                <option value="GBP">GBP (£)</option>
             </select>
             <select id="filter-production-status">
                 <option value="">Tüm Üretim Durumları</option>
@@ -190,6 +189,25 @@
                                 <input type="text" id="order_number" placeholder="Örn: EXP-2026-001">
                             </div>
                         </div>
+                        <div class="grid grid-cols-3 gap-4 mb-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">İDEVİT SİP. NO</label>
+                                <input type="text" id="idevit_order_no" placeholder="Örn: 0000258">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">İDEAL SİP. NO</label>
+                                <input type="text" id="ideal_order_no" placeholder="Örn: 0003474">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sipariş Türü</label>
+                                <select id="order_type">
+                                    <option value="">-- Seçiniz --</option>
+                                    <option value="İhracat">İhracat</option>
+                                    <option value="İhraç Kayıt">İhraç Kayıt</option>
+                                    <option value="KDV">KDV</option>
+                                </select>
+                            </div>
+                        </div>
                         <div class="grid grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sipariş Tarihi *</label>
@@ -215,7 +233,6 @@
                                     <option value="EUR">EUR (€)</option>
                                     <option value="USD">USD ($)</option>
                                     <option value="TRY">TRY (₺)</option>
-                                    <option value="GBP">GBP (£)</option>
                                 </select>
                             </div>
                             <div>
@@ -235,6 +252,21 @@
                             <div>
                                 <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Adet / Miktar</label>
                                 <input type="text" id="order_quantity" placeholder="Örn: 500 adet">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 gap-4 mt-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Ödeme Şekli</label>
+                                <select id="payment_method">
+                                    <option value="">-- Seçiniz --</option>
+                                    <option value="Peşin">Peşin</option>
+                                    <option value="Mal Mukabili">Mal Mukabili</option>
+                                    <option value="Bedelsiz">Bedelsiz</option>
+                                    <option value="30 Gün Vade">30 Gün Vade</option>
+                                    <option value="60 Gün Vade">60 Gün Vade</option>
+                                    <option value="90 Gün Vade">90 Gün Vade</option>
+                                    <option value="120 Gün Vade">120 Gün Vade</option>
+                                </select>
                             </div>
                         </div>
                     </div>

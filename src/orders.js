@@ -425,6 +425,10 @@ function openModalForOrderCreate() {
     document.getElementById('order-id').value = '';
     document.getElementById('customer-search-input').value = '';
     document.getElementById('order-customer-select').value = '';
+    document.getElementById('idevit_order_no').value = '';
+    document.getElementById('ideal_order_no').value = '';
+    document.getElementById('order_type').value = '';
+    document.getElementById('payment_method').value = '';
     document.getElementById('order_date').value = new Date().toISOString().slice(0, 10);
     document.getElementById('live-remaining-balance').textContent = '0,00';
     document.getElementById('order-modal-title').innerHTML = `<i class="fa-solid fa-cart-plus text-[#2D4A3E]"></i> Yeni Sipariş Girişi`;
@@ -458,6 +462,10 @@ async function openModalForOrderEdit(id) {
     document.getElementById('order_date').value = order.order_date;
     document.getElementById('currency').value = order.currency;
     document.getElementById('order_number').value = order.order_number || '';
+    document.getElementById('idevit_order_no').value = order.idevit_order_no || '';
+    document.getElementById('ideal_order_no').value = order.ideal_order_no || '';
+    document.getElementById('order_type').value = order.order_type || '';
+    document.getElementById('payment_method').value = order.payment_method || '';
     document.getElementById('shipment_date').value = order.shipment_date || '';
     document.getElementById('due_date').value = order.due_date || '';
     document.getElementById('total_amount').value = parseFloat(order.total_amount||0).toLocaleString('tr-TR', { minimumFractionDigits: 2 });
@@ -514,6 +522,10 @@ async function handleOrderSubmit(e) {
         advance_payment,
         remaining_balance,
         order_number: document.getElementById('order_number').value || null,
+        idevit_order_no: document.getElementById('idevit_order_no').value || null,
+        ideal_order_no: document.getElementById('ideal_order_no').value || null,
+        order_type: document.getElementById('order_type').value || null,
+        payment_method: document.getElementById('payment_method').value || null,
         shipment_date: document.getElementById('shipment_date').value || null,
         due_date: document.getElementById('due_date').value || null,
         production_status: document.getElementById('production_status').value,
@@ -647,11 +659,11 @@ function escapeHtml(str) {
 function exportOrdersToCSV() {
     if (globalOrders.length === 0) { alert("Aktarılacak sipariş verisi yok."); return; }
     let csv = "data:text/csv;charset=utf-8,\uFEFF";
-    csv += "Siparis Tarihi;Siparis No;Musteri;Ulke;Para Birimi;Toplam Tutar;Avans;Kalan Bakiye;Uretim Durumu;Odeme Durumu;Adet;Notlar\n";
+    csv += "Siparis Tarihi;Siparis No;Idevit Sip No;Ideal Sip No;Siparis Turu;Musteri;Ulke;Para Birimi;Toplam Tutar;Avans;Kalan Bakiye;Odeme Sekli;Uretim Durumu;Odeme Durumu;Adet;Notlar\n";
     globalOrders.forEach(o => {
         const compName = o.customers ? o.customers.company_name : '';
         const country = o.customers ? o.customers.country : '';
-        csv += `"${o.order_date}";"${o.order_number||''}";"${compName}";"${country}";"${o.currency}";"${o.total_amount}";"${o.advance_payment}";"${o.remaining_balance}";"${o.production_status||''}";"${o.payment_status||''}";"${o.order_quantity||''}";"${(o.order_notes||'').replace(/"/g,'""')}"\n`;
+        csv += `"${o.order_date}";"${o.order_number||''}";"${o.idevit_order_no||''}";"${o.ideal_order_no||''}";"${o.order_type||''}";"${compName}";"${country}";"${o.currency}";"${o.total_amount}";"${o.advance_payment}";"${o.remaining_balance}";"${o.payment_method||''}";"${o.production_status||''}";"${o.payment_status||''}";"${o.order_quantity||''}";"${(o.order_notes||'').replace(/"/g,'""')}"\n`;
     });
     const link = document.createElement("a");
     link.setAttribute("href", encodeURI(csv));
