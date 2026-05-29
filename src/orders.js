@@ -21,22 +21,64 @@ async function fetchCustomersData() {
     try {
         const { data: customers, error } = await supabase
             .from('customers')
-            .select('id, company_name, country')
+            .select('id, company_name, country, status')
+            .eq('status', 'Aktif')
             .order('company_name', { ascending: true });
         if (error) throw error;
         globalCustomers = customers;
-
-        const select = document.getElementById('order-customer-select');
-        select.innerHTML = '<option value="">-- Müşteri Seçiniz --</option>';
-        customers.forEach(c => {
-            const opt = document.createElement('option');
-            opt.value = c.id;
-            opt.textContent = `${c.company_name} (${c.country})`;
-            select.appendChild(opt);
-        });
+        initCustomerSearchDropdown(customers);
     } catch (err) {
         console.error("Müşteri listesi yüklenemedi:", err.message);
     }
+}
+
+function initCustomerSearchDropdown(customers) {
+    const wrapper = document.getElementById('customer-dropdown-wrapper');
+    if (!wrapper) return;
+
+    const searchInput  = document.getElementById('customer-search-input');
+    const hiddenSelect = document.getElementById('order-customer-select');
+    const dropdown     = document.getElementById('customer-dropdown-list');
+
+    function renderList(filterText) {
+        const q = filterText.toLowerCase();
+        const filtered = customers.filter(c =>
+            c.company_name.toLowerCase().includes(q) ||
+            (c.country || '').toLowerCase().includes(q)
+        );
+        dropdown.innerHTML = '';
+        if (filtered.length === 0) {
+            dropdown.innerHTML = `<div style="padding:10px 14px;font-size:12px;color:#968B7A;">Sonuç bulunamadı</div>`;
+        } else {
+            filtered.forEach(c => {
+                const item = document.createElement('div');
+                item.className = 'customer-dropdown-item';
+                item.dataset.id = c.id;
+                item.dataset.label = `${c.company_name} (${c.country})`;
+                item.innerHTML = `<span style="font-weight:600;color:#1C1A17;">${escapeHtml(c.company_name)}</span>
+                    <span style="font-size:11px;color:#968B7A;margin-left:6px;text-transform:uppercase;letter-spacing:.06em;">${escapeHtml(c.country||'')}</span>`;
+                item.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    hiddenSelect.value = c.id;
+                    searchInput.value  = item.dataset.label;
+                    dropdown.classList.add('hidden');
+                    searchInput.style.borderColor = '#2D4A3E';
+                });
+                dropdown.appendChild(item);
+            });
+        }
+        dropdown.classList.remove('hidden');
+    }
+
+    searchInput.addEventListener('input', () => renderList(searchInput.value));
+    searchInput.addEventListener('focus', () => renderList(searchInput.value));
+    searchInput.addEventListener('blur',  () => setTimeout(() => dropdown.classList.add('hidden'), 150));
+
+    // Düzenleme modunda dışarıdan set etmek için yardımcı
+    wrapper._setCustomer = (id, label) => {
+        hiddenSelect.value = id;
+        searchInput.value  = label;
+    };
 }
 
 async function fetchProductsData() {
@@ -381,6 +423,8 @@ function addItemRow() {
 function openModalForOrderCreate() {
     document.getElementById('order-form').reset();
     document.getElementById('order-id').value = '';
+    document.getElementById('customer-search-input').value = '';
+    document.getElementById('order-customer-select').value = '';
     document.getElementById('order_date').value = new Date().toISOString().slice(0, 10);
     document.getElementById('live-remaining-balance').textContent = '0,00';
     document.getElementById('order-modal-title').innerHTML = `<i class="fa-solid fa-cart-plus text-[#2D4A3E]"></i> Yeni Sipariş Girişi`;
@@ -398,7 +442,19 @@ async function openModalForOrderEdit(id) {
     currentOrderId = id;
 
     document.getElementById('order-id').value = order.id;
-    document.getElementById('order-customer-select').value = order.customer_id;
+
+    // Müşteri arama dropdown'ını set et
+    const wrapper = document.getElementById('customer-dropdown-wrapper');
+    const cust = globalCustomers.find(c => c.id === order.customer_id);
+    const label = cust
+        ? `${cust.company_name} (${cust.country})`
+        : (order.customers ? `${order.customers.company_name} (${order.customers.country})` : '');
+    if (wrapper && wrapper._setCustomer) {
+        wrapper._setCustomer(order.customer_id, label);
+    } else {
+        document.getElementById('order-customer-select').value = order.customer_id;
+    }
+
     document.getElementById('order_date').value = order.order_date;
     document.getElementById('currency').value = order.currency;
     document.getElementById('order_number').value = order.order_number || '';
