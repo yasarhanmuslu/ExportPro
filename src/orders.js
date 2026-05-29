@@ -105,7 +105,7 @@ async function fetchOrdersData() {
         renderOrdersTable(orders);
     } catch (err) {
         console.error("Sipariş verileri yüklenemedi:", err.message);
-        document.getElementById('orders-table-body').innerHTML = `<tr><td colspan="9" class="text-center text-[#9F3D3D] py-4">Veriler çekilirken bir hata oluştu.</td></tr>`;
+        document.getElementById('orders-table-body').innerHTML = `<tr><td colspan="8" class="text-center text-[#9F3D3D] py-4">Veriler çekilirken bir hata oluştu.</td></tr>`;
     }
 }
 
@@ -132,44 +132,31 @@ function renderOrdersTable(ordersList) {
     countBadge.textContent = `${ordersList.length} Sipariş`;
 
     if (ordersList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-[#968B7A] py-8">Kriterlere uygun sipariş bulunamadı.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-[#968B7A] py-8">Kriterlere uygun sipariş bulunamadı.</td></tr>`;
         return;
     }
 
     const currencySymbols = { 'EUR': '€', 'USD': '$', 'TRY': '₺', 'GBP': '£' };
 
+    const statusColors = {
+        'Devam Ediyor':    { row: 'row-beyaz',   badge: 'bg-slate-800 text-slate-300',        dot: 'bg-slate-400' },
+        'Ödeme Bekliyor':  { row: 'row-sari',    badge: 'bg-yellow-950/60 text-yellow-400',   dot: 'bg-yellow-400' },
+        'Tamamlandı':      { row: 'row-yesil',   badge: 'bg-emerald-950/60 text-emerald-400', dot: 'bg-emerald-400' },
+        'İptal / Gecikme': { row: 'row-kirmizi', badge: 'bg-rose-950/60 text-rose-400',       dot: 'bg-rose-400' },
+        'Yeni Müşteri':    { row: 'row-ten',     badge: 'bg-blue-950/60 text-blue-400',       dot: 'bg-blue-400' },
+    };
+
     ordersList.forEach(order => {
         const symbol = currencySymbols[order.currency] || order.currency;
         const compName = order.customers ? order.customers.company_name : 'Bilinmeyen Müşteri';
         const country = order.customers ? order.customers.country : '';
-
-        const prodColors = {
-            'Bekliyor': 'bg-[#FBF8F1] text-[#6B655B]',
-            'Üretimde': 'bg-blue-950/60 text-blue-400',
-            'Hazır': 'bg-emerald-950/60 text-[#3D6E50]',
-            'Sevk Edildi': 'bg-[#E8EEEA] text-[#2D4A3E]'
-        };
-        const payColors = {
-            'Ödenmedi': 'bg-rose-950/60 text-[#9F3D3D]',
-            'Kısmen Ödendi': 'bg-amber-950/60 text-[#B26B33]',
-            'Ödendi': 'bg-emerald-950/60 text-[#3D6E50]'
-        };
-
-        const prodStatus = order.production_status || 'Bekliyor';
-        const payStatus = order.payment_status || 'Ödenmedi';
-
-        let rowClass = 'row-beyaz';
-        const remaining = parseFloat(order.remaining_balance || 0);
-        const total = parseFloat(order.total_amount || 0);
-        if (payStatus === 'Ödendi') rowClass = 'row-yesil';
-        else if (remaining > 0 && remaining < total) rowClass = 'row-sari';
-        else if (remaining >= total && payStatus !== 'Ödenmedi') rowClass = 'row-kirmizi';
-
+        const status = order.order_status || 'Devam Ediyor';
+        const sc = statusColors[status] || statusColors['Devam Ediyor'];
         const tr = document.createElement('tr');
-        tr.className = rowClass;
+        tr.className = sc.row;
         tr.innerHTML = `
             <td>
-                <span class="w-2.5 h-2.5 rounded-full inline-block ${rowClass === 'row-yesil' ? 'bg-emerald-400' : rowClass === 'row-sari' ? 'bg-yellow-400' : rowClass === 'row-kirmizi' ? 'bg-rose-400' : 'bg-slate-500'}"></span>
+                <span class="w-2.5 h-2.5 rounded-full inline-block ${sc.dot}"></span>
             </td>
             <td>
                 <div class="text-[#6B655B] text-xs font-mono">${order.order_date ? new Date(order.order_date).toLocaleDateString('tr-TR') : '-'}</div>
@@ -186,10 +173,7 @@ function renderOrdersTable(ordersList) {
             <td class="text-right font-mono text-[#3D6E50]">${parseFloat(order.advance_payment||0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${symbol}</td>
             <td class="text-right font-mono text-[#B26B33]">${parseFloat(order.remaining_balance||0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${symbol}</td>
             <td class="text-center">
-                <span class="text-xs px-2 py-1 rounded-full font-semibold ${prodColors[prodStatus] || prodColors['Bekliyor']}">${prodStatus}</span>
-            </td>
-            <td class="text-center">
-                <span class="text-xs px-2 py-1 rounded-full font-semibold ${payColors[payStatus] || payColors['Ödenmedi']}">${payStatus}</span>
+                <span class="text-xs px-2 py-1 rounded-full font-semibold ${sc.badge}">${status}</span>
             </td>
             <td class="text-center">
                 <button class="btn-edit-order-trigger text-xs bg-[#FBF8F1] hover:bg-[#FBF8F1] border border-[#EFEAE0] hover:border-[#E4DDCE] px-2.5 py-1.5 rounded-lg text-orange-400 transition-colors" data-id="${order.id}">
@@ -215,8 +199,7 @@ function initOrderEventListeners() {
 
     document.getElementById('order-search-input').addEventListener('input', applyOrderFilters);
     document.getElementById('filter-order-currency').addEventListener('change', applyOrderFilters);
-    document.getElementById('filter-production-status').addEventListener('change', applyOrderFilters);
-    document.getElementById('filter-payment-status').addEventListener('change', applyOrderFilters);
+    document.getElementById('filter-order-status').addEventListener('change', applyOrderFilters);
 
     const totalInput = document.getElementById('total_amount');
     const advanceInput = document.getElementById('advance_payment');
@@ -429,6 +412,7 @@ function openModalForOrderCreate() {
     document.getElementById('ideal_order_no').value = '';
     document.getElementById('order_type').value = '';
     document.getElementById('payment_method').value = '';
+    document.getElementById('order_status').value = 'Devam Ediyor';
     document.getElementById('order_date').value = new Date().toISOString().slice(0, 10);
     document.getElementById('live-remaining-balance').textContent = '0,00';
     document.getElementById('order-modal-title').innerHTML = `<i class="fa-solid fa-cart-plus text-[#2D4A3E]"></i> Yeni Sipariş Girişi`;
@@ -468,11 +452,10 @@ async function openModalForOrderEdit(id) {
     document.getElementById('payment_method').value = order.payment_method || '';
     document.getElementById('shipment_date').value = order.shipment_date || '';
     document.getElementById('due_date').value = order.due_date || '';
+    document.getElementById('order_status').value = order.order_status || 'Devam Ediyor';
     document.getElementById('total_amount').value = parseFloat(order.total_amount||0).toLocaleString('tr-TR', { minimumFractionDigits: 2 });
     document.getElementById('advance_payment').value = parseFloat(order.advance_payment||0).toLocaleString('tr-TR', { minimumFractionDigits: 2 });
     document.getElementById('live-remaining-balance').textContent = parseFloat(order.remaining_balance||0).toLocaleString('tr-TR', { minimumFractionDigits: 2 });
-    document.getElementById('production_status').value = order.production_status || 'Bekliyor';
-    document.getElementById('payment_status').value = order.payment_status || 'Ödenmedi';
     document.getElementById('order_quantity').value = order.order_quantity || '';
     document.getElementById('order_notes').value = order.order_notes || '';
 
@@ -528,8 +511,7 @@ async function handleOrderSubmit(e) {
         payment_method: document.getElementById('payment_method').value || null,
         shipment_date: document.getElementById('shipment_date').value || null,
         due_date: document.getElementById('due_date').value || null,
-        production_status: document.getElementById('production_status').value,
-        payment_status: document.getElementById('payment_status').value,
+        order_status: document.getElementById('order_status').value,
         order_quantity: document.getElementById('order_quantity').value || null,
         order_notes: document.getElementById('order_notes').value || null,
     };
@@ -624,17 +606,15 @@ async function handleDeleteOrder() {
 function applyOrderFilters() {
     const searchVal = document.getElementById('order-search-input').value.toLowerCase();
     const currencyVal = document.getElementById('filter-order-currency').value;
-    const prodVal = document.getElementById('filter-production-status').value;
-    const payVal = document.getElementById('filter-payment-status').value;
+    const statusVal = document.getElementById('filter-order-status').value;
 
     const filtered = globalOrders.filter(o => {
         const compName = o.customers ? o.customers.company_name.toLowerCase() : '';
         const orderNo = (o.order_number || '').toLowerCase();
         const matchSearch = compName.includes(searchVal) || orderNo.includes(searchVal);
         const matchCurrency = currencyVal === "" || o.currency === currencyVal;
-        const matchProd = prodVal === "" || o.production_status === prodVal;
-        const matchPay = payVal === "" || o.payment_status === payVal;
-        return matchSearch && matchCurrency && matchProd && matchPay;
+        const matchStatus = statusVal === "" || o.order_status === statusVal;
+        return matchSearch && matchCurrency && matchStatus;
     });
 
     renderOrdersTable(filtered);
@@ -659,11 +639,11 @@ function escapeHtml(str) {
 function exportOrdersToCSV() {
     if (globalOrders.length === 0) { alert("Aktarılacak sipariş verisi yok."); return; }
     let csv = "data:text/csv;charset=utf-8,\uFEFF";
-    csv += "Siparis Tarihi;Siparis No;Idevit Sip No;Ideal Sip No;Siparis Turu;Musteri;Ulke;Para Birimi;Toplam Tutar;Avans;Kalan Bakiye;Odeme Sekli;Uretim Durumu;Odeme Durumu;Adet;Notlar\n";
+    csv += "Siparis Tarihi;Siparis No;Idevit Sip No;Ideal Sip No;Siparis Turu;Musteri;Ulke;Para Birimi;Toplam Tutar;Avans;Kalan Bakiye;Odeme Sekli;Siparis Durumu;Adet;Notlar\n";
     globalOrders.forEach(o => {
         const compName = o.customers ? o.customers.company_name : '';
         const country = o.customers ? o.customers.country : '';
-        csv += `"${o.order_date}";"${o.order_number||''}";"${o.idevit_order_no||''}";"${o.ideal_order_no||''}";"${o.order_type||''}";"${compName}";"${country}";"${o.currency}";"${o.total_amount}";"${o.advance_payment}";"${o.remaining_balance}";"${o.payment_method||''}";"${o.production_status||''}";"${o.payment_status||''}";"${o.order_quantity||''}";"${(o.order_notes||'').replace(/"/g,'""')}"\n`;
+        csv += `"${o.order_date}";"${o.order_number||''}";"${o.idevit_order_no||''}";"${o.ideal_order_no||''}";"${o.order_type||''}";"${compName}";"${country}";"${o.currency}";"${o.total_amount}";"${o.advance_payment}";"${o.remaining_balance}";"${o.payment_method||''}";"${o.order_status||''}";"${o.order_quantity||''}";"${(o.order_notes||'').replace(/"/g,'""')}"\n`;
     });
     const link = document.createElement("a");
     link.setAttribute("href", encodeURI(csv));

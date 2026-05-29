@@ -97,18 +97,13 @@
                 <option value="USD">USD ($)</option>
                 <option value="TRY">TRY (₺)</option>
             </select>
-            <select id="filter-production-status">
-                <option value="">Tüm Üretim Durumları</option>
-                <option value="Bekliyor">Bekliyor</option>
-                <option value="Üretimde">Üretimde</option>
-                <option value="Hazır">Hazır</option>
-                <option value="Sevk Edildi">Sevk Edildi</option>
-            </select>
-            <select id="filter-payment-status">
-                <option value="">Tüm Ödeme Durumları</option>
-                <option value="Ödenmedi">Ödenmedi</option>
-                <option value="Kısmen Ödendi">Kısmen Ödendi</option>
-                <option value="Ödendi">Ödendi</option>
+            <select id="filter-order-status">
+                <option value="">Tüm Sipariş Durumları</option>
+                <option value="Devam Ediyor">⬜ Devam Ediyor</option>
+                <option value="Ödeme Bekliyor">🟡 Ödeme Bekliyor</option>
+                <option value="Tamamlandı">🟢 Tamamlandı</option>
+                <option value="İptal / Gecikme">🔴 İptal / Gecikme</option>
+                <option value="Yeni Müşteri">🔵 Yeni Müşteri</option>
             </select>
         </section>
 
@@ -127,13 +122,12 @@
                         <th class="text-right">Toplam Tutar</th>
                         <th class="text-right">Alınan Avans</th>
                         <th class="text-right">Kalan Bakiye</th>
-                        <th class="text-center">Üretim</th>
-                        <th class="text-center">Ödeme</th>
+                        <th class="text-center">Sipariş Durumu</th>
                         <th class="text-center">İşlem</th>
                     </tr>
                 </thead>
                 <tbody id="orders-table-body">
-                    <tr><td colspan="9" class="text-center text-slate-500 py-8">Yükleniyor...</td></tr>
+                    <tr><td colspan="8" class="text-center text-slate-500 py-8">Yükleniyor...</td></tr>
                 </tbody>
             </table>
         </section>
@@ -272,23 +266,16 @@
                     </div>
 
                     <div class="section-card">
-                        <p class="section-label"><i class="fa-solid fa-signal mr-1"></i> 3. Üretim & Ödeme Durumu</p>
-                        <div class="grid grid-cols-2 gap-4">
+                        <p class="section-label"><i class="fa-solid fa-signal mr-1"></i> 3. Sipariş Durumu</p>
+                        <div class="grid grid-cols-1 gap-4">
                             <div>
-                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Üretim Durumu</label>
-                                <select id="production_status">
-                                    <option value="Bekliyor">Bekliyor</option>
-                                    <option value="Üretimde">Üretimde</option>
-                                    <option value="Hazır">Hazır</option>
-                                    <option value="Sevk Edildi">Sevk Edildi</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Ödeme Durumu</label>
-                                <select id="payment_status">
-                                    <option value="Ödenmedi">Ödenmedi</option>
-                                    <option value="Kısmen Ödendi">Kısmen Ödendi</option>
-                                    <option value="Ödendi">Ödendi</option>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sipariş Durumu</label>
+                                <select id="order_status">
+                                    <option value="Devam Ediyor">⬜ Devam Ediyor</option>
+                                    <option value="Ödeme Bekliyor">🟡 Ödeme Bekliyor</option>
+                                    <option value="Tamamlandı">🟢 Tamamlandı</option>
+                                    <option value="İptal / Gecikme">🔴 İptal / Gecikme</option>
+                                    <option value="Yeni Müşteri">🔵 Yeni Müşteri</option>
                                 </select>
                             </div>
                         </div>
