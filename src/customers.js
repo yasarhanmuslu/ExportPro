@@ -22,6 +22,7 @@ async function fetchCustomers() {
         const { data: customers, error } = await supabase
             .from('customers')
             .select('*')
+            .eq('user_id', session.user.id)
             .order('country', { ascending: true })
             .order('company_name', { ascending: true });
 

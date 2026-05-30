@@ -6,12 +6,13 @@ import { requireAuth } from './auth/auth.js';
 let globalCustomers = [];
 let globalClientPrices = []; // { customer_id, company_name, products: [{product_name, list_price, discount_rate, net_price, id?}] }
 let tempProducts = []; // Modal içi geçici ürün listesi
+let globalProductOptions = []; // { id, product_name, product_code } - ürün seçimi için
 
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
     await renderNavbar('client-prices');
-    await Promise.all([fetchCustomers(), fetchClientPrices()]);
+    await Promise.all([fetchCustomers(), fetchClientPrices(), fetchProductOptions()]);
     initEventListeners();
 });
 
@@ -38,12 +39,52 @@ async function fetchCustomers() {
     }
 }
 
+// Ürün seçimi için ürün listesini çek (datalist autocomplete)
+async function fetchProductOptions() {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const { data, error } = await supabase
+            .from('products')
+            .select('id, product_name, product_code')
+            .eq('user_id', session.user.id)
+            .order('product_name', { ascending: true });
+        if (error) throw error;
+        globalProductOptions = data || [];
+
+        const dl = document.getElementById('cp-product-options');
+        if (dl) {
+            dl.innerHTML = '';
+            globalProductOptions.forEach(p => {
+                const opt = document.createElement('option');
+                // Görünür değer: ürün adı; kod varsa parantez içinde ipucu
+                opt.value = p.product_name;
+                opt.label = p.product_code ? `${p.product_code} — ${p.product_name}` : p.product_name;
+                dl.appendChild(opt);
+            });
+        }
+    } catch (err) {
+        console.error("Ürün listesi yüklenemedi:", err.message);
+    }
+}
+
+// Girilen ürün adı/koduna karşılık gelen product_id'yi bul (eşleşme yoksa null)
+function resolveProductId(nameOrCode) {
+    if (!nameOrCode) return null;
+    const v = nameOrCode.trim().toLowerCase();
+    const match = globalProductOptions.find(p =>
+        (p.product_name && p.product_name.toLowerCase() === v) ||
+        (p.product_code && p.product_code.toLowerCase() === v)
+    );
+    return match ? match.id : null;
+}
+
 async function fetchClientPrices() {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         const { data, error } = await supabase
             .from('customer_prices')
-            .select(`*, customers!client_prices_customer_id_fkey ( company_name, country )`)
+            .select(`*, customers!fk_customer_prices_customer ( company_name, country )`)
             .eq('user_id', session.user.id)
             .order('product_name', { ascending: true });
         if (error) throw error;
@@ -222,7 +263,8 @@ function addOrUpdateProduct() {
     if (!productName) { alert("Lütfen ürün adını giriniz."); return; }
 
     const editIdx = document.getElementById('cp-edit-product-idx').value;
-    const product = { product_name: productName, list_price: listPrice, net_price: netPrice, discount_rate: discountRate };
+    const productId = resolveProductId(productName); // eşleşme yoksa null (serbest metin)
+    const product = { product_id: productId, product_name: productName, list_price: listPrice, net_price: netPrice, discount_rate: discountRate };
 
     if (editIdx !== '') {
         tempProducts[parseInt(editIdx)] = { ...tempProducts[parseInt(editIdx)], ...product };
@@ -294,6 +336,7 @@ async function saveClientPrices() {
         const inserts = tempProducts.map(p => ({
             user_id: userId,
             customer_id: customerId,
+            product_id: p.product_id || null,   // ← eklendi (nullable)
             product_name: p.product_name,
             list_price: parseFloat(p.list_price) || 0,
             net_price: parseFloat(p.net_price) || 0,

@@ -122,7 +122,8 @@
                     <div class="product-form-row grid grid-cols-12 gap-2 items-end">
                         <div class="col-span-4">
                             <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Ürün Adı / Kodu</label>
-                            <input type="text" id="cp-temp-product" placeholder="Örn: ALU-PROFIL-X200">
+                            <input type="text" id="cp-temp-product" list="cp-product-options" autocomplete="off" placeholder="Örn: ALU-PROFIL-X200">
+                            <datalist id="cp-product-options"></datalist>
                         </div>
                         <div class="col-span-2">
                             <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Liste (€)</label>

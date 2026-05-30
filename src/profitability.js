@@ -53,7 +53,7 @@ async function fetchCustomerPrices() {
         .from('customer_prices')
         .select(`
             id, customer_id, product_name, list_price, discount_rate, net_price,
-            customers!customer_prices_customer_id_fkey ( id, company_name, country )
+            customers!fk_customer_prices_customer ( id, company_name, country )
         `)
         .order('customer_id', { ascending: true });
 

@@ -21,7 +21,7 @@ async function init() {
 async function loadOrders() {
     const { data, error } = await supabase
         .from('orders')
-        .select('*, customers!orders_customer_id_fkey(company_name)')
+        .select('*, customers!fk_orders_customer(company_name)')
         .eq('user_id', session.user.id)
         .order('shipment_date', { ascending: true });
 
