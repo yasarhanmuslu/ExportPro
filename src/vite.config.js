@@ -20,7 +20,7 @@ export default defineConfig({
         profitability: resolve(__dirname, 'profitability.html'),
         complaints: resolve(__dirname, 'complaints.html'),
         payments: resolve(__dirname, 'payments.html'),
-        shipments: resolve(__dirname, 'shipments.html'),
+
         customerScore: resolve(__dirname, 'customer-score.html'),
         productAnalysis: resolve(__dirname, 'product-analysis.html'),
         marketAnalysis: resolve(__dirname, 'market-analysis.html'),
