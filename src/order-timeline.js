@@ -23,7 +23,7 @@ async function loadOrders() {
         .from('orders')
         .select('*, customers!orders_customer_id_fkey(company_name)')
         .eq('user_id', session.user.id)
-        .order('due_date', { ascending: true });
+        .order('shipment_date', { ascending: true });
 
     if (error) { console.error('Orders load error:', error); return; }
     allOrders = data || [];
@@ -36,7 +36,7 @@ function updateOverdueAlert() {
     const today = new Date(); today.setHours(0,0,0,0);
     const overdue = allOrders.filter(o => {
         if (!o.due_date) return false;
-        if (o.production_status === 'Tamamlandı') return false;
+        if (o.order_status === 'Tamamlandı') return false;
         return new Date(o.due_date) < today;
     });
     const alertEl = document.getElementById('alert-overdue');
@@ -53,11 +53,11 @@ function getFiltered() {
     return allOrders.filter(o => {
         if (currentFilter === 'all') return true;
         if (currentFilter === 'active') {
-            return o.production_status !== 'Tamamlandı' && o.production_status !== 'Sevk Edildi';
+            return o.order_status !== 'Tamamlandı';
         }
         if (currentFilter === 'overdue') {
             if (!o.due_date) return false;
-            if (o.production_status === 'Tamamlandı') return false;
+            if (o.order_status === 'Tamamlandı') return false;
             return new Date(o.due_date) < today;
         }
         if (currentFilter === 'thismonth') {
@@ -101,7 +101,6 @@ function renderCalendar() {
     };
 
     filtered.forEach(o => {
-        addEvent(o.order_date, 'order', o);
         addEvent(o.shipment_date, 'shipment', o);
         addEvent(o.due_date, 'due', o);
     });
@@ -115,7 +114,6 @@ function renderCalendar() {
     const dayLabels = ['Pzt','Sal','Çar','Per','Cum','Cmt','Paz'];
 
     let html = `<div class="calendar-grid">`;
-    // Header
     dayLabels.forEach(d => { html += `<div class="cal-header-cell">${d}</div>`; });
 
     // Önceki ay gri hücreleri
@@ -134,17 +132,17 @@ function renderCalendar() {
         html += `<div class="cal-day-cell${isToday?' today':''}">`;
         html += `<div class="cal-day-number">${d}</div>`;
 
-        // Max 3 event göster
         const visible = events.slice(0, 3);
         visible.forEach(ev => {
             const name = ev.order.customers?.company_name || 'Müşteri';
             const shortName = name.length > 14 ? name.slice(0,13)+'…' : name;
-            const isOverdue = ev.type === 'due' && new Date(ev.order.due_date) < today && ev.order.production_status !== 'Tamamlandı';
-            let cls = 'badge-order';
-            let icon = 'fa-circle';
-            if (ev.type === 'shipment') { cls = 'badge-shipment'; icon = 'fa-truck'; }
+            const isOverdue = ev.type === 'due'
+                && new Date(ev.order.due_date) < today
+                && ev.order.order_status !== 'Tamamlandı';
+            let cls = 'badge-shipment';
+            let icon = 'fa-truck';
             if (ev.type === 'due') { cls = isOverdue ? 'badge-due' : 'badge-due-ok'; icon = 'fa-clock'; }
-            const tooltipText = `${name} | ${ev.order.order_number || '—'}`;
+            const tooltipText = `${name} | ${ev.order.order_number || '—'} | ${ev.order.order_status || '—'}`;
             html += `<span class="cal-event-badge ${cls}"
                 data-tooltip="${tooltipText}"
                 data-date="${dateStr}"
@@ -172,7 +170,7 @@ function renderCalendar() {
     // Tooltip
     const tooltip = document.getElementById('event-tooltip');
     container.querySelectorAll('[data-tooltip]').forEach(el => {
-        el.addEventListener('mouseenter', (e) => {
+        el.addEventListener('mouseenter', () => {
             tooltip.textContent = el.getAttribute('data-tooltip');
             tooltip.style.display = 'block';
         });
@@ -210,32 +208,21 @@ function renderList() {
         return d.toLocaleDateString('tr-TR', { day:'2-digit', month:'short', year:'numeric' });
     };
 
-    const dueBadge = (dateStr, productionStatus) => {
+    const dueBadge = (dateStr, orderStatus) => {
         if (!dateStr) return '<span style="color:var(--ink-3);">—</span>';
         const d = new Date(dateStr); d.setHours(0,0,0,0);
-        const isDone = productionStatus === 'Tamamlandı' || productionStatus === 'Sevk Edildi';
+        const isDone = orderStatus === 'Tamamlandı';
         if (isDone) return `<span class="status-badge status-ok"><i class="fa-solid fa-check" style="font-size:8px;"></i> Zamanında</span>`;
         if (d < today) return `<span class="status-badge status-danger"><i class="fa-solid fa-circle-exclamation" style="font-size:8px;"></i> Gecikiyor</span>`;
         if (d <= in7) return `<span class="status-badge status-warn"><i class="fa-solid fa-clock" style="font-size:8px;"></i> Yaklaşıyor</span>`;
         return `<span class="status-badge status-ok"><i class="fa-solid fa-circle-check" style="font-size:8px;"></i> Zamanında</span>`;
     };
 
-    const prodBadge = (s) => {
+    const orderBadge = (s) => {
         const map = {
-            'Bekliyor':    'status-info',
-            'Üretimde':    'status-bronze',
-            'Hazır':       'status-warn',
-            'Sevk Edildi': 'status-ok',
-            'Tamamlandı':  'status-ok',
-        };
-        return `<span class="status-badge ${map[s]||'status-info'}">${s||'—'}</span>`;
-    };
-
-    const payBadge = (s) => {
-        const map = {
-            'Ödenmedi':       'status-danger',
-            'Kısmen Ödendi':  'status-warn',
-            'Ödendi':         'status-ok',
+            'Devam Ediyor':   'status-info',
+            'Ödeme Bekliyor': 'status-warn',
+            'Tamamlandı':     'status-ok',
         };
         return `<span class="status-badge ${map[s]||'status-info'}">${s||'—'}</span>`;
     };
@@ -250,9 +237,8 @@ function renderList() {
             <div>${fmt(o.order_date)}</div>
             <div>${fmt(o.shipment_date)}</div>
             <div>${fmt(o.due_date)}</div>
-            <div>${dueBadge(o.due_date, o.production_status)}</div>
-            <div>${prodBadge(o.production_status)}</div>
-            <div>${payBadge(o.payment_status)}</div>
+            <div>${dueBadge(o.due_date, o.order_status)}</div>
+            <div>${orderBadge(o.order_status)}</div>
         </div>`;
     }).join('');
 }
@@ -261,7 +247,6 @@ function renderList() {
 //  EVENT LISTENERS
 // ══════════════════════════════
 
-// Görünüm toggle
 document.getElementById('btn-view-calendar').addEventListener('click', () => {
     currentView = 'calendar';
     document.getElementById('view-calendar').style.display = 'block';
@@ -279,7 +264,6 @@ document.getElementById('btn-view-list').addEventListener('click', () => {
     render();
 });
 
-// Takvim navigasyon
 document.getElementById('cal-prev').addEventListener('click', () => {
     calMonth--;
     if (calMonth < 0) { calMonth = 11; calYear--; }
@@ -291,7 +275,6 @@ document.getElementById('cal-next').addEventListener('click', () => {
     renderCalendar();
 });
 
-// Filtre butonları
 document.getElementById('filter-bar').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-filter]');
     if (!btn) return;
@@ -301,7 +284,6 @@ document.getElementById('filter-bar').addEventListener('click', (e) => {
     render();
 });
 
-// Geciken göster butonu
 document.getElementById('btn-show-overdue').addEventListener('click', () => {
     currentFilter = 'overdue';
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
