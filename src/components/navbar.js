@@ -1,6 +1,6 @@
 import { supabase } from '../utils/supabaseClient.js';
 
-const APP_VERSION = 'V: 1.0.58';
+const APP_VERSION = 'V: 1.0.61';
 
 // MENU MODELI
 //   type: 'link'  -> dogrudan sayfa
@@ -14,7 +14,7 @@ const MENU = [
         children: [
             { id: 'customers',     label: 'Müşteri Kartları', icon: 'fa-id-card', href: 'customers.html' },
             { id: 'products',      label: 'Ürün Kartları',    icon: 'fa-box',     href: 'products.html' },
-            { id: 'pallet-defs',   label: 'Palet Tanımları',  icon: 'fa-pallet',  href: '#', soon: true },
+            { id: 'pallet-defs',   label: 'Palet Tanımları',  icon: 'fa-pallet',  href: 'pallet-definitions.html' },
         ]
     },
     {
