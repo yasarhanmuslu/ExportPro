@@ -333,6 +333,18 @@ h1, h2, h3, h4 {
   border: none !important;
 }
 
+#main-sidebar .nav-group-head:hover {
+  background-color: var(--surface-2) !important;
+  color: var(--ink-1) !important;
+}
+#main-sidebar a.soon,
+#main-sidebar a.soon:hover {
+  background-color: transparent !important;
+  color: var(--ink-3) !important;
+}
+html.dark #main-sidebar .nav-group-head { color: var(--ink-1) !important; }
+html.dark #main-sidebar .nav-group-head:hover { background-color: var(--surface-2) !important; color: var(--ink-1) !important; }
+
 /* Legacy Tailwind sidebar renk overrides */
 #main-sidebar .text-white,
 #main-sidebar .text-slate-100 { color: var(--ink-1) !important; }
