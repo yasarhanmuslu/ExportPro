@@ -4,6 +4,7 @@ import { requireAuth } from './auth/auth.js';
 
 let globalQuotations = [];
 let globalCustomers  = [];
+let globalProducts   = [];
 let currentItemIndex = 0;
 let editingQuotationId = null;
 
@@ -14,7 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
     await renderNavbar('quotations');
-    await Promise.all([fetchCustomers(session), fetchQuotations(session)]);
+    await Promise.all([fetchCustomers(session), fetchProducts(session), fetchQuotations(session)]);
     initEventListeners(session);
     computeKPIs();
 });
@@ -39,6 +40,16 @@ async function fetchCustomers(session) {
         opt.textContent = `${c.company_name} (${c.country})`;
         sel.appendChild(opt);
     });
+}
+
+async function fetchProducts(session) {
+    const { data, error } = await supabase
+        .from('products')
+        .select('id, product_code, product_name, product_group')
+        .eq('user_id', session.user.id)
+        .order('product_name', { ascending: true });
+    if (error) { console.error('Ürünler yüklenemedi:', error.message); return; }
+    globalProducts = data || [];
 }
 
 async function fetchQuotations(session) {
@@ -256,11 +267,21 @@ function addItemRow(item = null) {
     const div = document.createElement('div');
     div.className = 'item-row';
     div.dataset.idx = idx;
+
+    const productOptions = globalProducts.map(p =>
+        `<option value="${p.id}" data-code="${(p.product_code||'').replace(/"/g,'&quot;')}" data-name="${(p.product_name||'').replace(/"/g,'&quot;')}" ${item && item.product_id === p.id ? 'selected' : ''}>${p.product_name}</option>`
+    ).join('');
+
     div.innerHTML = `
         <div class="grid grid-cols-12 gap-2 items-center">
             <div class="col-span-4">
                 <label style="font-size:10px;color:rgb(100 116 139);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:3px;">Ürün Adı</label>
-                <input type="text" class="item-product-name" placeholder="Ürün adı" value="${item ? (item.product_name || '') : ''}" oninput="window._updateTotal()">
+                <select class="item-product-select" onchange="window._onProductSelect(this)">
+                    <option value="">-- Ürün Seç --</option>
+                    ${productOptions}
+                </select>
+                <input type="hidden" class="item-product-id" value="${item ? (item.product_id || '') : ''}">
+                <input type="text" class="item-product-name mt-1" placeholder="veya serbest metin" value="${item ? (item.product_name || '') : ''}" oninput="window._updateTotal()">
             </div>
             <div class="col-span-2">
                 <label style="font-size:10px;color:rgb(100 116 139);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:3px;">Ürün Kodu</label>
@@ -301,6 +322,18 @@ function updateTotal() {
 
 // Expose global helpers for inline handlers
 window._updateTotal  = updateTotal;
+window._onProductSelect = (sel) => {
+    const opt = sel.selectedOptions[0];
+    const row = sel.closest('.item-row');
+    if (opt && opt.value) {
+        row.querySelector('.item-product-id').value = opt.value;
+        row.querySelector('.item-product-name').value = opt.dataset.name || '';
+        row.querySelector('.item-product-code').value = opt.dataset.code || '';
+    } else {
+        row.querySelector('.item-product-id').value = '';
+    }
+    updateTotal();
+};
 window._removeItem   = (btn) => { btn.closest('.item-row').remove(); updateTotal(); };
 window._openEdit     = (id) => {
     const q = globalQuotations.find(x => x.id === id);
@@ -349,10 +382,11 @@ async function saveQuotation(session) {
     rows.forEach(row => {
         const name = row.querySelector('.item-product-name')?.value?.trim();
         const code = row.querySelector('.item-product-code')?.value?.trim();
+        const pid  = row.querySelector('.item-product-id')?.value || null;
         const qty  = parseFloat(row.querySelector('.item-quantity')?.value) || null;
         const up   = parseFloat(row.querySelector('.item-unit-price')?.value) || null;
         if (name || qty || up) {
-            items.push({ quotation_id: quotationId, product_name: name || null, product_code: code || null, quantity: qty, unit_price: up, currency: curr });
+            items.push({ quotation_id: quotationId, product_id: pid, product_name: name || null, product_code: code || null, quantity: qty, unit_price: up, currency: curr });
         }
     });
 

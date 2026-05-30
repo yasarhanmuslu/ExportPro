@@ -5,6 +5,7 @@ import { requireAuth } from './auth/auth.js';
 // Global Hafıza Yapıları
 let globalCreditNotes = [];
 let globalCustomers = [];
+let globalProducts = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
@@ -13,7 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await renderNavbar('credit-notes');
 
     // 2. Müşteri Bilgilerini ve Credit Note Dosyalarını Çek
-    await Promise.all([fetchCustomersForCN(), fetchCreditNotesData()]);
+    await Promise.all([fetchCustomersForCN(), fetchProductsForCN(), fetchCreditNotesData()]);
 
     // 3. Etkinlik Dinleyicilerini Başlat
     initCNEventListeners();
@@ -40,6 +41,19 @@ async function fetchCustomersForCN() {
         });
     } catch (err) {
         console.error("Müşteri listesi ilişkisi kurulamadı:", err.message);
+    }
+}
+
+async function fetchProductsForCN() {
+    try {
+        const { data, error } = await supabase
+            .from('products')
+            .select('id, product_code, product_name, product_group')
+            .order('product_name', { ascending: true });
+        if (error) throw error;
+        globalProducts = data || [];
+    } catch (err) {
+        console.error("Ürün listesi yüklenemedi:", err.message);
     }
 }
 
@@ -140,6 +154,10 @@ function addItemRow(data = {}) {
     itemRow.id = rowId;
     itemRow.className = "cn-item-row bg-[#F6F3EC] p-4 border border-[#EFEAE0]/80 rounded-xl space-y-4 relative pt-10 md:pt-4";
 
+    const productOptions = globalProducts.map(p =>
+        `<option value="${p.id}" data-code="${(p.product_code||'').replace(/"/g,'&quot;')}" data-name="${(p.product_name||'').replace(/"/g,'&quot;')}" ${data.product_id === p.id ? 'selected' : ''}>${p.product_name}</option>`
+    ).join('');
+
     itemRow.innerHTML = `
         <button type="button" class="btn-remove-row absolute top-3 right-3 text-[#968B7A] hover:text-[#9F3D3D] transition-colors" title="Satırı Çıkar">
             <i class="fa-solid fa-trash-can text-sm"></i>
@@ -148,7 +166,12 @@ function addItemRow(data = {}) {
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
                 <label class="block text-[10px] font-semibold text-[#968B7A] uppercase tracking-wider mb-1">Ürün Adı *</label>
-                <input type="text" class="item-product-name w-full text-xs" required placeholder="Örn: X Profili" value="${data.product_name || ''}">
+                <select class="item-product-select w-full text-xs">
+                    <option value="">-- Ürün Seç --</option>
+                    ${productOptions}
+                </select>
+                <input type="hidden" class="item-product-id" value="${data.product_id || ''}">
+                <input type="text" class="item-product-name w-full text-xs mt-1" required placeholder="veya serbest metin" value="${data.product_name || ''}">
             </div>
             <div>
                 <label class="block text-[10px] font-semibold text-[#968B7A] uppercase tracking-wider mb-1">Ürün Kodu</label>
@@ -179,6 +202,21 @@ function addItemRow(data = {}) {
             </div>
         </div>
     `;
+
+    // Ürün seçimi -> isim/kod/id otomatik doldur
+    const prodSelect = itemRow.querySelector('.item-product-select');
+    if (prodSelect) {
+        prodSelect.addEventListener('change', (e) => {
+            const opt = e.target.selectedOptions[0];
+            if (opt && opt.value) {
+                itemRow.querySelector('.item-product-id').value = opt.value;
+                itemRow.querySelector('.item-product-name').value = opt.dataset.name || '';
+                itemRow.querySelector('.item-product-code').value = opt.dataset.code || '';
+            } else {
+                itemRow.querySelector('.item-product-id').value = '';
+            }
+        });
+    }
 
     // Satır içindeki silme butonunu yapılandır
     itemRow.querySelector('.btn-remove-row').addEventListener('click', () => {
@@ -291,6 +329,7 @@ async function handleCNSubmit(e) {
         rowElements.forEach(row => {
             bulkItemsPayload.push({
                 credit_note_id: targetCnId,
+                product_id: row.querySelector('.item-product-id')?.value || null,
                 product_name: row.querySelector('.item-product-name').value.trim(),
                 product_code: row.querySelector('.item-product-code').value.trim() || null,
                 complaint_id: row.querySelector('.item-complaint-id').value.trim() || null,
