@@ -1,6 +1,6 @@
 import { supabase } from '../utils/supabaseClient.js';
 
-const APP_VERSION = 'V: 1.0.57';
+const APP_VERSION = 'V: 1.0.58';
 
 // MENU MODELI
 //   type: 'link'  -> dogrudan sayfa
@@ -10,16 +10,22 @@ const MENU = [
     { type: 'link', id: 'dashboard',      label: 'Dashboard',           icon: 'fa-chart-pie',      href: 'index.html' },
     { type: 'link', id: 'order-timeline', label: 'Takip Takvimi',       icon: 'fa-calendar-check', href: 'order-timeline.html' },
     {
+        type: 'group', id: 'grp-defs', label: 'Tanımlar', icon: 'fa-folder-tree',
+        children: [
+            { id: 'customers',     label: 'Müşteri Kartları', icon: 'fa-id-card', href: 'customers.html' },
+            { id: 'products',      label: 'Ürün Kartları',    icon: 'fa-box',     href: 'products.html' },
+            { id: 'pallet-defs',   label: 'Palet Tanımları',  icon: 'fa-pallet',  href: '#', soon: true },
+        ]
+    },
+    {
         type: 'group', id: 'grp-customer', label: 'Müşteri İşlemleri', icon: 'fa-users',
         children: [
-            { id: 'customers',     label: 'Müşteri Kartları',        icon: 'fa-id-card',       href: 'customers.html' },
             { id: 'orders',        label: 'Siparişler',              icon: 'fa-boxes-stacked', href: 'orders.html' },
             { id: 'quotations',    label: 'Teklifler',               icon: 'fa-file-contract', href: 'quotations.html' },
             { id: 'fixed-prices',  label: 'Müşteri Sabit Fiyatlar',  icon: 'fa-tags',          href: '#', soon: true },
             { id: 'credit-notes',  label: 'Credit Notes',            icon: 'fa-file-invoice',  href: 'credit-notes.html' },
         ]
     },
-    { type: 'link', id: 'products', label: 'Ürün Kartları', icon: 'fa-box',        href: 'products.html' },
     { type: 'link', id: 'prices',   label: 'Fiyat Robotu',  icon: 'fa-calculator', href: 'prices.html' },
     {
         type: 'group', id: 'grp-bi', label: 'BI Raporları', icon: 'fa-chart-simple',
