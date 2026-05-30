@@ -30,23 +30,43 @@
         .modal-backdrop { position: fixed; inset: 0; background: rgba(28,26,23,0.5); backdrop-filter: blur(4px); display: flex; align-items: flex-start; justify-content: center; z-index: 100; padding: 1rem; overflow-y: auto; }
         .modal-backdrop.hidden { display: none; }
         .modal-content { background: rgb(15 23 42); border: 1px solid rgb(30 41 59); border-radius: 1rem; padding: 1.5rem; width: 100%; max-width: 60rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); margin: auto; }
-        .custom-table-container { overflow-x: auto; background: rgba(15,23,42,0.4); border: 1px solid rgb(30 41 59); border-radius: 0.75rem; }
-        .custom-table { width: 100%; border-collapse: collapse; }
-        .custom-table th { padding: 0.75rem 1rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgb(100 116 139); text-align: left; white-space: nowrap; border-bottom: 1px solid rgb(30 41 59); }
-        .custom-table td { padding: 0.75rem 1rem; font-size: 0.8rem; color: rgb(148 163 184); border-bottom: 1px solid rgb(15 23 42); vertical-align: middle; }
-        .custom-table tbody tr:hover { background: rgba(30,41,59,0.5); }
-        .custom-table tbody tr:last-child td { border-bottom: none; }
-        .row-beyaz td { border-left: 4px solid #94a3b8; background: transparent; }
-        .row-sari td  { border-left: 4px solid #eab308; background: rgba(234,179,8,0.10); }
-        .row-yesil td { border-left: 4px solid #22c55e; background: rgba(34,197,94,0.10); }
-        .row-kirmizi td { border-left: 4px solid #ef4444; background: rgba(239,68,68,0.10); }
-        .row-ten td   { border-left: 4px solid #3b82f6; background: rgba(59,130,246,0.10); }
-
-        .badge-devam   { background:#e2e8f0; color:#475569; font-size:11px; padding:3px 10px; border-radius:999px; font-weight:600; }
-        .badge-sari    { background:#fef08a; color:#854d0e; font-size:11px; padding:3px 10px; border-radius:999px; font-weight:600; }
-        .badge-yesil   { background:#bbf7d0; color:#166534; font-size:11px; padding:3px 10px; border-radius:999px; font-weight:600; }
-        .badge-kirmizi { background:#fecaca; color:#991b1b; font-size:11px; padding:3px 10px; border-radius:999px; font-weight:600; }
-        .badge-mavi    { background:#bfdbfe; color:#1e40af; font-size:11px; padding:3px 10px; border-radius:999px; font-weight:600; }
+        /* Kart Sistemi */
+        .order-card { background:#fff; border-radius:10px; border:0.5px solid #E4DDCE; overflow:hidden; margin-bottom:8px; }
+        .card-wrap { display:flex; }
+        .card-left-bar { width:4px; flex-shrink:0; }
+        .card-inner { display:flex; flex:1; }
+        .card-body { padding:12px 14px; flex:1; }
+        .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+        .card-firm { font-size:14px; font-weight:600; color:#1C1A17; }
+        .card-country { font-size:11px; color:#968B7A; margin-left:6px; }
+        .card-badges { display:flex; gap:5px; align-items:center; flex-wrap:wrap; }
+        .card-info-row { display:flex; gap:20px; flex-wrap:wrap; }
+        .card-info-group { display:flex; flex-direction:column; gap:4px; }
+        .ci-row { display:flex; align-items:flex-start; gap:5px; font-size:12px; color:#968B7A; }
+        .ci-row i { font-size:12px; margin-top:1px; flex-shrink:0; }
+        .ci-row span { color:#1C1A17; }
+        .ci-lbl { color:#968B7A; margin-right:2px; }
+        .card-note { font-size:11px; color:#6B655B; background:#F6F3EC; border-radius:5px; padding:5px 8px; margin-top:8px; line-height:1.5; border-left:2px solid #D6D2C9; }
+        .card-fin { display:flex; flex-direction:column; justify-content:center; padding:12px 16px; min-width:160px; border-left:0.5px solid #E4DDCE; gap:6px; }
+        .fin-row { display:flex; justify-content:space-between; align-items:center; font-size:12px; }
+        .fin-lbl { color:#968B7A; }
+        .fin-val { font-weight:600; font-size:13px; color:#1C1A17; }
+        .fin-val-kalan { color:#B26B33; font-weight:600; font-size:13px; }
+        .fin-val-sifir { color:#968B7A; font-size:12px; }
+        /* Durum badge */
+        .sb { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; padding:3px 10px; border-radius:999px; }
+        .sb-dot { width:6px; height:6px; border-radius:50%; display:inline-block; }
+        .sb-devam   { background:#e2e8f0; color:#475569; }
+        .sb-sari    { background:#fef08a; color:#854d0e; }
+        .sb-yesil   { background:#bbf7d0; color:#166534; }
+        .sb-kirmizi { background:#fecaca; color:#991b1b; }
+        .sb-mavi    { background:#bfdbfe; color:#1e40af; }
+        .tag-yeni { background:#bfdbfe; color:#1e40af; font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px; display:inline-flex; align-items:center; gap:3px; }
+        .tag-ihracat  { background:#e0e7ff; color:#3730a3; font-size:10px; font-weight:600; padding:2px 7px; border-radius:999px; }
+        .tag-ihrac    { background:#fef9c3; color:#854d0e; font-size:10px; font-weight:600; padding:2px 7px; border-radius:999px; }
+        .tag-kdv      { background:#dcfce7; color:#166534; font-size:10px; font-weight:600; padding:2px 7px; border-radius:999px; }
+        .btn-manage { font-size:12px; color:#fff; background:#2D4A3E; border:none; border-radius:6px; padding:6px 14px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; margin-top:10px; transition:background 0.15s; font-weight:600; }
+        .btn-manage:hover { background:#1a3329; }
         
         .section-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgb(249 115 22); border-bottom: 1px solid rgb(30 41 59); padding-bottom: 0.5rem; margin-bottom: 0.75rem; }
         /* Modal Sekmeler */
@@ -118,24 +138,10 @@
             <span id="total-filtered-count" class="text-orange-400 font-bold text-sm">0 Kayıt</span>
         </div>
 
-        <section class="custom-table-container">
-            <table class="custom-table">
-                <thead>
-                    <tr>
-                        <th>Durum</th>
-                        <th>Tarih / Sipariş No</th>
-                        <th>Firma / Müşteri</th>
-                        <th class="text-right">Toplam Tutar</th>
-                        <th class="text-right">Alınan Avans</th>
-                        <th class="text-right">Kalan Bakiye</th>
-                        <th class="text-center">Sipariş Durumu</th>
-                        <th class="text-center">İşlem</th>
-                    </tr>
-                </thead>
-                <tbody id="orders-table-body">
-                    <tr><td colspan="8" class="text-center text-slate-500 py-8">Yükleniyor...</td></tr>
-                </tbody>
-            </table>
+        <section id="orders-cards-container">
+            <div id="orders-card-list">
+                <div class="text-center text-slate-500 py-8">Yükleniyor...</div>
+            </div>
         </section>
     </main>
 

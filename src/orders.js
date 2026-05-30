@@ -105,7 +105,7 @@ async function fetchOrdersData() {
         renderOrdersTable(orders);
     } catch (err) {
         console.error("Sipariş verileri yüklenemedi:", err.message);
-        document.getElementById('orders-table-body').innerHTML = `<tr><td colspan="8" class="text-center text-[#9F3D3D] py-4">Veriler çekilirken bir hata oluştu.</td></tr>`;
+        document.getElementById('orders-card-list').innerHTML = `<div class="text-center text-[#9F3D3D] py-4">Veriler çekilirken bir hata oluştu.</div>`;
     }
 }
 
@@ -124,67 +124,118 @@ async function fetchOrderItems(orderId) {
     }
 }
 
-// --- TABLO ÇİZİMİ ---
+// --- KART ÇİZİMİ ---
 function renderOrdersTable(ordersList) {
-    const tbody = document.getElementById('orders-table-body');
+    const container = document.getElementById('orders-card-list');
     const countBadge = document.getElementById('total-filtered-count');
-    tbody.innerHTML = '';
+    container.innerHTML = '';
     countBadge.textContent = `${ordersList.length} Sipariş`;
 
     if (ordersList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-[#968B7A] py-8">Kriterlere uygun sipariş bulunamadı.</td></tr>`;
+        container.innerHTML = `<div class="text-center text-[#968B7A] py-8">Kriterlere uygun sipariş bulunamadı.</div>`;
         return;
     }
 
-    const currencySymbols = { 'EUR': '€', 'USD': '$', 'TRY': '₺', 'GBP': '£' };
+    const sym = { 'EUR': '€', 'USD': '$', 'TRY': '₺' };
 
-    const statusColors = {
-        'Devam Ediyor':    { row: 'row-beyaz',   badge: 'badge-devam',    dot: 'bg-slate-400' },
-        'Ödeme Bekliyor':  { row: 'row-sari',    badge: 'badge-sari',     dot: 'bg-yellow-500' },
-        'Tamamlandı':      { row: 'row-yesil',   badge: 'badge-yesil',    dot: 'bg-green-500' },
-        'İptal / Gecikme': { row: 'row-kirmizi', badge: 'badge-kirmizi',  dot: 'bg-red-500' },
-        'Yeni Müşteri':    { row: 'row-ten',     badge: 'badge-mavi',     dot: 'bg-blue-500' },
+    const statusConfig = {
+        'Devam Ediyor':    { bar: '#94a3b8', badge: 'sb-devam',   dot: '#94a3b8' },
+        'Ödeme Bekliyor':  { bar: '#eab308', badge: 'sb-sari',    dot: '#eab308' },
+        'Tamamlandı':      { bar: '#22c55e', badge: 'sb-yesil',   dot: '#22c55e' },
+        'İptal / Gecikme': { bar: '#ef4444', badge: 'sb-kirmizi', dot: '#ef4444' },
+        'Yeni Müşteri':    { bar: '#3b82f6', badge: 'sb-mavi',    dot: '#3b82f6' },
     };
 
     ordersList.forEach(order => {
-        const symbol = currencySymbols[order.currency] || order.currency;
+        const s = sym[order.currency] || order.currency;
         const compName = order.customers ? order.customers.company_name : 'Bilinmeyen Müşteri';
         const country = order.customers ? order.customers.country : '';
         const status = order.order_status || 'Devam Ediyor';
-        const sc = statusColors[status] || statusColors['Devam Ediyor'];
-        const tr = document.createElement('tr');
-        tr.className = sc.row;
-        tr.innerHTML = `
-            <td>
-                <span class="w-2.5 h-2.5 rounded-full inline-block ${sc.dot}"></span>
-            </td>
-            <td>
-                <div class="text-[#6B655B] text-xs font-mono">${order.order_date ? new Date(order.order_date).toLocaleDateString('tr-TR') : '-'}</div>
-                <div class="text-xs text-[#968B7A] font-mono mt-0.5">${escapeHtml(order.order_number || '')}</div>
-                ${order.shipment_date ? `<div class="text-xs text-[#2D4A3E] font-mono">Sevk: ${new Date(order.shipment_date).toLocaleDateString('tr-TR')}</div>` : ''}
-                ${order.due_date ? `<div class="text-xs text-[#9F3D3D] font-mono">Vade: ${new Date(order.due_date).toLocaleDateString('tr-TR')}</div>` : ''}
-            </td>
-            <td>
-                <div class="font-semibold text-[#1C1A17]">${escapeHtml(compName)}</div>
-                ${country ? `<div class="text-xs text-[#968B7A] uppercase tracking-widest mt-0.5">${escapeHtml(country)}</div>` : ''}
-                ${order.order_notes ? `<div class="text-xs text-[#968B7A] italic mt-0.5 truncate max-w-[160px]">${escapeHtml(order.order_notes)}</div>` : ''}
-            </td>
-            <td class="text-right font-mono font-medium">${parseFloat(order.total_amount||0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${symbol}</td>
-            <td class="text-right font-mono text-[#3D6E50]">${parseFloat(order.advance_payment||0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${symbol}</td>
-            <td class="text-right font-mono text-[#B26B33]">${parseFloat(order.remaining_balance||0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${symbol}</td>
-            <td class="text-center">
-                <span class="text-xs px-2 py-1 rounded-full font-semibold ${sc.badge}">${status}</span>
-            </td>
-            <td class="text-center">
-                <button class="btn-edit-order-trigger text-xs bg-[#FBF8F1] hover:bg-[#FBF8F1] border border-[#EFEAE0] hover:border-[#E4DDCE] px-2.5 py-1.5 rounded-lg text-orange-400 transition-colors" data-id="${order.id}">
-                    <i class="fa-solid fa-file-pen"></i> Yönet
-                </button>
-            </td>
+        const sc = statusConfig[status] || statusConfig['Devam Ediyor'];
+        const isYeniMusteri = status === 'Yeni Müşteri';
+
+        const fmt = (n) => parseFloat(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 });
+        const fmtDate = (d) => d ? new Date(d).toLocaleDateString('tr-TR') : null;
+
+        const remaining = parseFloat(order.remaining_balance || 0);
+        const kalanHtml = remaining === 0
+            ? `<span class="fin-val-sifir">0,00 ${s}</span>`
+            : `<span class="fin-val-kalan">${fmt(remaining)} ${s}</span>`;
+
+        const orderTypeBadge = order.order_type
+            ? `<span class="tag-${order.order_type === 'İhracat' ? 'ihracat' : order.order_type === 'KDV' ? 'kdv' : 'ihrac'}">${order.order_type}</span>`
+            : '';
+
+        const yeniTag = isYeniMusteri
+            ? `<span class="tag-yeni"><i class="fa-solid fa-star" style="font-size:9px;"></i>Yeni Müşteri</span>`
+            : '';
+
+        // Durum badge — Yeni Müşteri ise "Devam Ediyor" badge'i göster ama yeni müşteri tag'i ekle
+        const statusLabel = isYeniMusteri ? 'Devam Ediyor' : status;
+        const statusBadgeClass = isYeniMusteri ? 'sb-mavi' : sc.badge;
+
+        const shipRow = fmtDate(order.shipment_date)
+            ? `<div class="ci-row"><i class="fa-solid fa-truck-fast"></i><span>Sevk: ${fmtDate(order.shipment_date)}</span></div>`
+            : '';
+        const dueRow = fmtDate(order.due_date)
+            ? `<div class="ci-row"><i class="fa-solid fa-clock" style="color:#9F3D3D;"></i><span style="color:#9F3D3D;">Vade: ${fmtDate(order.due_date)}</span></div>`
+            : '';
+        const noteHtml = order.order_notes
+            ? `<div class="card-note"><i class="fa-solid fa-note-sticky" style="font-size:10px;margin-right:4px;opacity:0.6;"></i>${escapeHtml(order.order_notes)}</div>`
+            : '';
+
+        const idevit = order.idevit_order_no || '—';
+        const ideal  = order.ideal_order_no  || '—';
+
+        const card = document.createElement('div');
+        card.className = 'order-card';
+        card.innerHTML = `
+            <div class="card-wrap">
+                <div class="card-left-bar" style="background:${sc.bar};"></div>
+                <div class="card-inner">
+                    <div class="card-body">
+                        <div class="card-header">
+                            <div style="display:flex;align-items:center;">
+                                <span class="card-firm">${escapeHtml(compName)}</span>
+                                <span class="card-country">· ${escapeHtml(country.toUpperCase())}</span>
+                            </div>
+                            <div class="card-badges">
+                                <span class="sb ${statusBadgeClass}">
+                                    <span class="sb-dot" style="background:${sc.dot};"></span>${statusLabel}
+                                </span>
+                                ${yeniTag}
+                                ${orderTypeBadge}
+                            </div>
+                        </div>
+                        <div class="card-info-row">
+                            <div class="card-info-group">
+                                <div class="ci-row"><i class="fa-solid fa-calendar-day"></i><span>${fmtDate(order.order_date) || '—'}</span></div>
+                                <div class="ci-row"><i class="fa-solid fa-hashtag"></i><span><span class="ci-lbl">Sip:</span>${escapeHtml(order.order_number || '—')}</span></div>
+                                <div class="ci-row"><i class="fa-solid fa-barcode"></i><span><span class="ci-lbl">İDEVİT:</span>${escapeHtml(idevit)} &nbsp;·&nbsp; <span class="ci-lbl">İDEAL:</span>${escapeHtml(ideal)}</span></div>
+                                ${shipRow}${dueRow}
+                            </div>
+                            <div class="card-info-group">
+                                <div class="ci-row"><i class="fa-solid fa-credit-card"></i><span>${escapeHtml(order.payment_method || '—')}</span></div>
+                                <div class="ci-row"><i class="fa-solid fa-boxes-stacked"></i><span>${escapeHtml(order.order_quantity || '—')} adet</span></div>
+                            </div>
+                        </div>
+                        ${noteHtml}
+                        <button class="btn-manage btn-edit-order-trigger" data-id="${order.id}">
+                            <i class="fa-solid fa-file-pen"></i> Yönet
+                        </button>
+                    </div>
+                    <div class="card-fin">
+                        <div class="fin-row"><span class="fin-lbl">Toplam</span><span class="fin-val">${fmt(order.total_amount)} ${s}</span></div>
+                        <div class="fin-row"><span class="fin-lbl">Avans</span><span class="fin-val-sifir">${fmt(order.advance_payment)} ${s}</span></div>
+                        <div class="fin-row"><span class="fin-lbl">Kalan</span>${kalanHtml}</div>
+                    </div>
+                </div>
+            </div>
         `;
-        tbody.appendChild(tr);
+        container.appendChild(card);
     });
 
-    tbody.querySelectorAll('.btn-edit-order-trigger').forEach(btn => {
+    container.querySelectorAll('.btn-edit-order-trigger').forEach(btn => {
         btn.addEventListener('click', (e) => openModalForOrderEdit(e.currentTarget.getAttribute('data-id')));
     });
 }
