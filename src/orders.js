@@ -540,7 +540,6 @@ async function handleOrderSubmit(e) {
     e.preventDefault();
     const customerInput = document.getElementById('order-customer-select');
     const customerId = customerInput ? customerInput.value : '';
-    console.log('customer-select value:', customerId);
     if (!customerId) {
         alert("Lütfen bir müşteri / firma seçiniz.");
         return;
