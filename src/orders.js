@@ -538,6 +538,11 @@ function closeOrderModal() {
 // --- KAYDETME ---
 async function handleOrderSubmit(e) {
     e.preventDefault();
+    const customerId = document.getElementById('order-customer-select').value;
+    if (!customerId) {
+        alert("Lütfen bir müşteri / firma seçiniz.");
+        return;
+    }
     const id = document.getElementById('order-id').value;
     const total_amount = parseTurkishFloat(document.getElementById('total_amount').value);
     const advance_payment = parseTurkishFloat(document.getElementById('advance_payment').value);
@@ -549,7 +554,7 @@ async function handleOrderSubmit(e) {
     }
 
     const orderPayload = {
-        customer_id: document.getElementById('order-customer-select').value,
+        customer_id: customerId,
         order_date: document.getElementById('order_date').value,
         currency: document.getElementById('currency').value,
         total_amount,
