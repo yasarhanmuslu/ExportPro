@@ -29,17 +29,43 @@
         .modal-backdrop { position: fixed; inset: 0; background: rgba(28,26,23,0.5); backdrop-filter: blur(4px); display: flex; align-items: flex-start; justify-content: center; z-index: 100; padding: 1rem; overflow-y: auto; }
         .modal-backdrop.hidden { display: none; }
         .modal-content { background: rgb(15 23 42); border: 1px solid rgb(30 41 59); border-radius: 1rem; padding: 1.5rem; width: 100%; max-width: 60rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); margin: auto; }
-        .custom-table-container { overflow-x: auto; background: rgba(15,23,42,0.4); border: 1px solid rgb(30 41 59); border-radius: 0.75rem; }
-        .custom-table { width: 100%; border-collapse: collapse; }
-        .custom-table th { padding: 0.75rem 1rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgb(100 116 139); text-align: left; white-space: nowrap; border-bottom: 1px solid rgb(30 41 59); }
-        .custom-table td { padding: 0.75rem 1rem; font-size: 0.8rem; color: rgb(148 163 184); border-bottom: 1px solid rgb(15 23 42); vertical-align: middle; }
-        .custom-table tbody tr:hover { background: rgba(30,41,59,0.5); }
-        .custom-table tbody tr:last-child td { border-bottom: none; }
-        .row-beyaz td { border-left: 3px solid rgb(100 116 139); }
-        .row-sari td { border-left: 3px solid rgb(250 204 21); background: rgba(250,204,21,0.03); }
-        .row-yesil td { border-left: 3px solid rgb(52 211 153); background: rgba(52,211,153,0.03); }
-        .row-kirmizi td { border-left: 3px solid rgb(248 113 113); background: rgba(248,113,113,0.03); }
-        .row-ten td { border-left: 3px solid rgb(251 146 60); background: rgba(251,146,60,0.03); }
+        /* Kart Sistemi */
+        .order-card { background:#fff; border-radius:10px; border:0.5px solid #E4DDCE; overflow:hidden; margin-bottom:8px; }
+        .card-wrap { display:flex; }
+        .card-left-bar { width:4px; flex-shrink:0; }
+        .card-inner { display:flex; flex:1; }
+        .card-body { padding:12px 14px; flex:1; }
+        .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+        .card-firm { font-size:14px; font-weight:600; color:#1C1A17; }
+        .card-country { font-size:11px; color:#968B7A; margin-left:6px; }
+        .card-badges { display:flex; gap:5px; align-items:center; flex-wrap:wrap; }
+        .card-info-row { display:flex; gap:20px; flex-wrap:wrap; }
+        .card-info-group { display:flex; flex-direction:column; gap:4px; }
+        .ci-row { display:flex; align-items:flex-start; gap:5px; font-size:12px; color:#968B7A; }
+        .ci-row i { font-size:12px; margin-top:1px; flex-shrink:0; }
+        .ci-row span { color:#1C1A17; }
+        .ci-lbl { color:#968B7A; margin-right:2px; }
+        .card-note { font-size:11px; color:#6B655B; background:#F6F3EC; border-radius:5px; padding:5px 8px; margin-top:8px; line-height:1.5; border-left:2px solid #D6D2C9; }
+        .card-fin { display:flex; flex-direction:column; justify-content:center; padding:12px 16px; min-width:160px; border-left:0.5px solid #E4DDCE; gap:6px; }
+        .fin-row { display:flex; justify-content:space-between; align-items:center; font-size:12px; }
+        .fin-lbl { color:#968B7A; }
+        .fin-val { font-weight:600; font-size:13px; color:#1C1A17; }
+        .fin-val-kalan { color:#B26B33; font-weight:600; font-size:13px; }
+        .fin-val-sifir { color:#968B7A; font-size:12px; }
+        /* Durum badge */
+        .sb { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; padding:3px 10px; border-radius:999px; }
+        .sb-dot { width:6px; height:6px; border-radius:50%; display:inline-block; }
+        .sb-devam   { background:#e2e8f0; color:#475569; }
+        .sb-sari    { background:#fef08a; color:#854d0e; }
+        .sb-yesil   { background:#bbf7d0; color:#166534; }
+        .sb-kirmizi { background:#fecaca; color:#991b1b; }
+        .sb-mavi    { background:#bfdbfe; color:#1e40af; }
+        .tag-yeni { background:#bfdbfe; color:#1e40af; font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px; display:inline-flex; align-items:center; gap:3px; }
+        .tag-ihracat  { background:#e0e7ff; color:#3730a3; font-size:10px; font-weight:600; padding:2px 7px; border-radius:999px; }
+        .tag-ihrac    { background:#fef9c3; color:#854d0e; font-size:10px; font-weight:600; padding:2px 7px; border-radius:999px; }
+        .tag-kdv      { background:#dcfce7; color:#166534; font-size:10px; font-weight:600; padding:2px 7px; border-radius:999px; }
+        .btn-manage { font-size:12px; color:#fff; background:#2D4A3E; border:none; border-radius:6px; padding:6px 14px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; margin-top:10px; transition:background 0.15s; font-weight:600; }
+        .btn-manage:hover { background:#1a3329; }
         
         .section-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgb(249 115 22); border-bottom: 1px solid rgb(30 41 59); padding-bottom: 0.5rem; margin-bottom: 0.75rem; }
         /* Modal Sekmeler */
@@ -51,10 +77,19 @@
         .items-table th { padding: 8px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgb(100 116 139); border-bottom: 1px solid rgb(30 41 59); text-align: left; }
         .items-table td { padding: 6px 8px; border-bottom: 1px solid rgba(30,41,59,0.5); vertical-align: top; }
         .items-table input, .items-table select { height: 34px !important; font-size: 12px !important; }
+	.customer-dropdown-item {
+            padding: 9px 14px; cursor: pointer; font-size: 13px;
+            border-bottom: 1px solid #F0EDE4;
+            transition: background 0.1s;
+        }
+        .customer-dropdown-item:last-child { border-bottom: none; }
+        .customer-dropdown-item:hover { background: #F6F3EC; }
+        #customer-search-input { padding-left: 32px !important; }
+        #order-search-input { padding-left: 2.8rem !important; }
     </style>
-  <script type="module" crossorigin src="/assets/orders-DKBGtzCw.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/navbar-Dg2HCFHJ.js">
-  <link rel="modulepreload" crossorigin href="/assets/auth-CaJjsXSj.js">
+  <script type="module" crossorigin src="/assets/orders-Dm0VOtcV.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/navbar-dnmEf3j7.js">
+  <link rel="modulepreload" crossorigin href="/assets/auth-BaxU_CVi.js">
   <link rel="stylesheet" crossorigin href="/assets/navbar-DgWRtou4.css">
 </head>
 <body class="min-h-screen">
@@ -83,27 +118,21 @@
         <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
             <div class="relative">
                 <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-500 text-sm z-10"></i>
-                <input type="text" id="order-search-input" placeholder="Firma veya sipariş no ara..." style="padding-left:2.5rem">
+                <input type="text" id="order-search-input" placeholder="Firma veya sipariş no ara..." style="padding-left:2.8rem">
             </div>
             <select id="filter-order-currency">
                 <option value="">Tüm Para Birimleri</option>
                 <option value="EUR">EUR (€)</option>
                 <option value="USD">USD ($)</option>
                 <option value="TRY">TRY (₺)</option>
-                <option value="GBP">GBP (£)</option>
             </select>
-            <select id="filter-production-status">
-                <option value="">Tüm Üretim Durumları</option>
-                <option value="Bekliyor">Bekliyor</option>
-                <option value="Üretimde">Üretimde</option>
-                <option value="Hazır">Hazır</option>
-                <option value="Sevk Edildi">Sevk Edildi</option>
-            </select>
-            <select id="filter-payment-status">
-                <option value="">Tüm Ödeme Durumları</option>
-                <option value="Ödenmedi">Ödenmedi</option>
-                <option value="Kısmen Ödendi">Kısmen Ödendi</option>
-                <option value="Ödendi">Ödendi</option>
+            <select id="filter-order-status">
+                <option value="">Tüm Sipariş Durumları</option>
+                <option value="Devam Ediyor">⬜ Devam Ediyor</option>
+                <option value="Ödeme Bekliyor">🟡 Ödeme Bekliyor</option>
+                <option value="Tamamlandı">🟢 Tamamlandı</option>
+                <option value="İptal / Gecikme">🔴 İptal / Gecikme</option>
+                <option value="Yeni Müşteri">🔵 Yeni Müşteri</option>
             </select>
         </section>
 
@@ -112,25 +141,10 @@
             <span id="total-filtered-count" class="text-orange-400 font-bold text-sm">0 Kayıt</span>
         </div>
 
-        <section class="custom-table-container">
-            <table class="custom-table">
-                <thead>
-                    <tr>
-                        <th>Durum</th>
-                        <th>Tarih / Sipariş No</th>
-                        <th>Firma / Müşteri</th>
-                        <th class="text-right">Toplam Tutar</th>
-                        <th class="text-right">Alınan Avans</th>
-                        <th class="text-right">Kalan Bakiye</th>
-                        <th class="text-center">Üretim</th>
-                        <th class="text-center">Ödeme</th>
-                        <th class="text-center">İşlem</th>
-                    </tr>
-                </thead>
-                <tbody id="orders-table-body">
-                    <tr><td colspan="9" class="text-center text-slate-500 py-8">Yükleniyor...</td></tr>
-                </tbody>
-            </table>
+        <section id="orders-cards-container">
+            <div id="orders-card-list">
+                <div class="text-center text-slate-500 py-8">Yükleniyor...</div>
+            </div>
         </section>
     </main>
 
@@ -166,14 +180,41 @@
                         <p class="section-label"><i class="fa-solid fa-circle-info mr-1"></i> 1. Temel Bilgiler & Durum</p>
                         <div class="grid grid-cols-2 gap-4 mb-3">
                             <div>
-                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Müşteri / Firma *</label>
-                                <select id="order-customer-select" required>
-                                    <option value="">-- Müşteri Seçiniz --</option>
-                                </select>
-                            </div>
+    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Müşteri / Firma *</label>
+    <div id="customer-dropdown-wrapper" style="position:relative;">
+        <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#968B7A;font-size:11px;pointer-events:none;z-index:1;"></i>
+        <input type="text" id="customer-search-input" placeholder="Firma adı veya ülke ara..." style="padding-left:32px;" autocomplete="off">
+        <input type="hidden" id="order-customer-select"></select>
+        <div id="customer-dropdown-list" class="hidden" style="
+            position:absolute;top:calc(100% + 4px);left:0;right:0;
+            background:#fff;border:1px solid #2D4A3E;border-radius:6px;
+            max-height:220px;overflow-y:auto;z-index:200;
+            box-shadow:0 8px 24px rgba(28,26,23,0.12);
+        "></div>
+    </div>
+</div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sipariş No</label>
                                 <input type="text" id="order_number" placeholder="Örn: EXP-2026-001">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4 mb-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">İDEVİT SİP. NO</label>
+                                <input type="text" id="idevit_order_no" placeholder="Örn: 0000258">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">İDEAL SİP. NO</label>
+                                <input type="text" id="ideal_order_no" placeholder="Örn: 0003474">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sipariş Türü</label>
+                                <select id="order_type">
+                                    <option value="">-- Seçiniz --</option>
+                                    <option value="İhracat">İhracat</option>
+                                    <option value="İhraç Kayıt">İhraç Kayıt</option>
+                                    <option value="KDV">KDV</option>
+                                </select>
                             </div>
                         </div>
                         <div class="grid grid-cols-3 gap-4">
@@ -201,7 +242,6 @@
                                     <option value="EUR">EUR (€)</option>
                                     <option value="USD">USD ($)</option>
                                     <option value="TRY">TRY (₺)</option>
-                                    <option value="GBP">GBP (£)</option>
                                 </select>
                             </div>
                             <div>
@@ -223,26 +263,34 @@
                                 <input type="text" id="order_quantity" placeholder="Örn: 500 adet">
                             </div>
                         </div>
+                        <div class="grid grid-cols-1 gap-4 mt-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Ödeme Şekli</label>
+                                <select id="payment_method">
+                                    <option value="">-- Seçiniz --</option>
+                                    <option value="Peşin">Peşin</option>
+                                    <option value="Mal Mukabili">Mal Mukabili</option>
+                                    <option value="Bedelsiz">Bedelsiz</option>
+                                    <option value="30 Gün Vade">30 Gün Vade</option>
+                                    <option value="60 Gün Vade">60 Gün Vade</option>
+                                    <option value="90 Gün Vade">90 Gün Vade</option>
+                                    <option value="120 Gün Vade">120 Gün Vade</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="section-card">
-                        <p class="section-label"><i class="fa-solid fa-signal mr-1"></i> 3. Üretim & Ödeme Durumu</p>
-                        <div class="grid grid-cols-2 gap-4">
+                        <p class="section-label"><i class="fa-solid fa-signal mr-1"></i> 3. Sipariş Durumu</p>
+                        <div class="grid grid-cols-1 gap-4">
                             <div>
-                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Üretim Durumu</label>
-                                <select id="production_status">
-                                    <option value="Bekliyor">Bekliyor</option>
-                                    <option value="Üretimde">Üretimde</option>
-                                    <option value="Hazır">Hazır</option>
-                                    <option value="Sevk Edildi">Sevk Edildi</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Ödeme Durumu</label>
-                                <select id="payment_status">
-                                    <option value="Ödenmedi">Ödenmedi</option>
-                                    <option value="Kısmen Ödendi">Kısmen Ödendi</option>
-                                    <option value="Ödendi">Ödendi</option>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sipariş Durumu</label>
+                                <select id="order_status">
+                                    <option value="Devam Ediyor">⬜ Devam Ediyor</option>
+                                    <option value="Ödeme Bekliyor">🟡 Ödeme Bekliyor</option>
+                                    <option value="Tamamlandı">🟢 Tamamlandı</option>
+                                    <option value="İptal / Gecikme">🔴 İptal / Gecikme</option>
+                                    <option value="Yeni Müşteri">🔵 Yeni Müşteri</option>
                                 </select>
                             </div>
                         </div>
