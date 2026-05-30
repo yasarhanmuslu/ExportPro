@@ -30,6 +30,7 @@ async function fetchCustomers() {
 
         globalCustomers = customers;
         populateCountryFilter(customers);
+        populateOwnerFilter(customers);
         renderCustomersList(customers);
 
     } catch (error) {
@@ -107,6 +108,8 @@ function renderCustomersList(customersList) {
                             <th>Yetkili</th>
                             <th>E-Posta / Telefon</th>
                             <th>Müşteri Tipi</th>
+                            <th>Sorumlu</th>
+                            <th>Ödeme / Birim</th>
                             <th>Durum</th>
                             <th>Kısa Bilgi</th>
                             <th style="text-align:right;padding-right:1rem;">İşlem</th>
@@ -125,6 +128,11 @@ function renderCustomersList(customersList) {
                                     <span class="px-2.5 py-1 rounded-md text-xs font-medium border ${getGroupBadgeClass(cust.client_group)}">
                                         ${cust.client_group || 'Toptancı'}
                                     </span>
+                                </td>
+                                <td class="text-[#6B655B] text-xs">${escapeHtml((cust.account_owner && cust.account_owner !== 'Atanmadı') ? cust.account_owner : '—')}</td>
+                                <td class="text-xs">
+                                    <div class="text-[#6B655B]">${escapeHtml(cust.payment_term || '—')}</div>
+                                    <div class="text-[#968B7A]">${escapeHtml(cust.incoterms || '')} · ${escapeHtml(cust.currency || '')}</div>
                                 </td>
                                 <td>
                                     <span class="px-2 py-0.5 rounded text-xs font-semibold ${getStatusBadgeClass(cust.status)}">
@@ -177,16 +185,31 @@ function initEventListeners() {
     document.getElementById('filter-region').addEventListener('change', applyFilters);
     document.getElementById('filter-country').addEventListener('change', applyFilters);
     document.getElementById('filter-group').addEventListener('change', applyFilters);
+    document.getElementById('filter-owner').addEventListener('change', applyFilters);
     document.getElementById('btn-export-excel').addEventListener('click', exportToCSV);
 
     // Metin alanlarına otomatik sentence-case uygula (email hariç)
     applySentenceCaseListeners();
+
+    // Ülke yazıldıkça/değiştikçe bölgeyi otomatik doldur
+    const countryInput = document.getElementById('country');
+    if (countryInput) {
+        countryInput.addEventListener('input', () => {
+            document.getElementById('region').value = getRegion(countryInput.value);
+        });
+    }
 }
 
 // --- MODAL YÖNETİMİ ---
 function openModalForCreate() {
     document.getElementById('customer-form').reset();
     document.getElementById('customer-id').value = '';
+    // Yeni kayıtta mantıklı varsayılanlar
+    document.getElementById('currency').value = 'EUR';
+    document.getElementById('incoterms').value = 'FOB';
+    document.getElementById('payment_term').value = 'Peşin';
+    document.getElementById('acquisition_source').value = 'Diğer';
+    document.getElementById('region').value = '';
     document.getElementById('modal-title').innerHTML = `<i class="fa-solid fa-user-plus text-blue-500"></i> Yeni Müşteri Kaydı`;
     document.getElementById('btn-delete-customer').classList.add('hidden');
     document.getElementById('customer-modal').classList.remove('hidden');
@@ -203,8 +226,28 @@ function openModalForEdit(id) {
     document.getElementById('email').value = customer.email || '';
     document.getElementById('phone').value = customer.phone || '';
     document.getElementById('website').value = customer.website || '';
-    document.getElementById('client_group').value = customer.client_group || 'Standart';
+    document.getElementById('client_group').value = customer.client_group || 'Toptancı';
     document.getElementById('status').value = customer.status || 'Aktif';
+
+    // Ticari Bilgiler (BI - zorunlu)
+    document.getElementById('currency').value = customer.currency || 'EUR';
+    document.getElementById('incoterms').value = customer.incoterms || 'FOB';
+    document.getElementById('payment_term').value = customer.payment_term || 'Peşin';
+    document.getElementById('acquisition_source').value = customer.acquisition_source || 'Diğer';
+    document.getElementById('account_owner').value = (customer.account_owner && customer.account_owner !== 'Atanmadı') ? customer.account_owner : '';
+    document.getElementById('vat_number').value = customer.vat_number || '';
+
+    // Segmentasyon & Risk
+    document.getElementById('language').value = customer.language || '';
+    document.getElementById('risk_score').value = customer.risk_score != null ? String(customer.risk_score) : '';
+    document.getElementById('credit_limit').value = customer.credit_limit != null ? customer.credit_limit : '';
+    document.getElementById('annual_volume_target').value = customer.annual_volume_target != null ? customer.annual_volume_target : '';
+    document.getElementById('product_interests').value = customer.product_interests || '';
+    document.getElementById('first_order_date').value = customer.first_order_date || '';
+    document.getElementById('last_order_date').value = customer.last_order_date || '';
+
+    // Bölge: kayıttaki değer yoksa ülkeden türet
+    document.getElementById('region').value = customer.region || getRegion(customer.country) || '';
 
     // Geçmiş alanları
     document.getElementById('history_date_1').value = customer.history_date_1 || '';
@@ -236,9 +279,25 @@ async function handleFormSubmit(e) {
         return v ? toSentenceCase(v) : null;
     };
 
+    // Yardımcı: ham string (sentence-case uygulamadan), boşsa null
+    const raw = (id) => {
+        const v = document.getElementById(id).value.trim();
+        return v || null;
+    };
+
+    // Yardımcı: sayısal alan, boşsa null
+    const num = (id) => {
+        const v = document.getElementById(id).value.trim();
+        if (v === '') return null;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+    };
+
+    const countryVal = sc('country');
+
     const payload = {
         company_name: sc('company_name'),
-        country:      sc('country'),
+        country:      countryVal,
         contact_name: sc('contact_name'),
         email:        document.getElementById('email').value.trim() || null,
         phone:        sc('phone'),
@@ -246,6 +305,26 @@ async function handleFormSubmit(e) {
         client_group: document.getElementById('client_group').value,
         status:       document.getElementById('status').value,
         short_info:   document.getElementById('short_info').value.trim() || null,
+
+        // --- Ticari Bilgiler (BI - zorunlu) ---
+        currency:           document.getElementById('currency').value,
+        incoterms:          document.getElementById('incoterms').value,
+        payment_term:       document.getElementById('payment_term').value,
+        acquisition_source: document.getElementById('acquisition_source').value,
+        account_owner:      sc('account_owner') || 'Atanmadı',
+        vat_number:         raw('vat_number'),
+
+        // --- Segmentasyon & Risk ---
+        region:               getRegion(countryVal),
+        language:             document.getElementById('language').value || null,
+        risk_score:           num('risk_score'),
+        credit_limit:         num('credit_limit'),
+        annual_volume_target: num('annual_volume_target'),
+        product_interests:    sc('product_interests'),
+        first_order_date:     document.getElementById('first_order_date').value || null,
+        last_order_date:      document.getElementById('last_order_date').value || null,
+
+        // --- Geçmiş / Notlar ---
         history_date_1: document.getElementById('history_date_1').value || null,
         history_note_1: sc('history_note_1'),
         history_date_2: document.getElementById('history_date_2').value || null,
@@ -353,6 +432,7 @@ function applyFilters() {
     const regionVal  = document.getElementById('filter-region').value;
     const countryVal = document.getElementById('filter-country').value;
     const groupVal   = document.getElementById('filter-group').value;
+    const ownerVal   = document.getElementById('filter-owner').value;
 
     const filtered = globalCustomers.filter(c => {
         const matchSearch =
@@ -362,7 +442,8 @@ function applyFilters() {
         const matchRegion  = regionVal  === "" || getRegion(c.country) === regionVal;
         const matchCountry = countryVal === "" || c.country === countryVal;
         const matchGroup   = groupVal   === "" || c.client_group === groupVal;
-        return matchSearch && matchRegion && matchCountry && matchGroup;
+        const matchOwner   = ownerVal   === "" || (c.account_owner || '') === ownerVal;
+        return matchSearch && matchRegion && matchCountry && matchGroup && matchOwner;
     });
 
     renderCustomersList(filtered);
@@ -383,12 +464,32 @@ function populateCountryFilter(customers) {
     filterSelect.value = savedValue;
 }
 
+function populateOwnerFilter(customers) {
+    const filterSelect = document.getElementById('filter-owner');
+    if (!filterSelect) return;
+    const savedValue = filterSelect.value;
+    const owners = [...new Set(
+        customers.map(c => c.account_owner).filter(o => o && o !== 'Atanmadı')
+    )].sort();
+    filterSelect.innerHTML = '<option value="">Tüm Sorumlular (Filtrele)</option>';
+    owners.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o;
+        opt.textContent = o;
+        filterSelect.appendChild(opt);
+    });
+    filterSelect.value = savedValue;
+}
+
 function getGroupBadgeClass(group) {
     switch(group) {
+        case 'Distribütör': return 'bg-[#DCE7F0] text-[#2C4A6E] border-[#B0C6DE]';
         case 'Toptancı':    return 'bg-[#E8EEEA] text-[#2D4A3E] border-[#C5D5CC]';
+        case 'Bayi':        return 'bg-[#E6EFE9] text-[#3D6E50] border-[#BCD4C4]';
         case 'Üretici':     return 'bg-[#F2E9DA] text-[#B58858] border-[#E4CCAA]';
         case 'Perakendeci': return 'bg-[#EAE6F0] text-[#5A4A7A] border-[#C8BEE0]';
         case 'Projeci':     return 'bg-[#E0E6EE] text-[#3F5C7A] border-[#B8C8DC]';
+        case 'OEM':         return 'bg-[#F0E6E6] text-[#7A4A4A] border-[#DEBEBE]';
         default:            return 'bg-[#FBF8F1] text-[#6B655B] border-[#E4DDCE]/60';
     }
 }
@@ -447,14 +548,20 @@ function exportToCSV() {
     }
 
     let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-    csvContent += "Firma Adı;Ülke;Yetkili;E-Posta;Telefon;Web;Müşteri Tipi;Durum;Kısa Bilgi\n";
+    csvContent += "Firma Adı;Ülke;Bölge;Yetkili;E-Posta;Telefon;Web;Müşteri Tipi;Sorumlu;Para Birimi;Incoterms;Ödeme Koşulu;Edinme Kaynağı;Vergi No;Dil;Risk Skoru;Kredi Limiti;Yıllık Hedef;Ürün İlgi;İlk İşlem;Son İşlem;Durum;Kısa Bilgi\n";
 
     globalCustomers.forEach(c => {
-        const q = v => `"${(v || '').toString().replace(/"/g, '""')}"`;
+        const q = v => `"${(v == null ? '' : v).toString().replace(/"/g, '""')}"`;
         csvContent += [
-            q(c.company_name), q(c.country), q(c.contact_name),
+            q(c.company_name), q(c.country), q(c.region || getRegion(c.country)), q(c.contact_name),
             q(c.email), q(c.phone), q(c.website),
-            q(c.client_group || 'Toptancı'), q(c.status || 'Aktif'), q(c.short_info)
+            q(c.client_group || 'Toptancı'),
+            q((c.account_owner && c.account_owner !== 'Atanmadı') ? c.account_owner : ''),
+            q(c.currency), q(c.incoterms), q(c.payment_term), q(c.acquisition_source),
+            q(c.vat_number), q(c.language), q(c.risk_score), q(c.credit_limit),
+            q(c.annual_volume_target), q(c.product_interests),
+            q(c.first_order_date), q(c.last_order_date),
+            q(c.status || 'Aktif'), q(c.short_info)
         ].join(';') + '\n';
     });
 
