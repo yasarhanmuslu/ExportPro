@@ -20,6 +20,7 @@ export default defineConfig({
         customerScore: resolve(__dirname, 'customer-score.html'),
         productAnalysis: resolve(__dirname, 'product-analysis.html'),
         marketAnalysis: resolve(__dirname, 'market-analysis.html'),
+        loadingPlanner: resolve(__dirname, 'loading-planner.html'),
       }
     }
   }

@@ -1,6 +1,6 @@
 import { supabase } from '../utils/supabaseClient.js';
 
-const APP_VERSION = 'V: 1.0.46';
+const APP_VERSION = 'V: 1.0.47';
 
 export async function renderNavbar(activeTab) {
     const { data: { session } } = await supabase.auth.getSession();
@@ -18,21 +18,22 @@ export async function renderNavbar(activeTab) {
     const userEmail = session && session.user ? session.user.email : 'Giriş Yapılmadı';
 
     const tabs = [
-        { id: 'dashboard',    label: 'Dashboard',     icon: 'fa-chart-pie',     href: 'index.html' },
-        { id: 'orders',       label: 'Siparişler',     icon: 'fa-boxes-stacked', href: 'orders.html' },
-        { id: 'quotations',   label: 'Teklifler',       icon: 'fa-file-contract', href: 'quotations.html' },
-        { id: 'customers',    label: 'Müşteriler',     icon: 'fa-users',         href: 'customers.html' },
-        { id: 'prices',       label: 'Fiyat Robotu',   icon: 'fa-calculator',    href: 'prices.html' },
-        { id: 'credit-notes', label: 'Credit Notes',   icon: 'fa-file-invoice',  href: 'credit-notes.html' },
-        { id: 'products',     label: 'Ürün Kartları',  icon: 'fa-box',           href: 'products.html' },
-        { id: 'order-timeline', label: 'Takip Takvimi', icon: 'fa-calendar-check', href: 'order-timeline.html' },
-        { id: 'profitability', label: 'Karlılık Analizi', icon: 'fa-chart-line', href: 'profitability.html' },
-        { id: 'complaints',   label: 'Şikayet Panosu',  icon: 'fa-triangle-exclamation', href: 'complaints.html' },
-        { id: 'payments',     label: 'Ödeme Takibi',    icon: 'fa-circle-dollar-to-slot', href: 'payments.html' },
-        { id: 'customer-score', label: 'Müşteri Skoru', icon: 'fa-ranking-star', href: 'customer-score.html' },
-        { id: 'product-analysis', label: 'Ürün Analizi', icon: 'fa-boxes-stacked', href: 'product-analysis.html' },
-        { id: 'market-analysis', label: 'Pazar Analizi', icon: 'fa-globe', href: 'market-analysis.html' },
-        { id: 'help', label: 'Yardım & Kılavuz', icon: 'fa-circle-question', href: 'help.html' },
+        { id: 'dashboard',        label: 'Dashboard',          icon: 'fa-chart-pie',                href: 'index.html' },
+        { id: 'orders',           label: 'Siparişler',          icon: 'fa-boxes-stacked',            href: 'orders.html' },
+        { id: 'quotations',       label: 'Teklifler',            icon: 'fa-file-contract',            href: 'quotations.html' },
+        { id: 'customers',        label: 'Müşteriler',          icon: 'fa-users',                    href: 'customers.html' },
+        { id: 'prices',           label: 'Fiyat Robotu',        icon: 'fa-calculator',               href: 'prices.html' },
+        { id: 'credit-notes',     label: 'Credit Notes',        icon: 'fa-file-invoice',             href: 'credit-notes.html' },
+        { id: 'products',         label: 'Ürün Kartları',       icon: 'fa-box',                      href: 'products.html' },
+        { id: 'order-timeline',   label: 'Takip Takvimi',       icon: 'fa-calendar-check',           href: 'order-timeline.html' },
+        { id: 'profitability',    label: 'Karlılık Analizi',    icon: 'fa-chart-line',               href: 'profitability.html' },
+        { id: 'complaints',       label: 'Şikayet Panosu',      icon: 'fa-triangle-exclamation',     href: 'complaints.html' },
+        { id: 'payments',         label: 'Ödeme Takibi',        icon: 'fa-circle-dollar-to-slot',    href: 'payments.html' },
+        { id: 'customer-score',   label: 'Müşteri Skoru',       icon: 'fa-ranking-star',             href: 'customer-score.html' },
+        { id: 'product-analysis', label: 'Ürün Analizi',        icon: 'fa-boxes-stacked',            href: 'product-analysis.html' },
+        { id: 'market-analysis',  label: 'Pazar Analizi',       icon: 'fa-globe',                    href: 'market-analysis.html' },
+        { id: 'loading-planner',  label: 'Yükleme Planlayıcı', icon: 'fa-truck-ramp-box',           href: 'loading-planner.html' },
+        { id: 'help',             label: 'Yardım & Kılavuz',    icon: 'fa-circle-question',          href: 'help.html' },
     ];
 
     const menuItems = tabs.map(tab => {
@@ -53,7 +54,6 @@ export async function renderNavbar(activeTab) {
         <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
     </svg>`;
 
-    /* Mevcut tema */
     const currentTheme = localStorage.getItem('ep-theme') || 'light';
     const themeLabel   = currentTheme === 'dark' ? 'Açık Tema' : 'Koyu Tema';
     const themeIcon    = currentTheme === 'dark' ? 'fa-sun' : 'fa-moon';
@@ -67,7 +67,7 @@ export async function renderNavbar(activeTab) {
             border-right: 1px solid var(--sidebar-border, #EFEAE0);
             transition: background 0.25s, border-color 0.25s;
         ">
-            <div style="padding:20px 14px 0;">
+            <div style="padding:20px 14px 0; overflow-y:auto; flex:1;">
                 <!-- Marka -->
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px;padding:0 4px;">
                     <div style="width:32px;height:32px;border-radius:7px;background:var(--ink-1,#1C1A17);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background 0.25s;">
@@ -85,7 +85,7 @@ export async function renderNavbar(activeTab) {
             </div>
 
             <!-- Alt kısım -->
-            <div style="padding:14px;border-top:1px solid var(--sidebar-border,#EFEAE0);background:var(--surface-2,#FBF8F1);transition:background 0.25s,border-color 0.25s;">
+            <div style="padding:14px;border-top:1px solid var(--sidebar-border,#EFEAE0);background:var(--surface-2,#FBF8F1);transition:background 0.25s,border-color 0.25s;flex-shrink:0;">
                 <div style="font-size:11px;color:var(--ink-2,#6B655B);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.2s;">
                     <i class="fa-solid fa-user" style="font-size:9px;margin-right:4px;color:var(--ink-3,#968B7A);"></i>${userEmail}
                 </div>
