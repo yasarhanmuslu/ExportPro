@@ -1,6 +1,6 @@
 // ============================================================
 // src/products.js — Ürün Tanımlama Kartı
-// Export Pro V: 1.0.22
+// Export Pro V: 1.0.23
 // ============================================================
 
 import { renderNavbar } from './components/navbar.js';
@@ -181,7 +181,7 @@ function renderTable() {
   if (page.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="8" class="text-center text-[var(--text-secondary)] py-16">
+        <td colspan="11" class="text-center text-[var(--text-secondary)] py-16">
           <i class="fa-solid fa-box-open text-2xl mb-3 block opacity-40"></i>
           Ürün bulunamadı
         </td>
@@ -194,7 +194,7 @@ function renderTable() {
   tbody.innerHTML = page.map(p => {
     const groupHeader = p.product_group !== lastGroup
       ? `<tr class="bg-[var(--bg-primary)]">
-           <td colspan="10" class="px-4 py-2 text-xs font-semibold text-[#2D4A3E] uppercase tracking-widest border-t border-[var(--border)]">
+           <td colspan="11" class="px-4 py-2 text-xs font-semibold text-[#2D4A3E] uppercase tracking-widest border-t border-[var(--border)]">
              <i class="fa-solid fa-layer-group mr-1.5 opacity-60"></i>${escHtml(p.product_group || 'Grupsuz')}
            </td>
          </tr>`
@@ -207,6 +207,13 @@ function renderTable() {
     const fmtEur  = v => v != null ? '€' + Number(v).toFixed(2) : '<span class="text-[#968B7A]">—</span>';
     const fmtUsd  = v => v != null ? '$' + Number(v).toFixed(2) : '<span class="text-[#968B7A]">—</span>';
     const fmtTry  = v => v != null ? '₺' + Number(v).toFixed(2) : '<span class="text-[#968B7A]">—</span>';
+    const fmtKg   = v => v != null ? Number(v).toFixed(2) : '—';
+    const metaParts = [];
+    if (p.color)    metaParts.push(escHtml(p.color));
+    if (p.function) metaParts.push(escHtml(p.function));
+    const metaLine = metaParts.length
+      ? `<div class="text-xs text-[var(--text-secondary)] truncate">${metaParts.join(' · ')}</div>`
+      : '';
 
     return groupHeader + `
       <tr class="border-t border-[var(--border)] hover:bg-[var(--bg-hover)] transition-colors">
@@ -217,11 +224,15 @@ function renderTable() {
         </td>
         <td class="px-4 py-3 text-sm font-medium text-[var(--text-primary)] max-w-xs">
           <div class="truncate" title="${escHtml(p.product_name)}">${escHtml(p.product_name)}</div>
+          ${metaLine}
         </td>
         <td class="px-4 py-3">
           <span class="text-xs bg-slate-700/50 text-[#6B655B] px-2 py-0.5 rounded-full">
             ${escHtml(p.product_group || '—')}
           </span>
+        </td>
+        <td class="px-4 py-3 text-right text-xs text-[var(--text-secondary)] whitespace-nowrap">
+          ${fmtKg(p.net_weight)} / ${fmtKg(p.gross_weight)}
         </td>
         <td class="px-4 py-3 text-right text-sm text-[var(--text-primary)]">${fmtEur(eur2026?.list_price)}</td>
         <td class="px-4 py-3 text-right text-sm font-semibold text-[#3D6E50]">${fmtEur(eur2026?.net_price)}</td>
@@ -271,6 +282,10 @@ function openAddProduct() {
   document.getElementById('product-code').value        = '';
   document.getElementById('product-name').value        = '';
   document.getElementById('product-group').value       = '';
+  document.getElementById('product-color').value        = '';
+  document.getElementById('product-function').value     = '';
+  document.getElementById('product-net-weight').value   = '';
+  document.getElementById('product-gross-weight').value = '';
   document.getElementById('product-description').value = '';
   document.getElementById('modal-product-title').textContent = 'Yeni Ürün';
   showModal('modal-product');
@@ -283,6 +298,10 @@ window.openEditProduct = function(id) {
   document.getElementById('product-code').value        = p.product_code;
   document.getElementById('product-name').value        = p.product_name;
   document.getElementById('product-group').value       = p.product_group || '';
+  document.getElementById('product-color').value        = p.color    || '';
+  document.getElementById('product-function').value     = p.function || '';
+  document.getElementById('product-net-weight').value   = p.net_weight   != null ? p.net_weight   : '';
+  document.getElementById('product-gross-weight').value = p.gross_weight != null ? p.gross_weight : '';
   document.getElementById('product-description').value = p.description  || '';
   document.getElementById('modal-product-title').textContent = 'Ürün Düzenle';
   showModal('modal-product');
@@ -293,10 +312,18 @@ async function saveProduct() {
   const code = document.getElementById('product-code').value.trim();
   const name = document.getElementById('product-name').value.trim();
   const grp  = document.getElementById('product-group').value.trim();
+  const color = document.getElementById('product-color').value.trim();
+  const func  = document.getElementById('product-function').value.trim();
   const desc = document.getElementById('product-description').value.trim();
 
   if (!code) { alert('Ürün kodu zorunludur.'); return; }
   if (!name) { alert('Ürün adı zorunludur.'); return; }
+
+  // ── Ağırlık doğrulama ──
+  const netW   = validateWeight('product-net-weight', 'Net ağırlık');
+  if (netW === false) return;
+  const grossW = validateWeight('product-gross-weight', 'Brüt ağırlık');
+  if (grossW === false) return;
 
   try {
     const payload = {
@@ -304,6 +331,10 @@ async function saveProduct() {
       product_code:  code,
       product_name:  name,
       product_group: grp  || null,
+      color:         color || null,
+      function:      func  || null,
+      net_weight:    netW,
+      gross_weight:  grossW,
       description:   desc || null,
     };
 
@@ -555,6 +586,43 @@ function bindEvents() {
       if (e.target.id === id) hideModal(id);
     });
   });
+}
+
+// ── Ağırlık Doğrulama ─────────────────────────────────────────
+// Dönüş: null (boş) | number (geçerli) | false (geçersiz/iptal — kayıt durmalı)
+function validateWeight(elementId, label) {
+  const el  = document.getElementById(elementId);
+  const raw = el.value.trim();
+  if (raw === '') return null;
+
+  let val = parseFloat(raw.replace(',', '.'));
+  if (isNaN(val)) {
+    alert(`${label} geçerli bir sayı olmalıdır.`);
+    el.focus();
+    return false;
+  }
+  if (val < 0) {
+    alert(`${label} negatif değer olamaz.`);
+    el.focus();
+    return false;
+  }
+
+  // 2 hane hassasiyet
+  val = Math.round(val * 100) / 100;
+
+  // 75 kg üzeri onay
+  if (val > 75) {
+    const ok = confirm(`${label} ${val.toFixed(2)} kg olarak girildi (75 kg üzeri).\nDeğer doğru mu? Onaylıyor musunuz?`);
+    if (!ok) {
+      // Onay yok → değer düzeltilsin
+      el.value = '';
+      el.focus();
+      return false;
+    }
+  }
+
+  el.value = val.toFixed(2);
+  return val;
 }
 
 // ── Modal Yardımcıları ────────────────────────────────────────

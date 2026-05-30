@@ -110,6 +110,7 @@
               <th class="text-left text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">Ürün Kodu</th>
               <th class="text-left text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">Ürün Adı</th>
               <th class="text-left text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">Grup</th>
+              <th class="text-right text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">Ağırlık (N/B)</th>
               <th class="text-right text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">2026 EUR Liste</th>
               <th class="text-right text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">2026 EUR Net</th>
               <th class="text-right text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">2026 USD Liste</th>
@@ -121,7 +122,7 @@
           </thead>
           <tbody id="product-table-body">
             <tr>
-              <td colspan="10" class="text-center text-[var(--text-secondary)] py-12">
+              <td colspan="11" class="text-center text-[var(--text-secondary)] py-12">
                 <i class="fa-solid fa-spinner fa-spin mr-2"></i>Yükleniyor…
               </td>
             </tr>
@@ -169,6 +170,30 @@
           <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Ürün Grubu</label>
           <input id="product-group" type="text" placeholder="örn: HALLEY SERİSİ"
             class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Renk</label>
+            <input id="product-color" type="text" maxlength="50" placeholder="örn: Beyaz"
+              class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Fonksiyon</label>
+            <input id="product-function" type="text" maxlength="50" placeholder="örn: Rim-Off"
+              class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Net Ağırlık (kg)</label>
+            <input id="product-net-weight" type="number" step="0.01" min="0" placeholder="0.00"
+              class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Brüt Ağırlık (kg)</label>
+            <input id="product-gross-weight" type="number" step="0.01" min="0" placeholder="0.00"
+              class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
+          </div>
         </div>
         <div>
           <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Açıklama</label>
