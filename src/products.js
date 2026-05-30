@@ -1,6 +1,6 @@
 // ============================================================
 // src/products.js — Ürün Tanımlama Kartı
-// Export Pro V: 1.0.23
+// Export Pro V: 1.0.24
 // ============================================================
 
 import { renderNavbar } from './components/navbar.js';
@@ -325,6 +325,14 @@ async function saveProduct() {
   const grossW = validateWeight('product-gross-weight', 'Brüt ağırlık');
   if (grossW === false) return;
 
+  // Net ağırlık, brüt ağırlıktan büyük veya eşit olamaz
+  if (netW != null && grossW != null && netW >= grossW) {
+    alert('Net ağırlık, brüt ağırlıktan büyük veya eşit olamaz.\nLütfen değerleri kontrol edin.');
+    document.getElementById('product-net-weight').focus();
+    document.getElementById('product-net-weight').select();
+    return;
+  }
+
   try {
     const payload = {
       user_id:       session.user.id,
@@ -614,9 +622,9 @@ function validateWeight(elementId, label) {
   if (val > 75) {
     const ok = confirm(`${label} ${val.toFixed(2)} kg olarak girildi (75 kg üzeri).\nDeğer doğru mu? Onaylıyor musunuz?`);
     if (!ok) {
-      // Onay yok → değer düzeltilsin
-      el.value = '';
+      // Onay yok → kayıt yapılmasın, değer kullanıcı düzeltsin diye olduğu gibi kalsın
       el.focus();
+      el.select();
       return false;
     }
   }
