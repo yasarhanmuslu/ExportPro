@@ -1,22 +1,21 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 
-// ── Başlat
-async function init() {
-    // ── Auth kontrolü
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { window.location.href = 'login.html'; return; }
-    await renderNavbar('order-timeline');
-}
-
-init();
-
 // ── State
+let session = null;
 let allOrders = [];
 let currentFilter = 'all';
 let currentView = 'calendar';
 let calYear = new Date().getFullYear();
 let calMonth = new Date().getMonth(); // 0-based
+
+// ── Başlat
+async function init() {
+    const { data: { session: s } } = await supabase.auth.getSession();
+    if (!s) { window.location.href = 'login.html'; return; }
+    session = s;
+    await renderNavbar('order-timeline');
+}
 
 // ── Supabase'den siparişleri çek
 async function loadOrders() {
@@ -307,7 +306,6 @@ document.getElementById('btn-show-overdue').addEventListener('click', () => {
     currentFilter = 'overdue';
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     document.querySelector('[data-filter="overdue"]')?.classList.add('active');
-    // Liste görünümüne geç
     currentView = 'list';
     document.getElementById('view-calendar').style.display = 'none';
     document.getElementById('view-list').style.display = 'block';
