@@ -139,11 +139,11 @@ function renderOrdersTable(ordersList) {
     const currencySymbols = { 'EUR': '€', 'USD': '$', 'TRY': '₺', 'GBP': '£' };
 
     const statusColors = {
-        'Devam Ediyor':    { row: 'row-beyaz',   badge: 'bg-slate-800 text-slate-300',        dot: 'bg-slate-400' },
-        'Ödeme Bekliyor':  { row: 'row-sari',    badge: 'bg-yellow-950/60 text-yellow-400',   dot: 'bg-yellow-400' },
-        'Tamamlandı':      { row: 'row-yesil',   badge: 'bg-emerald-950/60 text-emerald-400', dot: 'bg-emerald-400' },
-        'İptal / Gecikme': { row: 'row-kirmizi', badge: 'bg-rose-950/60 text-rose-400',       dot: 'bg-rose-400' },
-        'Yeni Müşteri':    { row: 'row-ten',     badge: 'bg-blue-950/60 text-blue-400',       dot: 'bg-blue-400' },
+        'Devam Ediyor':    { row: 'row-beyaz',   badge: 'badge-devam',    dot: 'bg-slate-400' },
+        'Ödeme Bekliyor':  { row: 'row-sari',    badge: 'badge-sari',     dot: 'bg-yellow-500' },
+        'Tamamlandı':      { row: 'row-yesil',   badge: 'badge-yesil',    dot: 'bg-green-500' },
+        'İptal / Gecikme': { row: 'row-kirmizi', badge: 'badge-kirmizi',  dot: 'bg-red-500' },
+        'Yeni Müşteri':    { row: 'row-ten',     badge: 'badge-mavi',     dot: 'bg-blue-500' },
     };
 
     ordersList.forEach(order => {
