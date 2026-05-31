@@ -191,13 +191,30 @@ function buildColumns(items, vehicle, pad) {
 
 // Bir çözümün kalite skoru: önce yerleşen palet sayısı, sonra taban
 // doluluğu, sonra ağırlık dengesi (COM %50'ye yakınlık).
-function scoreSolution(placedCols, leftover, vehicle) {
+function scoreSolution(placedCols, leftover, vehicle, mode = 'balance') {
   const placedPallets = placedCols.reduce((s, pc) => s + pc.col.stack.length, 0);
   const lostPallets   = leftover.reduce((s, c) => s + c.stack.length, 0);
   const usedFloor = placedCols.reduce((s, pc) => s + pc.w * pc.h, 0);
   const floorArea = vehicle.L * vehicle.W;
   const floorPct  = floorArea > 0 ? usedFloor / floorArea : 0;
 
+  // Hacim doluluğu (gerçek istif hacmi / araç hacmi) — "en az boşluk" metriği.
+  const usedVol = placedCols.reduce((s, pc) =>
+    s + pc.col.stack.reduce((a, it) => a + it.W * it.L * it.H, 0), 0);
+  const vehVol = vehicle.L * vehicle.W * vehicle.H;
+  const volPct = vehVol > 0 ? usedVol / vehVol : 0;
+
+  if (mode === 'volume') {
+    // ── EN AZ BOŞLUK MODU ──
+    // Ağırlık/denge tamamen yok sayılır. Yerleşen palet sayısı baskın,
+    // sonra hacim doluluğu, sonra taban doluluğu. Hiçbir denge cezası yok.
+    return (placedPallets * 1e7)
+         - (lostPallets   * 1e7)
+         + (volPct        * 2e5)
+         + (floorPct      * 1e5);
+  }
+
+  // ── KUSURSUZ DENGE MODU (varsayılan — DEĞİŞTİRİLMEDİ) ──
   const totalKg = placedCols.reduce((s, pc) => s + pc.col.totalKg, 0);
   let com = 0;
   if (totalKg > 0) {
@@ -281,15 +298,16 @@ function decode(chromosome, columns, vehicle) {
 }
 
 // Kromozomun fitness'ı (yüksek = iyi).
-function fitness(chromosome, columns, vehicle) {
+function fitness(chromosome, columns, vehicle, mode) {
   if (chromosome._fit != null) return chromosome._fit;
   const dec = decode(chromosome, columns, vehicle);
   chromosome._dec = dec;
-  chromosome._fit = scoreSolution(dec.placedCols, dec.leftover, vehicle);
+  chromosome._fit = scoreSolution(dec.placedCols, dec.leftover, vehicle, mode);
   return chromosome._fit;
 }
 
 function placeColumns2D(columns, vehicle, opts = {}) {
+  const mode = opts.mode || 'balance';
   const n = columns.length;
   if (n === 0) return { placedCols: [], leftover: [], strategy: 'boş' };
 
@@ -325,7 +343,7 @@ function placeColumns2D(columns, vehicle, opts = {}) {
   let stale = 0;                       // kaç nesildir iyileşme yok
   const STALL_LIMIT = Math.max(15, Math.round(GENERATIONS * 0.35));
   for (let g = 0; g < GENERATIONS; g++) {
-    pop.forEach(ch => fitness(ch, columns, vehicle));
+    pop.forEach(ch => fitness(ch, columns, vehicle, mode));
     pop.sort((a, b) => b._fit - a._fit);
     if (!best || pop[0]._fit > best._fit + 1e-6) { best = pop[0]; stale = 0; }
     else stale++;
@@ -345,7 +363,7 @@ function placeColumns2D(columns, vehicle, opts = {}) {
     pop.length = 0;
     Array.prototype.push.apply(pop, next);
   }
-  pop.forEach(ch => fitness(ch, columns, vehicle));
+  pop.forEach(ch => fitness(ch, columns, vehicle, mode));
   pop.sort((a, b) => b._fit - a._fit);
   if (!best || pop[0]._fit > best._fit) best = pop[0];
 
@@ -353,7 +371,7 @@ function placeColumns2D(columns, vehicle, opts = {}) {
   return {
     placedCols: dec.placedCols,
     leftover: dec.leftover,
-    strategy: `genetik algoritma (pop ${POP} · ${GENERATIONS} nesil · tohum: ${best.src || 'evrim'})`,
+    strategy: `${mode === 'volume' ? 'en az boşluk' : 'kusursuz denge'} · genetik algoritma (pop ${POP} · ${GENERATIONS} nesil · tohum: ${best.src || 'evrim'})`,
   };
 }
 
@@ -738,11 +756,13 @@ function rebalance(placedCols) {
   });
 }
 
-function packVehicle(vehicle, items, pad) {
+function packVehicle(vehicle, items, pad, mode = 'balance') {
   const columns = buildColumns(items, vehicle, pad);
-  const placement = placeColumns2D(columns, vehicle);
+  const placement = placeColumns2D(columns, vehicle, { mode });
   const { placedCols, leftover } = placement;
-  rebalance(placedCols);
+  // Ağırlık dengeleme yalnızca denge modunda anlamlıdır; en az boşluk
+  // modunda ağırlık yok sayıldığı için atlanır.
+  if (mode !== 'volume') rebalance(placedCols);
 
   // Genişlik (Y) ekseninde yükü ortala — dingil dengesi ve görsel için.
   // Yerleşimin Y kapsamını bul, kalan boşluğu iki yana eşit dağıt.
@@ -838,8 +858,15 @@ function buildUI() {
         </div>
 
         <button id="lp-calc" style="padding:12px;border:none;border-radius:11px;background:var(--accent);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
-          <i class="fa-solid fa-cubes-stacked"></i>&nbsp; Yerleşimi Hesapla
+          <i class="fa-solid fa-scale-balanced"></i>&nbsp; Kusursuz Denge Hesabı
         </button>
+        <button id="lp-calc-vol" style="padding:12px;border:1px solid var(--accent);border-radius:11px;background:var(--surface,#fff);color:var(--accent);font-size:14px;font-weight:700;cursor:pointer;">
+          <i class="fa-solid fa-cubes-stacked"></i>&nbsp; En Az Boşluk Hesabı
+        </button>
+        <p style="font-size:11px;color:var(--ink-2);margin-top:-4px;line-height:1.5;">
+          <b>Kusursuz Denge:</b> ağırlık merkezini dengeler + boşluğu azaltır.<br>
+          <b>En Az Boşluk:</b> ağırlığı yok sayar, yalnızca maksimum hacim doluluğu.
+        </p>
       </div>
 
       <!-- SAĞ PANEL -->
@@ -870,7 +897,8 @@ function buildUI() {
 
   document.getElementById('lp-vehicle').addEventListener('change', onVehicleChange);
   document.getElementById('lp-refresh').addEventListener('click', fetchPallets);
-  document.getElementById('lp-calc').addEventListener('click', onCalculate);
+  document.getElementById('lp-calc').addEventListener('click', () => onCalculate('balance'));
+  document.getElementById('lp-calc-vol').addEventListener('click', () => onCalculate('volume'));
   document.getElementById('lp-reset-cam').addEventListener('click', resetCamera);
   ['L','W','H','maxKg'].forEach(k =>
     document.getElementById(`lp-c-${k}`).addEventListener('input', readCustom));
@@ -919,7 +947,7 @@ function renderPalletList() {
     }));
 }
 
-function onCalculate() {
+function onCalculate(mode = 'balance') {
   padding = {
     left:  Number(document.getElementById('lp-pad-left').value)  || 0,
     right: Number(document.getElementById('lp-pad-right').value) || 0,
@@ -934,22 +962,24 @@ function onCalculate() {
   });
   if (!items.length) { alert('Lütfen en az bir palet adedi girin.'); return; }
 
-  const btn = document.getElementById('lp-calc');
+  const btn  = document.getElementById(mode === 'volume' ? 'lp-calc-vol' : 'lp-calc');
+  const btn2 = document.getElementById(mode === 'volume' ? 'lp-calc' : 'lp-calc-vol');
   const orig = btn.innerHTML;
-  btn.disabled = true;
-  btn.style.opacity = '.7';
+  btn.disabled = true; btn2.disabled = true;
+  btn.style.opacity = '.7'; btn2.style.opacity = '.5';
   btn.innerHTML = '<i class="fa-solid fa-dna fa-spin"></i>&nbsp; Genetik optimizasyon…';
 
   // UI'nin durumu boyamasına izin ver (GA birkaç saniye sürebilir), sonra hesapla.
   setTimeout(() => {
     const t0 = performance.now();
-    lastResult = packVehicle(curVehicle, items, padding);
+    lastResult = packVehicle(curVehicle, items, padding, mode);
     lastResult.elapsedMs = Math.round(performance.now() - t0);
+    lastResult.mode = mode;
     renderStats(lastResult);
     renderUnplaced(lastResult);
     draw3D(lastResult);
-    btn.disabled = false;
-    btn.style.opacity = '1';
+    btn.disabled = false; btn2.disabled = false;
+    btn.style.opacity = '1'; btn2.style.opacity = '1';
     btn.innerHTML = orig;
   }, 30);
 }
