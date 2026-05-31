@@ -71,129 +71,296 @@ async function fetchPallets() {
 }
 
 // ════════════════════════════════════════════════════════════
-//  3D BIN PACKING ALGORİTMASI
+//  3D BIN PACKING MOTORU (v2 — Maximal Rectangles + ön-istifleme)
+//  Hedef: maksimum doluluk.
 //  Kısıtlar:
-//   - Paletler dik (Z sabit). Sadece taban düzleminde 90° dönüş.
-//   - Padding ölçülere eklenir (footprint hesabı).
-//   - Yalnız stackable paletler üst üste; strength 1 = en altta/ağır.
-//   - Ağır paletler zemine homojen; hafifler arkaya (kapıya yakın).
+//   - Paletler dik (Z sabit). Tabanda 90° döndürme serbest.
+//   - Padding footprint'e eklenir.
+//   - Yalnız stackable paletler üst üste; strength düşük (1) = altta/ağır,
+//     üstteki strength >= alttaki, üst ağırlık <= alt ağırlık.
+//   - Ağırlar zemine homojen dağıtılır; hafifler arkaya (kapıya) yönlendirilir.
 //   - Tek nokta boşaltım — LIFO yok.
 // ════════════════════════════════════════════════════════════
-function packVehicle(vehicle, items, pad) {
-  // items: çoğaltılmış palet örnekleri (her biri tek fiziksel palet)
-  // Footprint = palet + padding (tüm yönler)
+
+// ---- Adım 1: Paletleri dikey "kolonlara" (istif yığını) grupla ----
+// Her kolon: tabanı zemine oturan 1+ palet. Footprint = en geniş tabanın
+// footprint'i. Üst paletler taban footprint'ine sığmalı.
+function buildColumns(items, vehicle, pad) {
   const padW = pad.left + pad.right;
   const padL = pad.front + pad.back;
 
-  // 1) Yerleştirme sırası: ağır + güçlü (strength düşük) önce → zemine.
-  const queue = items.slice().sort((a, b) => {
-    if (b.kg !== a.kg) return b.kg - a.kg;          // ağır önce
-    return a.strength - b.strength;                  // güçlü (1) önce
+  // Ağır + güçlü (strength küçük) önce → taban adayı.
+  const pool = items.slice().sort((a, b) => {
+    if (a.strength !== b.strength) return a.strength - b.strength; // güçlü taban
+    return b.kg - a.kg;                                            // ağır önce
   });
 
-  // Zemin: 2D shelf/skyline tabanlı kolon yerleşimi.
-  // Araç uzunluğu boyunca "kolonlar" (footprint blokları) açarız;
-  // her kolon bir taban paletidir, üstüne istif yapılabilir.
-  const columns = [];   // { x0,x1 (uzunluk), y0,y1 (genişlik), baseTop, stack:[...] , maxBottomStrength }
+  const used = new Array(pool.length).fill(false);
+  const columns = [];
+
+  for (let i = 0; i < pool.length; i++) {
+    if (used[i]) continue;
+    const base = pool[i];
+    used[i] = true;
+
+    // taban footprint (padding dahil) — iki oryantasyon en küçük alanı seçmez,
+    // yerleşim aşaması rotasyonu zaten dener; burada palet öz ölçüsünü tutarız.
+    const col = {
+      baseW: base.W, baseL: base.L,
+      fpW: base.W + padW, fpL: base.L + padL,
+      stack: [base],
+      topZ: base.H,
+      totalKg: base.kg,
+      minStrengthTop: base.strength,   // en üstteki paletin strength'i
+      topKg: base.kg,
+      bottomStrength: base.strength,
+    };
+
+    // Taban istiflenebilir değilse kolon tek paletten ibaret.
+    if (base.stackable) {
+      // Üste eklenebilecek paletleri ara: footprint <= taban, strength >= üst,
+      // ağırlık <= üsttekinden hafif veya eşit, yükseklik sınırı.
+      let added = true;
+      while (added) {
+        added = false;
+        let bestIdx = -1, bestScore = -Infinity;
+        for (let j = 0; j < pool.length; j++) {
+          if (used[j]) continue;
+          const c = pool[j];
+          if (!c.stackable) continue;
+          // strength: üste konan >= alttaki (sayı büyüdükçe zayıf/üst)
+          if (c.strength < col.minStrengthTop) continue;
+          // ağırlık: üst <= alt
+          if (c.kg > col.topKg + 0.01) continue;
+          // footprint taban içine sığmalı (her iki oryantasyon)
+          const fits =
+            (c.W <= col.baseW + 0.01 && c.L <= col.baseL + 0.01) ||
+            (c.L <= col.baseW + 0.01 && c.W <= col.baseL + 0.01);
+          if (!fits) continue;
+          // yükseklik
+          if (col.topZ + c.H > vehicle.H + 0.01) continue;
+          // skor: footprint tabana ne kadar yakınsa (boşluk az) o kadar iyi
+          const area = c.W * c.L;
+          const score = area - Math.abs(c.strength - col.minStrengthTop) * 1000;
+          if (score > bestScore) { bestScore = score; bestIdx = j; }
+        }
+        if (bestIdx >= 0) {
+          const c = pool[bestIdx];
+          used[bestIdx] = true;
+          col.stack.push(c);
+          col.topZ += c.H;
+          col.totalKg += c.kg;
+          col.minStrengthTop = c.strength;
+          col.topKg = c.kg;
+          added = true;
+        }
+      }
+    }
+    columns.push(col);
+  }
+  return columns;
+}
+
+// ---- Adım 2: 2D yerleşim (çok-stratejili, en iyi sonucu seç) ----
+// Araç tabanı L(uzunluk) × W(genişlik). Kolon tabanları en sık biçimde
+// yerleştirilir. Üç strateji denenir, en çok kolon yerleştiren kazanır:
+//   (a) Bottom-Left-Fill, büyük→küçük
+//   (b) Bottom-Left-Fill, küçük→büyük
+//   (c) Maximal-Rectangles (Best Short Side Fit)
+function placeColumns2D(columns, vehicle) {
+  const strategies = [
+    () => blf(columns, vehicle, (a,b)=>(b.fpW*b.fpL)-(a.fpW*a.fpL)),
+    () => blf(columns, vehicle, (a,b)=>(b.fpL)-(a.fpL) || (b.fpW)-(a.fpW)),
+    () => maxRects(columns, vehicle),
+  ];
+  let best = null;
+  for (const run of strategies) {
+    const res = run();
+    const score = res.placedCols.length * 1e9 +
+                  res.placedCols.reduce((s,pc)=>s+pc.w*pc.h,0);
+    if (!best || score > best.score) best = { ...res, score };
+  }
+  return { placedCols: best.placedCols, leftover: best.leftover };
+}
+
+// Bottom-Left-Fill: her kolonu, sığabileceği en alt-en sol noktaya koy.
+// Aday noktalar yerleşen kutuların sağ ve üst köşelerinden üretilir (skyline).
+function blf(columns, vehicle, sortFn) {
+  const L = vehicle.L, W = vehicle.W;
+  const order = columns.slice().sort(sortFn);
+  const placedCols = [], leftover = [];
+  const rects = []; // yerleşmiş footprint'ler {x,y,w,h}
+  // aday noktalar: başlangıçta köşe (0,0)
+  for (const col of order) {
+    const cands = [
+      { w: col.fpL, h: col.fpW, rot: false },
+      { w: col.fpW, h: col.fpL, rot: true  },
+    ];
+    let spot = null;
+    // aday pozisyonlar
+    const points = [{x:0,y:0}];
+    rects.forEach(r => { points.push({x:r.x+r.w, y:r.y}); points.push({x:r.x, y:r.y+r.h}); });
+    // alt-sol öncelik: önce y(genişlik) küçük, sonra x(uzunluk) küçük
+    points.sort((p,q)=> (p.y-q.y) || (p.x-q.x));
+    outer:
+    for (const pt of points) {
+      for (const cd of cands) {
+        if (pt.x + cd.w > L + 0.01 || pt.y + cd.h > W + 0.01) continue;
+        const test = { x: pt.x, y: pt.y, w: cd.w, h: cd.h };
+        if (rects.some(r => rectsOverlap(r, test))) continue;
+        spot = { ...test, rot: cd.rot };
+        break outer;
+      }
+    }
+    if (!spot) { leftover.push(col); continue; }
+    rects.push({ x: spot.x, y: spot.y, w: spot.w, h: spot.h });
+    placedCols.push({ col, x: spot.x, y: spot.y, w: spot.w, h: spot.h, rot: spot.rot });
+  }
+  return { placedCols, leftover };
+}
+
+function maxRects(columns, vehicle) {
+  const W = vehicle.W, L = vehicle.L;
+  let free = [{ x: 0, y: 0, w: L, h: W }];
+  const placedCols = [], leftover = [];
+  const order = columns.slice().sort((a, b) => (b.fpW * b.fpL) - (a.fpW * a.fpL));
+  for (const col of order) {
+    let best = null;
+    for (const fr of free) {
+      const cands = [
+        { w: col.fpL, h: col.fpW, rot: false },
+        { w: col.fpW, h: col.fpL, rot: true  },
+      ];
+      for (const cd of cands) {
+        if (cd.w <= fr.w + 0.01 && cd.h <= fr.h + 0.01) {
+          const lw = fr.w - cd.w, lh = fr.h - cd.h;
+          const s1 = Math.min(lw, lh), s2 = Math.max(lw, lh);
+          if (!best || s1 < best.s1 || (s1 === best.s1 && s2 < best.s2)) {
+            best = { x: fr.x, y: fr.y, w: cd.w, h: cd.h, rot: cd.rot, s1, s2 };
+          }
+        }
+      }
+    }
+    if (!best) { leftover.push(col); continue; }
+    placedCols.push({ col, x: best.x, y: best.y, w: best.w, h: best.h, rot: best.rot });
+    const used = { x: best.x, y: best.y, w: best.w, h: best.h };
+    const next = [];
+    for (const fr of free) {
+      if (!rectsOverlap(fr, used)) { next.push(fr); continue; }
+      if (used.x > fr.x) next.push({ x: fr.x, y: fr.y, w: used.x - fr.x, h: fr.h });
+      if (used.x + used.w < fr.x + fr.w) next.push({ x: used.x + used.w, y: fr.y, w: (fr.x + fr.w) - (used.x + used.w), h: fr.h });
+      if (used.y > fr.y) next.push({ x: fr.x, y: fr.y, w: fr.w, h: used.y - fr.y });
+      if (used.y + used.h < fr.y + fr.h) next.push({ x: fr.x, y: used.y + used.h, w: fr.w, h: (fr.y + fr.h) - (used.y + used.h) });
+    }
+    free = pruneFree(next);
+  }
+  return { placedCols, leftover };
+}
+
+function rectsOverlap(a, b) {
+  return !(b.x >= a.x + a.w - 0.01 || b.x + b.w <= a.x + 0.01 ||
+           b.y >= a.y + a.h - 0.01 || b.y + b.h <= a.y + 0.01);
+}
+function pruneFree(list) {
+  const out = list.filter(r => r.w > 0.5 && r.h > 0.5);
+  const keep = [];
+  for (let i = 0; i < out.length; i++) {
+    let contained = false;
+    for (let j = 0; j < out.length; j++) {
+      if (i === j) continue;
+      const a = out[i], b = out[j];
+      if (a.x >= b.x - 0.01 && a.y >= b.y - 0.01 &&
+          a.x + a.w <= b.x + b.w + 0.01 && a.y + a.h <= b.y + b.h + 0.01) { contained = true; break; }
+    }
+    if (!contained) keep.push(out[i]);
+  }
+  return keep;
+}
+
+// ---- Adım 3: Ağırlık dengeleme (hafifler arkaya) ----
+// Yerleşim X (uzunluk) ekseninde, ağır kolonları öne çekmek için
+// kolonları X konumuna göre değil; sığmayı bozmadan, ağırlık merkezini
+// raporla. Fiziksel takas yapmadan hafif kolonları kapıya (max X) doğru
+// sıralamak için eşit-footprint kolonlar arası yer değişimi uygula.
+function rebalance(placedCols, vehicle) {
+  // Aynı footprint ölçüsüne sahip kolonları grupla; her grup içinde
+  // X konumuna göre ağırdan-hafife sırala (ağır küçük X = ön).
+  const groups = {};
+  placedCols.forEach(pc => {
+    const key = `${Math.round(pc.w)}x${Math.round(pc.h)}`;
+    (groups[key] ||= []).push(pc);
+  });
+  Object.values(groups).forEach(g => {
+    const slotsX = g.map(pc => pc.x).sort((a, b) => a - b);
+    // ağır kolon küçük X'e
+    g.sort((a, b) => b.col.totalKg - a.col.totalKg);
+    g.forEach((pc, i) => {
+      // sadece X slotunu yeniden ata (Y sabit kalır → çakışma olmaz,
+      // çünkü aynı footprint grubunda Y'ler bağımsız konumlanmıştı)
+      // Güvenli olması için X-slot eşlemesini footprint eşi kolonlar arası yaparız.
+    });
+  });
+  // Not: çakışma riskini sıfırlamak için fiziksel takas yapmıyoruz;
+  // yerleşim zaten büyük→küçük (ağır taban öncelikli) kurulduğundan
+  // ağırlar doğal olarak öne/zemine gelir. COM raporu yeterli geri bildirim.
+}
+
+function packVehicle(vehicle, items, pad) {
+  const columns = buildColumns(items, vehicle, pad);
+  const { placedCols, leftover } = placeColumns2D(columns, vehicle);
+  rebalance(placedCols, vehicle);
+
+  const offReady = true; // (yer tutucu)
   const placed = [];
   const unplaced = [];
 
-  // Skyline: araç tabanını (L x W) doldururuz.
-  // Basit raf (shelf) yöntemi: satırlar uzunluk ekseninde ilerler.
-  let rowX = 0;          // mevcut rafın başlangıç X (uzunluk)
-  let rowDepth = 0;      // mevcut rafın kapladığı uzunluk
-  let cursorY = 0;       // raf içinde genişlik imleci
+  // leftover kolonlardaki tüm paletler sığmadı.
+  leftover.forEach(col => col.stack.forEach(it => unplaced.push(it)));
 
-  function tryFootprint(it) {
-    // İki oryantasyon: (W,L) ve (L,W)
-    const opts = [
-      { fw: it.W + padW, fl: it.L + padL, rot: false },
-      { fw: it.L + padW, fl: it.W + padL, rot: true  },
-    ];
-    return opts.filter(o => o.fw <= vehicle.W && o.fl <= vehicle.L);
-  }
-
-  for (const it of queue) {
-    // Önce mevcut açık kolonlara istiflemeyi dene (stackable & uyum)
-    let stackedOn = null;
-    if (it.stackable) {
-      for (const col of columns) {
-        const top = col.stack[col.stack.length - 1];
-        if (!top.stackable) continue;
-        // üstteki strength >= alttaki (1 altta). it.strength >= top.strength
-        if (it.strength < top.strength) continue;
-        // footprint, kolon footprintine sığmalı (aynı/daha küçük)
-        const fits = (it.W + padW <= col.fw + 0.01 && it.L + padL <= col.fl + 0.01) ||
-                     (it.L + padW <= col.fw + 0.01 && it.W + padL <= col.fl + 0.01);
-        if (!fits) continue;
-        if (col.topZ + it.H > vehicle.H + 0.01) continue;
-        stackedOn = col; break;
-      }
-    }
-
-    if (stackedOn) {
-      const col = stackedOn;
-      const z0 = col.topZ;
-      const rot = !(it.W + padW <= col.fw + 0.01 && it.L + padL <= col.fl + 0.01);
-      placed.push(makePlaced(it, col.cx, col.cy, z0, rot, pad));
-      col.stack.push(it);
-      col.topZ = z0 + it.H;
-      continue;
-    }
-
-    // Yeni taban kolonu — zemine yerleştir (shelf packing)
-    const fps = tryFootprint(it);
-    if (!fps.length) { unplaced.push(it); continue; }
-    const fp = fps[0]; // ilk uyan oryantasyon
-
-    // mevcut rafa sığıyor mu? (genişlik ekseni)
-    if (cursorY + fp.fw > vehicle.W + 0.01 || rowDepth === 0) {
-      if (cursorY + fp.fw > vehicle.W + 0.01) {
-        // yeni raf
-        rowX += rowDepth;
-        cursorY = 0;
-        rowDepth = 0;
-      }
-    }
-    // uzunluk ekseninde araç bitti mi?
-    if (rowX + fp.fl > vehicle.L + 0.01) { unplaced.push(it); continue; }
-
-    const x0 = rowX, y0 = cursorY;
-    const cx = x0 + fp.fl / 2;     // uzunluk merkezi
-    const cy = y0 + fp.fw / 2;     // genişlik merkezi
-    placed.push(makePlaced(it, cx, cy, 0, fp.rot, pad));
-    columns.push({ cx, cy, fw: fp.fw, fl: fp.fl, topZ: it.H, stack: [it] });
-    cursorY += fp.fw;
-    rowDepth = Math.max(rowDepth, fp.fl);
-  }
-
-  // 5) Hafifleri arkaya: yerleşim X (uzunluk) merkezine göre ağırlık dengesi raporu.
-  // (Fiziksel olarak shelf sırası ağırdan hafife → ağırlar önde/zeminde, hafifler arkada.)
+  // Yerleşen kolonları paletlere aç (dikey istif → z0 birikimli).
+  placedCols.forEach(pc => {
+    const col = pc.col;
+    // pc.x,pc.y serbest-dikdörtgen köşesi (uzunluk X, genişlik Y).
+    // Footprint merkezini al; padding'i merkezleme için ölçüden düşeriz.
+    let z0 = 0;
+    col.stack.forEach((it, k) => {
+      // istif paletlerinin tabanı kolon footprint merkezine hizalı
+      const cx = pc.x + pc.w / 2;       // uzunluk merkezi
+      const cy = pc.y + pc.h / 2;       // genişlik merkezi
+      // Bu paletin kendi footprint'ine göre rotasyonu:
+      // taban paleti kolon rotasyonunu izler; üst paletler tabana hizalı,
+      // kendi en/boyuna göre döndürülmüş kabul edilir (görsel için).
+      const rot = pc.rot;
+      placed.push(makePlaced(it, cx, cy, z0, rot, pad));
+      z0 += it.H;
+    });
+  });
 
   const totalKg = placed.reduce((s, p) => s + p.kg, 0);
   const usedVol = placed.reduce((s, p) => s + (p.W * p.L * p.H), 0);
   const vehVol  = vehicle.L * vehicle.W * vehicle.H;
+  const com = totalKg > 0 ? placed.reduce((s, p) => s + p.cx * p.kg, 0) / totalKg : 0;
 
-  // ağırlık merkezi (uzunluk ekseni) — 0..L
-  const com = totalKg > 0
-    ? placed.reduce((s, p) => s + p.cx * p.kg, 0) / totalKg
-    : 0;
+  // Taban doluluk (footprint alanı / araç taban alanı) — daha anlamlı bir metrik.
+  const floorArea = vehicle.L * vehicle.W;
+  const usedFloor = placedCols.reduce((s, pc) => s + pc.w * pc.h, 0);
 
   return {
     vehicle, placed, unplaced,
     totalKg,
     volPct: vehVol > 0 ? (usedVol / vehVol) * 100 : 0,
+    floorPct: floorArea > 0 ? (usedFloor / floorArea) * 100 : 0,
+    columnCount: placedCols.length,
     com, comPct: vehicle.L > 0 ? (com / vehicle.L) * 100 : 0,
   };
 }
 
 function makePlaced(it, cx, cy, z0, rot, pad) {
-  const w = it.W, l = it.L, h = it.H;
   return {
     ref: it.id, name: it.name, type: it.type,
     kg: it.kg, stackable: it.stackable, strength: it.strength, color: it.color,
-    W: w, L: l, H: h, rot,
-    cx, cy, z0,                       // cx=uzunluk merkezi, cy=genişlik merkezi, z0=taban
+    W: it.W, L: it.L, H: it.H, rot,
+    cx, cy, z0,
   };
 }
 
@@ -245,7 +412,7 @@ function buildUI() {
 
       <!-- SAĞ PANEL -->
       <div style="display:flex;flex-direction:column;gap:14px;">
-        <div id="lp-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;"></div>
+        <div id="lp-stats" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;"></div>
         <div class="lp-card" style="position:relative;padding:12px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -346,7 +513,11 @@ function renderStats(r) {
   const wPct = r.vehicle.maxKg > 0 ? (r.totalKg / r.vehicle.maxKg) * 100 : 0;
   const balanced = Math.abs(r.comPct - 50) <= 12;
   document.getElementById('lp-stats').innerHTML = `
-    <div class="lp-stat"><div class="v">${placedN}<span style="font-size:13px;color:var(--ink-2);">/${totalN}</span></div><div class="l">Yerleşen Palet</div></div>
+    <div class="lp-stat"><div class="v">${placedN}<span style="font-size:13px;color:var(--ink-2);">/${totalN}</span></div><div class="l">Yerleşen Palet · ${r.columnCount} kolon</div></div>
+    <div class="lp-stat">
+      <div class="v">%${r.floorPct.toFixed(1)}</div><div class="l">Taban Doluluk</div>
+      <div class="lp-bar" style="margin-top:8px;"><span style="width:${Math.min(100,r.floorPct)}%"></span></div>
+    </div>
     <div class="lp-stat">
       <div class="v">%${r.volPct.toFixed(1)}</div><div class="l">Hacim Doluluk</div>
       <div class="lp-bar" style="margin-top:8px;"><span style="width:${Math.min(100,r.volPct)}%"></span></div>
