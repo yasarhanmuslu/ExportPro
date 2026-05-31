@@ -215,8 +215,21 @@ function scoreSolution(placedCols, leftover, vehicle) {
        - (balancePenalty * 100);
 }
 
-function placeColumns2D(columns, vehicle) {
-  // Sıralama tohumları — kolonları farklı kriterlere göre dizer.
+// ════════════════════════════════════════════════════════════
+//  GENETİK ALGORİTMA YERLEŞİM MOTORU
+//  Kromozom = kolonların yerleştirme sırası (permütasyon) + her kolon için
+//             rotasyon biti (0° / 90°).
+//  Decoder  = kromozomu, "önden alt-sol" (front-bottom-left) yerleştirici ile
+//             fiziksel yerleşime çevirir.
+//  Fitness  = yerleşen palet ↑, taban doluluğu ↑, ağırlık dengesi ↑.
+//  Evrim    = seçilim (turnuva) → çaprazlama (sıralı OX + rotasyon karışımı)
+//             → mutasyon (swap + rotasyon flip) → elitizm.
+//  Başlangıç popülasyonu deterministik sezgisellerle TOHUMLANIR; böylece GA
+//  asla mevcut kaliteden kötü sonuç vermez, sadece iyileştirir.
+// ════════════════════════════════════════════════════════════
+
+// Sezgisel tohumlar: farklı sıralama kriterleri (deterministik başlangıç).
+function seedOrders(columns) {
   const seeds = {
     'alan-azalan':      (a, b) => (b.fpW * b.fpL) - (a.fpW * a.fpL),
     'uzunkenar-azalan': (a, b) => Math.max(b.fpW, b.fpL) - Math.max(a.fpW, a.fpL) || (b.fpW * b.fpL) - (a.fpW * a.fpL),
@@ -225,19 +238,172 @@ function placeColumns2D(columns, vehicle) {
     'agir-once':        (a, b) => b.totalKg - a.totalKg || (b.fpW * b.fpL) - (a.fpW * a.fpL),
     'yuksek-once':      (a, b) => b.topZ - a.topZ || (b.fpW * b.fpL) - (a.fpW * a.fpL),
   };
-  const placers = [placeRotationSearch, placeWallBuilding, placeMaxRects, placeBLF];
+  return Object.entries(seeds).map(([name, fn]) => {
+    const idx = columns.map((_, i) => i).sort((i, j) => fn(columns[i], columns[j]));
+    return { order: idx, name };
+  });
+}
 
-  let best = null;
-  for (const [seedName, seedFn] of Object.entries(seeds)) {
-    const ordered = columns.slice().sort(seedFn);
-    for (const placer of placers) {
-      const res = placer(ordered, vehicle);
-      const sc = scoreSolution(res.placedCols, res.leftover, vehicle);
-      if (!best || sc > best.score) best = { ...res, score: sc, seedName, placer: placer.name };
+// DECODER: bir kromozomu (order + rot[]) fiziksel yerleşime çevirir.
+// "Önden alt-sol": aday noktaları küçük-x (ön) sonra küçük-y önceliğiyle gezer,
+// böylece yük aracın önünden başlar (ağırlık merkezi öne gelir).
+function decode(chromosome, columns, vehicle) {
+  const L = vehicle.L, W = vehicle.W;
+  const placedCols = [], leftover = [];
+  const rects = [];
+  for (const ci of chromosome.order) {
+    const col = columns[ci];
+    const rot = chromosome.rot[ci];
+    // kromozomun istediği rotasyonu önce dene; sığmazsa diğerini dene.
+    const orient = rot
+      ? [{ w: col.fpW, h: col.fpL, r: true }, { w: col.fpL, h: col.fpW, r: false }]
+      : [{ w: col.fpL, h: col.fpW, r: false }, { w: col.fpW, h: col.fpL, r: true }];
+    // aday noktalar
+    const points = [{ x: 0, y: 0 }];
+    rects.forEach(rr => { points.push({ x: rr.x + rr.w, y: rr.y }); points.push({ x: rr.x, y: rr.y + rr.h }); });
+    points.sort((p, q) => (p.x - q.x) || (p.y - q.y)); // ÖN (küçük x) öncelik
+    let spot = null;
+    outer:
+    for (const pt of points) {
+      for (const o of orient) {
+        if (pt.x + o.w > L + 0.01 || pt.y + o.h > W + 0.01) continue;
+        const test = { x: pt.x, y: pt.y, w: o.w, h: o.h };
+        if (rects.some(rr => rectsOverlap(rr, test))) continue;
+        spot = { ...test, rot: o.r };
+        break outer;
+      }
     }
+    if (!spot) { leftover.push(col); continue; }
+    rects.push({ x: spot.x, y: spot.y, w: spot.w, h: spot.h });
+    placedCols.push({ col, x: spot.x, y: spot.y, w: spot.w, h: spot.h, rot: spot.rot });
   }
-  return { placedCols: best.placedCols, leftover: best.leftover,
-           strategy: `${best.placer} · ${best.seedName}` };
+  return { placedCols, leftover };
+}
+
+// Kromozomun fitness'ı (yüksek = iyi).
+function fitness(chromosome, columns, vehicle) {
+  if (chromosome._fit != null) return chromosome._fit;
+  const dec = decode(chromosome, columns, vehicle);
+  chromosome._dec = dec;
+  chromosome._fit = scoreSolution(dec.placedCols, dec.leftover, vehicle);
+  return chromosome._fit;
+}
+
+function placeColumns2D(columns, vehicle, opts = {}) {
+  const n = columns.length;
+  if (n === 0) return { placedCols: [], leftover: [], strategy: 'boş' };
+
+  // GA parametreleri — "süre uzasa da optimize" tercihine göre bonkör.
+  const POP = Math.min(120, 40 + n * 4);
+  const GENERATIONS = n <= 20 ? 120 : (n <= 60 ? 80 : 50);
+  const ELITE = Math.max(2, Math.round(POP * 0.10));
+  const TOURNEY = 4;
+  const MUT_RATE = 0.25;
+
+  const rnd = mulberry32(0x9e3779b9 ^ (n * 2654435761));
+  const randInt = (m) => Math.floor(rnd() * m);
+
+  // ---- Başlangıç popülasyonu ----
+  const pop = [];
+  // 1) Sezgisel tohumlar (rotasyon: tümü 0°, ve tümü "uzun kenar derinliğe")
+  const seeds = seedOrders(columns);
+  for (const s of seeds) {
+    pop.push({ order: s.order.slice(), rot: new Array(n).fill(false), src: s.name });
+    // aynı tohumun "akıllı rotasyon" varyantı: dar kenarı derinliğe koy
+    const smartRot = columns.map(c => c.fpW < c.fpL); // genişlik<uzunluk ise döndür
+    pop.push({ order: s.order.slice(), rot: smartRot.slice(), src: s.name + '+rot' });
+  }
+  // 2) Geri kalanı rastgele permütasyon + rastgele rotasyon
+  while (pop.length < POP) {
+    const order = shuffled(n, randInt);
+    const rot = Array.from({ length: n }, () => rnd() < 0.5);
+    pop.push({ order, rot, src: 'rastgele' });
+  }
+
+  // ---- Evrim döngüsü ----
+  let best = null;
+  let stale = 0;                       // kaç nesildir iyileşme yok
+  const STALL_LIMIT = Math.max(15, Math.round(GENERATIONS * 0.35));
+  for (let g = 0; g < GENERATIONS; g++) {
+    pop.forEach(ch => fitness(ch, columns, vehicle));
+    pop.sort((a, b) => b._fit - a._fit);
+    if (!best || pop[0]._fit > best._fit + 1e-6) { best = pop[0]; stale = 0; }
+    else stale++;
+    if (stale >= STALL_LIMIT) break;   // erken durma: yakınsadı
+
+    const next = [];
+    // elitizm: en iyileri doğrudan taşı
+    for (let i = 0; i < ELITE; i++) next.push(cloneChrom(pop[i]));
+    // üreme
+    while (next.length < POP) {
+      const p1 = tournament(pop, TOURNEY, randInt);
+      const p2 = tournament(pop, TOURNEY, randInt);
+      let child = crossover(p1, p2, n, randInt, rnd);
+      if (rnd() < MUT_RATE) mutate(child, n, randInt, rnd);
+      next.push(child);
+    }
+    pop.length = 0;
+    Array.prototype.push.apply(pop, next);
+  }
+  pop.forEach(ch => fitness(ch, columns, vehicle));
+  pop.sort((a, b) => b._fit - a._fit);
+  if (!best || pop[0]._fit > best._fit) best = pop[0];
+
+  const dec = best._dec || decode(best, columns, vehicle);
+  return {
+    placedCols: dec.placedCols,
+    leftover: dec.leftover,
+    strategy: `genetik algoritma (pop ${POP} · ${GENERATIONS} nesil · tohum: ${best.src || 'evrim'})`,
+  };
+}
+
+// ---- GA yardımcıları ----
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function shuffled(n, randInt) {
+  const a = Array.from({ length: n }, (_, i) => i);
+  for (let i = n - 1; i > 0; i--) { const j = randInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+function cloneChrom(ch) { return { order: ch.order.slice(), rot: ch.rot.slice(), src: ch.src }; }
+function tournament(pop, k, randInt) {
+  let best = pop[randInt(pop.length)];
+  for (let i = 1; i < k; i++) { const c = pop[randInt(pop.length)]; if (c._fit > best._fit) best = c; }
+  return best;
+}
+// Sıralı çaprazlama (Order Crossover, OX) + rotasyon bitlerinin karışımı.
+function crossover(p1, p2, n, randInt, rnd) {
+  const a = randInt(n), b = randInt(n);
+  const lo = Math.min(a, b), hi = Math.max(a, b);
+  const childOrder = new Array(n).fill(-1);
+  const taken = new Set();
+  for (let i = lo; i <= hi; i++) { childOrder[i] = p1.order[i]; taken.add(p1.order[i]); }
+  let idx = 0;
+  for (let i = 0; i < n; i++) {
+    const gene = p2.order[i];
+    if (taken.has(gene)) continue;
+    while (childOrder[idx] !== -1) idx++;
+    childOrder[idx] = gene;
+  }
+  // rotasyon: her gen için iki ebeveynden rastgele miras
+  const rot = new Array(n);
+  for (let i = 0; i < n; i++) rot[i] = (rnd() < 0.5 ? p1.rot[i] : p2.rot[i]);
+  return { order: childOrder, rot, src: 'çapraz' };
+}
+function mutate(ch, n, randInt, rnd) {
+  // swap mutasyonu (sıra)
+  const i = randInt(n), j = randInt(n);
+  [ch.order[i], ch.order[j]] = [ch.order[j], ch.order[i]];
+  // rotasyon flip (1-2 gen)
+  const flips = 1 + randInt(2);
+  for (let f = 0; f < flips; f++) { const k = randInt(n); ch.rot[k] = !ch.rot[k]; }
+  ch._fit = null; ch._dec = null;
 }
 
 // ---- ROTASYON-ARAMA (Kartezyen / Beam Search) ----
@@ -772,9 +938,9 @@ function onCalculate() {
   const orig = btn.innerHTML;
   btn.disabled = true;
   btn.style.opacity = '.7';
-  btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>&nbsp; Optimize ediliyor…';
+  btn.innerHTML = '<i class="fa-solid fa-dna fa-spin"></i>&nbsp; Genetik optimizasyon…';
 
-  // UI'nin "optimize ediliyor" durumunu boyamasına izin ver, sonra hesapla.
+  // UI'nin durumu boyamasına izin ver (GA birkaç saniye sürebilir), sonra hesapla.
   setTimeout(() => {
     const t0 = performance.now();
     lastResult = packVehicle(curVehicle, items, padding);
@@ -815,7 +981,7 @@ function renderStats(r) {
   const note = document.getElementById('lp-strategy');
   if (note) {
     note.innerHTML = `<i class="fa-solid fa-microchip"></i> En iyi strateji: <b>${esc(r.strategy||'—')}</b>
-      · ${r.elapsedMs!=null?r.elapsedMs+' ms':''} · çok-başlangıçlı sezgisel arama (duvar örme · maksimal dikdörtgen · alt-sol)`;
+      · ${r.elapsedMs!=null?r.elapsedMs+' ms':''} · evrimsel optimizasyon (seçilim · çaprazlama · mutasyon · elitizm)`;
   }
 }
 
