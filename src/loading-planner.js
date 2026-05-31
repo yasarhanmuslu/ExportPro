@@ -95,6 +95,25 @@ function buildColumns(items, vehicle, pad) {
     return b.kg - a.kg;                                            // ağır önce
   });
 
+  // ── Hedef istif yüksekliği ──
+  // Sorun: paletleri tabanı doldurmadan dikey yığarsak taban boş kalır,
+  // hacim/denge bozulur (kullanıcı şikayeti: her şey öne/yana sıkışıyor).
+  // Çözüm: önce tabana yay. Benzer footprint'li istiflenebilir paletler için
+  // araca kaç taban kolonu sığdığını tahmin et, istif derinliğini buna göre
+  // sınırla → paletler hem tabana yayılır hem dikey kullanılır.
+  const stackables = pool.filter(p => p.stackable);
+  let maxStackPerCol = Infinity;
+  if (stackables.length) {
+    // ortalama footprint (padding dahil) ile taban kapasitesi
+    const avgW = stackables.reduce((s, p) => s + p.W, 0) / stackables.length + padW;
+    const avgL = stackables.reduce((s, p) => s + p.L, 0) / stackables.length + padL;
+    const perRowL = Math.max(1, Math.floor(vehicle.L / Math.min(avgW, avgL)));
+    const perRowW = Math.max(1, Math.floor(vehicle.W / Math.max(avgW, avgL)));
+    const floorCap = Math.max(1, perRowL * perRowW);
+    // istiflenebilir paletleri bu kadar tabana yaymak için gereken kat sayısı
+    maxStackPerCol = Math.max(1, Math.ceil(stackables.length / floorCap));
+  }
+
   const used = new Array(pool.length).fill(false);
   const columns = [];
 
@@ -103,8 +122,6 @@ function buildColumns(items, vehicle, pad) {
     const base = pool[i];
     used[i] = true;
 
-    // taban footprint (padding dahil) — iki oryantasyon en küçük alanı seçmez,
-    // yerleşim aşaması rotasyonu zaten dener; burada palet öz ölçüsünü tutarız.
     const col = {
       baseW: base.W, baseL: base.L,
       fpW: base.W + padW, fpL: base.L + padL,
@@ -118,28 +135,21 @@ function buildColumns(items, vehicle, pad) {
 
     // Taban istiflenebilir değilse kolon tek paletten ibaret.
     if (base.stackable) {
-      // Üste eklenebilecek paletleri ara: footprint <= taban, strength >= üst,
-      // ağırlık <= üsttekinden hafif veya eşit, yükseklik sınırı.
       let added = true;
-      while (added) {
+      while (added && col.stack.length < maxStackPerCol) {
         added = false;
         let bestIdx = -1, bestScore = -Infinity;
         for (let j = 0; j < pool.length; j++) {
           if (used[j]) continue;
           const c = pool[j];
           if (!c.stackable) continue;
-          // strength: üste konan >= alttaki (sayı büyüdükçe zayıf/üst)
-          if (c.strength < col.minStrengthTop) continue;
-          // ağırlık: üst <= alt
-          if (c.kg > col.topKg + 0.01) continue;
-          // footprint taban içine sığmalı (her iki oryantasyon)
+          if (c.strength < col.minStrengthTop) continue;     // üst >= alt strength
+          if (c.kg > col.topKg + 0.01) continue;             // üst <= alt ağırlık
           const fits =
             (c.W <= col.baseW + 0.01 && c.L <= col.baseL + 0.01) ||
             (c.L <= col.baseW + 0.01 && c.W <= col.baseL + 0.01);
           if (!fits) continue;
-          // yükseklik
-          if (col.topZ + c.H > vehicle.H + 0.01) continue;
-          // skor: footprint tabana ne kadar yakınsa (boşluk az) o kadar iyi
+          if (col.topZ + c.H > vehicle.H + 0.01) continue;   // yükseklik sınırı
           const area = c.W * c.L;
           const score = area - Math.abs(c.strength - col.minStrengthTop) * 1000;
           if (score > bestScore) { bestScore = score; bestIdx = j; }
@@ -196,11 +206,13 @@ function scoreSolution(placedCols, leftover, vehicle) {
   const comPct = vehicle.L > 0 ? com / vehicle.L : 0.5;
   const balancePenalty = Math.abs(comPct - 0.5); // 0 ideal .. 0.5 kötü
 
-  // Ağırlıklı skor — palet sayısı baskın, sonra doluluk, sonra denge.
-  return (placedPallets * 1e6)
-       - (lostPallets   * 1e6)
-       + (floorPct      * 1e3)
-       - (balancePenalty * 50);
+  // Ağırlıklı skor — palet sayısı baskın, sonra taban doluluğu (güçlü),
+  // sonra denge. floorPct katsayısı yüksek tutuldu ki aynı palet sayısında
+  // daha sıkı paketleyen strateji net kazansın.
+  return (placedPallets * 1e7)
+       - (lostPallets   * 1e7)
+       + (floorPct      * 1e5)
+       - (balancePenalty * 100);
 }
 
 function placeColumns2D(columns, vehicle) {
@@ -213,7 +225,7 @@ function placeColumns2D(columns, vehicle) {
     'agir-once':        (a, b) => b.totalKg - a.totalKg || (b.fpW * b.fpL) - (a.fpW * a.fpL),
     'yuksek-once':      (a, b) => b.topZ - a.topZ || (b.fpW * b.fpL) - (a.fpW * a.fpL),
   };
-  const placers = [placeWallBuilding, placeMaxRects, placeBLF];
+  const placers = [placeRotationSearch, placeWallBuilding, placeMaxRects, placeBLF];
 
   let best = null;
   for (const [seedName, seedFn] of Object.entries(seeds)) {
@@ -226,6 +238,129 @@ function placeColumns2D(columns, vehicle) {
   }
   return { placedCols: best.placedCols, leftover: best.leftover,
            strategy: `${best.placer} · ${best.seedName}` };
+}
+
+// ---- ROTASYON-ARAMA (Kartezyen / Beam Search) ----
+// Kullanıcı senaryosu: paletleri aracın ÖNÜNDEN başlayarak yerleştir
+// (ağırlık merkezi öne gelsin). Her kolon için 0° ve 90° rotasyon birer
+// karar değişkenidir. Her yerleştirme sonrası araçta KALAN boş alan akılda
+// tutulur. Rotasyon kararlarının kartezyen çarpımı gezilir; tüm döngü
+// bitince EN AZ BOŞLUK bırakan senaryo çıktı verilir.
+//
+// 2^n patlamasını önlemek için: kolon sayısı az ise (<=12) tam kartezyen
+// derinlemesine arama; fazlaysa beam-search (her adımda en iyi K kısmi
+// çözüm tutulur). İkisi de "her adımda iki rotasyonu da dene + kalan boşluğu
+// ölç" ilkesini uygular.
+function placeRotationSearch(orderedCols, vehicle) {
+  const n = orderedCols.length;
+  if (n === 0) return { placedCols: [], leftover: [] };
+
+  const FULL_LIMIT = 12;        // bu sayıya kadar tam kartezyen (2^n)
+  const BEAM = 24;              // beam genişliği (fazla kolonda)
+
+  // Bir kısmi durumu temsil eder: yerleşmiş kolonlar + serbest dikdörtgenler.
+  // free: araç tabanındaki boş dikdörtgenler (maximal-rectangles yönetimi).
+  const initState = {
+    free: [{ x: 0, y: 0, w: vehicle.L, h: vehicle.W }],
+    placed: [],          // {col, x, y, w, h, rot}
+    leftover: [],
+    usedArea: 0,
+  };
+
+  // Bir kolonu, belirli rotasyonla, ÖNE en yakın (en küçük x, sonra en küçük y)
+  // serbest dikdörtgene yerleştir. Yerleşemezse null döner.
+  function tryPlace(state, col, rot) {
+    const w = rot ? col.fpW : col.fpL;   // x (uzunluk/derinlik) boyutu
+    const h = rot ? col.fpL : col.fpW;   // y (genişlik) boyutu
+    // öne hizalı: free'leri x sonra y'ye göre sırala, ilk sığanı seç
+    const cands = state.free
+      .filter(fr => w <= fr.w + 0.01 && h <= fr.h + 0.01)
+      .sort((a, b) => (a.x - b.x) || (a.y - b.y));
+    if (!cands.length) return null;
+    const fr = cands[0];
+    const used = { x: fr.x, y: fr.y, w, h };
+    // free listesini güncelle (maximal-rectangles split)
+    const nextFree = [];
+    for (const f of state.free) {
+      if (!rectsOverlap(f, used)) { nextFree.push(f); continue; }
+      if (used.x > f.x) nextFree.push({ x: f.x, y: f.y, w: used.x - f.x, h: f.h });
+      if (used.x + used.w < f.x + f.w) nextFree.push({ x: used.x + used.w, y: f.y, w: (f.x + f.w) - (used.x + used.w), h: f.h });
+      if (used.y > f.y) nextFree.push({ x: f.x, y: f.y, w: f.w, h: used.y - f.y });
+      if (used.y + used.h < f.y + f.h) nextFree.push({ x: f.x, y: used.y + used.h, w: f.w, h: (f.y + f.h) - (used.y + used.h) });
+    }
+    return {
+      free: pruneFree(nextFree),
+      placed: state.placed.concat([{ col, x: used.x, y: used.y, w, h, rot }]),
+      leftover: state.leftover,
+      usedArea: state.usedArea + w * h,
+    };
+  }
+
+  // Kalan boşluk (küçük = iyi). Yerleşemeyen kolonlar ağır cezalı.
+  function remainingGap(state, idx) {
+    const floorArea = vehicle.L * vehicle.W;
+    const lostArea = state.leftover.reduce((s, c) => s + c.fpW * c.fpL, 0);
+    return (floorArea - state.usedArea) + lostArea * 4;  // boşluk + kayıp cezası
+  }
+
+  let bestFinal = null;
+  function consider(state) {
+    const gap = remainingGap(state);
+    const placedN = state.placed.reduce((s, p) => s + p.col.stack.length, 0);
+    const lostN   = state.leftover.reduce((s, c) => s + c.stack.length, 0);
+    // skor: önce çok palet, sonra az boşluk
+    const score = placedN * 1e7 - lostN * 1e7 - gap;
+    if (!bestFinal || score > bestFinal.score) {
+      bestFinal = { score, placed: state.placed, leftover: state.leftover };
+    }
+  }
+
+  if (n <= FULL_LIMIT) {
+    // ---- TAM KARTEZYEN (derinlemesine) ----
+    (function dfs(idx, state) {
+      if (idx === n) { consider(state); return; }
+      const col = orderedCols[idx];
+      let placedAny = false;
+      for (const rot of [false, true]) {
+        // kare footprint'te ikinci rotasyon gereksiz
+        if (rot && Math.abs(col.fpW - col.fpL) < 0.01) continue;
+        const ns = tryPlace(state, col, rot);
+        if (ns) { placedAny = true; dfs(idx + 1, ns); }
+      }
+      // hiç yerleşemediyse leftover'a at ve devam
+      if (!placedAny) {
+        dfs(idx + 1, { ...state, leftover: state.leftover.concat([col]) });
+      }
+    })(0, initState);
+  } else {
+    // ---- BEAM SEARCH ----
+    let beam = [initState];
+    for (let idx = 0; idx < n; idx++) {
+      const col = orderedCols[idx];
+      const nextBeam = [];
+      for (const state of beam) {
+        let placedAny = false;
+        for (const rot of [false, true]) {
+          if (rot && Math.abs(col.fpW - col.fpL) < 0.01) continue;
+          const ns = tryPlace(state, col, rot);
+          if (ns) { placedAny = true; nextBeam.push(ns); }
+        }
+        if (!placedAny) {
+          nextBeam.push({ ...state, leftover: state.leftover.concat([col]) });
+        }
+      }
+      // budama: en düşük boşluklu (en dolu) ilk BEAM durumu
+      nextBeam.sort((a, b) => {
+        const pa = a.placed.length, pb = b.placed.length;
+        if (pb !== pa) return pb - pa;
+        return remainingGap(a) - remainingGap(b);
+      });
+      beam = nextBeam.slice(0, BEAM);
+    }
+    beam.forEach(consider);
+  }
+
+  return { placedCols: bestFinal.placed, leftover: bestFinal.leftover };
 }
 
 // ---- WALL-BUILDING ----
@@ -442,6 +577,16 @@ function packVehicle(vehicle, items, pad) {
   const placement = placeColumns2D(columns, vehicle);
   const { placedCols, leftover } = placement;
   rebalance(placedCols);
+
+  // Genişlik (Y) ekseninde yükü ortala — dingil dengesi ve görsel için.
+  // Yerleşimin Y kapsamını bul, kalan boşluğu iki yana eşit dağıt.
+  if (placedCols.length) {
+    let minY = Infinity, maxY = -Infinity;
+    placedCols.forEach(pc => { minY = Math.min(minY, pc.y); maxY = Math.max(maxY, pc.y + pc.h); });
+    const span = maxY - minY;
+    const shift = (vehicle.W - span) / 2 - minY;
+    if (shift > 0.01 || shift < -0.01) placedCols.forEach(pc => { pc.y += shift; });
+  }
 
   const placed = [];
   const unplaced = [];
