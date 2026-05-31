@@ -1,791 +1,538 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
+// ════════════════════════════════════════════════════════════
+//  YÜKLEME PLANLAYICI — 3D Bin Packing
+//  Veri kaynağı: pallet_definitions (+ pallet_items)
+// ════════════════════════════════════════════════════════════
+
+// ── Taşıyıcı araçlar (net iç ölçüler cm, max ton kg) ────────
 const VEHICLES = [
-  { id: 'std',  name: 'Standart / Optima Tenteli Tır', L: 1360, W: 245, H: 270 },
-  { id: 'mega', name: 'Mega Tenteli Tır',               L: 1360, W: 245, H: 300 },
-  { id: '40hq', name: "40' HQ Konteyner",               L: 1203, W: 235, H: 269 },
-  { id: '20dc', name: "20' DC Konteyner",               L:  590, W: 235, H: 239 },
+  { id: 'std',   name: 'Standart Tenteli Tır',  L: 1360, W: 245, H: 270, maxKg: 24000 },
+  { id: 'mega',  name: 'Mega Tenteli Tır',       L: 1360, W: 245, H: 300, maxKg: 24000 },
+  { id: '40hq',  name: "40' HQ Konteyner",        L: 1203, W: 235, H: 269, maxKg: 26500 },
+  { id: '20dc',  name: "20' DC Konteyner",        L: 590,  W: 235, H: 239, maxKg: 21700 },
+  { id: 'kamyon',name: '10 Teker Kamyon',         L: 750,  W: 245, H: 240, maxKg: 12000 },
+  { id: 'custom',name: 'Özel (elle gir)',         L: 1360, W: 245, H: 270, maxKg: 24000 },
 ];
 
-const PAL_COLORS = [
-  '#2D4A3E','#B58858','#3F5C7A','#9F3D3D',
-  '#5A6E3A','#7A4F3F','#3D5A6E','#6B4E7A',
-  '#4E7A5A','#7A6B3D'
+// ── Operasyonel pay (padding) cm — palet etrafı boşluk ──────
+const DEFAULT_PADDING = { left: 2, right: 2, front: 2, back: 2 };
+
+const PAL_PALETTE = [
+  '#2D4A3E','#B58858','#3F5C7A','#9F3D3D','#5A6E3A',
+  '#7A4F3F','#3D5A6E','#6B4E7A','#4E7A5A','#7A6B3D'
 ];
 
-let selV = 'std';
-let curView = '3d';
-let lastBoxes = [], lastV = null;
-window.rows = [];
-let ridx = 0;
-let savedPallets = [];
-let pendingSaveIdx = null;
+// ── Durum ───────────────────────────────────────────────────
 let session = null;
+let allPallets = [];          // pallet_definitions
+let selection = {};           // { palletId: qty }
+let curVehicle = { ...VEHICLES[0] };
+let padding = { ...DEFAULT_PADDING };
+let lastResult = null;        // son packing sonucu
 
+// 3D
+let scene, camera, renderer, controls, raycaster, pointer;
+let palletMeshGroup = null, hovered = null, animId = null;
+
+// ── INIT ────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   const { data: { session: s } } = await supabase.auth.getSession();
   if (!s) { window.location.href = 'login.html'; return; }
   session = s;
-
   await renderNavbar('loading-planner');
   buildUI();
-  buildVGrid();
-  addRow(120, 80, 150, 1, true, '');
-  await fetchSaved();
+  await fetchPallets();
 });
 
-// ─── Supabase ────────────────────────────────────────────────
-async function fetchSaved() {
-  try {
-    const { data, error } = await supabase
-      .from('saved_pallets')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .order('created_at', { ascending: true });
-    if (error) throw error;
-    savedPallets = data || [];
-  } catch (e) {
-    console.error('Kayıtlı paletler yüklenemedi:', e);
-  }
+async function fetchPallets() {
+  const { data, error } = await supabase
+    .from('pallet_definitions')
+    .select('*')
+    .eq('user_id', session.user.id)
+    .order('name', { ascending: true });
+  if (error) { console.error('Paletler yüklenemedi:', error.message); }
+  allPallets = (data || []).map((p, i) => ({
+    id: p.id,
+    name: p.name,
+    type: p.pallet_type || 'Diğer',
+    W: Number(p.width_cm)  || 80,
+    L: Number(p.length_cm) || 120,
+    H: Number(p.height_cm) || 100,
+    kg: Number(p.total_weight) || 0,
+    stackable: !!p.stackable,
+    strength: p.stack_strength == null ? 1 : Number(p.stack_strength),
+    color: PAL_PALETTE[i % PAL_PALETTE.length],
+  }));
+  renderPalletList();
 }
 
-async function savePalletToDB(name, L, G, Y, stackable) {
-  try {
-    const { data, error } = await supabase
-      .from('saved_pallets')
-      .insert([{ user_id: session.user.id, name, l: L, g: G, y: Y, stackable }])
-      .select()
-      .single();
-    if (error) throw error;
-    savedPallets.push(data);
-    showToast(`"${name}" kaydedildi`);
-  } catch (e) {
-    console.error('Kaydetme hatası:', e);
-    alert('Kaydetme sırasında hata oluştu.');
+// ════════════════════════════════════════════════════════════
+//  3D BIN PACKING ALGORİTMASI
+//  Kısıtlar:
+//   - Paletler dik (Z sabit). Sadece taban düzleminde 90° dönüş.
+//   - Padding ölçülere eklenir (footprint hesabı).
+//   - Yalnız stackable paletler üst üste; strength 1 = en altta/ağır.
+//   - Ağır paletler zemine homojen; hafifler arkaya (kapıya yakın).
+//   - Tek nokta boşaltım — LIFO yok.
+// ════════════════════════════════════════════════════════════
+function packVehicle(vehicle, items, pad) {
+  // items: çoğaltılmış palet örnekleri (her biri tek fiziksel palet)
+  // Footprint = palet + padding (tüm yönler)
+  const padW = pad.left + pad.right;
+  const padL = pad.front + pad.back;
+
+  // 1) Yerleştirme sırası: ağır + güçlü (strength düşük) önce → zemine.
+  const queue = items.slice().sort((a, b) => {
+    if (b.kg !== a.kg) return b.kg - a.kg;          // ağır önce
+    return a.strength - b.strength;                  // güçlü (1) önce
+  });
+
+  // Zemin: 2D shelf/skyline tabanlı kolon yerleşimi.
+  // Araç uzunluğu boyunca "kolonlar" (footprint blokları) açarız;
+  // her kolon bir taban paletidir, üstüne istif yapılabilir.
+  const columns = [];   // { x0,x1 (uzunluk), y0,y1 (genişlik), baseTop, stack:[...] , maxBottomStrength }
+  const placed = [];
+  const unplaced = [];
+
+  // Skyline: araç tabanını (L x W) doldururuz.
+  // Basit raf (shelf) yöntemi: satırlar uzunluk ekseninde ilerler.
+  let rowX = 0;          // mevcut rafın başlangıç X (uzunluk)
+  let rowDepth = 0;      // mevcut rafın kapladığı uzunluk
+  let cursorY = 0;       // raf içinde genişlik imleci
+
+  function tryFootprint(it) {
+    // İki oryantasyon: (W,L) ve (L,W)
+    const opts = [
+      { fw: it.W + padW, fl: it.L + padL, rot: false },
+      { fw: it.L + padW, fl: it.W + padL, rot: true  },
+    ];
+    return opts.filter(o => o.fw <= vehicle.W && o.fl <= vehicle.L);
   }
+
+  for (const it of queue) {
+    // Önce mevcut açık kolonlara istiflemeyi dene (stackable & uyum)
+    let stackedOn = null;
+    if (it.stackable) {
+      for (const col of columns) {
+        const top = col.stack[col.stack.length - 1];
+        if (!top.stackable) continue;
+        // üstteki strength >= alttaki (1 altta). it.strength >= top.strength
+        if (it.strength < top.strength) continue;
+        // footprint, kolon footprintine sığmalı (aynı/daha küçük)
+        const fits = (it.W + padW <= col.fw + 0.01 && it.L + padL <= col.fl + 0.01) ||
+                     (it.L + padW <= col.fw + 0.01 && it.W + padL <= col.fl + 0.01);
+        if (!fits) continue;
+        if (col.topZ + it.H > vehicle.H + 0.01) continue;
+        stackedOn = col; break;
+      }
+    }
+
+    if (stackedOn) {
+      const col = stackedOn;
+      const z0 = col.topZ;
+      const rot = !(it.W + padW <= col.fw + 0.01 && it.L + padL <= col.fl + 0.01);
+      placed.push(makePlaced(it, col.cx, col.cy, z0, rot, pad));
+      col.stack.push(it);
+      col.topZ = z0 + it.H;
+      continue;
+    }
+
+    // Yeni taban kolonu — zemine yerleştir (shelf packing)
+    const fps = tryFootprint(it);
+    if (!fps.length) { unplaced.push(it); continue; }
+    const fp = fps[0]; // ilk uyan oryantasyon
+
+    // mevcut rafa sığıyor mu? (genişlik ekseni)
+    if (cursorY + fp.fw > vehicle.W + 0.01 || rowDepth === 0) {
+      if (cursorY + fp.fw > vehicle.W + 0.01) {
+        // yeni raf
+        rowX += rowDepth;
+        cursorY = 0;
+        rowDepth = 0;
+      }
+    }
+    // uzunluk ekseninde araç bitti mi?
+    if (rowX + fp.fl > vehicle.L + 0.01) { unplaced.push(it); continue; }
+
+    const x0 = rowX, y0 = cursorY;
+    const cx = x0 + fp.fl / 2;     // uzunluk merkezi
+    const cy = y0 + fp.fw / 2;     // genişlik merkezi
+    placed.push(makePlaced(it, cx, cy, 0, fp.rot, pad));
+    columns.push({ cx, cy, fw: fp.fw, fl: fp.fl, topZ: it.H, stack: [it] });
+    cursorY += fp.fw;
+    rowDepth = Math.max(rowDepth, fp.fl);
+  }
+
+  // 5) Hafifleri arkaya: yerleşim X (uzunluk) merkezine göre ağırlık dengesi raporu.
+  // (Fiziksel olarak shelf sırası ağırdan hafife → ağırlar önde/zeminde, hafifler arkada.)
+
+  const totalKg = placed.reduce((s, p) => s + p.kg, 0);
+  const usedVol = placed.reduce((s, p) => s + (p.W * p.L * p.H), 0);
+  const vehVol  = vehicle.L * vehicle.W * vehicle.H;
+
+  // ağırlık merkezi (uzunluk ekseni) — 0..L
+  const com = totalKg > 0
+    ? placed.reduce((s, p) => s + p.cx * p.kg, 0) / totalKg
+    : 0;
+
+  return {
+    vehicle, placed, unplaced,
+    totalKg,
+    volPct: vehVol > 0 ? (usedVol / vehVol) * 100 : 0,
+    com, comPct: vehicle.L > 0 ? (com / vehicle.L) * 100 : 0,
+  };
 }
 
-async function deletePalletFromDB(id) {
-  try {
-    const { error } = await supabase
-      .from('saved_pallets')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', session.user.id);
-    if (error) throw error;
-    savedPallets = savedPallets.filter(p => p.id !== id);
-    renderLibraryList();
-    showToast('Kayıt silindi');
-  } catch (e) {
-    console.error('Silme hatası:', e);
-    alert('Silme sırasında hata oluştu.');
-  }
+function makePlaced(it, cx, cy, z0, rot, pad) {
+  const w = it.W, l = it.L, h = it.H;
+  return {
+    ref: it.id, name: it.name, type: it.type,
+    kg: it.kg, stackable: it.stackable, strength: it.strength, color: it.color,
+    W: w, L: l, H: h, rot,
+    cx, cy, z0,                       // cx=uzunluk merkezi, cy=genişlik merkezi, z0=taban
+  };
 }
 
-// ─── UI ──────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════
+//  UI İSKELET
+// ════════════════════════════════════════════════════════════
 function buildUI() {
-  document.getElementById('planner-root').innerHTML = `
+  const root = document.getElementById('planner-root');
+  root.innerHTML = `
+    <div style="display:grid;grid-template-columns:320px 1fr;gap:18px;align-items:start;">
+      <!-- SOL PANEL -->
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div class="lp-card" style="padding:16px;">
+          <label style="font-size:11px;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.04em;">Taşıyıcı Araç</label>
+          <select id="lp-vehicle" style="width:100%;margin-top:8px;padding:9px 10px;border:1px solid var(--border);border-radius:9px;background:var(--bg);color:var(--ink-1);font-size:13px;">
+            ${VEHICLES.map(v => `<option value="${v.id}">${v.name}</option>`).join('')}
+          </select>
+          <div id="lp-veh-dims" style="margin-top:10px;font-size:12px;color:var(--ink-2);"></div>
+          <div id="lp-custom-box" class="hidden" style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            ${['L','W','H','maxKg'].map(k => `
+              <label style="font-size:11px;color:var(--ink-2);">${({L:'Boy (cm)',W:'En (cm)',H:'Yük. (cm)',maxKg:'Max (kg)'})[k]}
+                <input id="lp-c-${k}" type="number" class="lp-qty" style="width:100%;margin-top:3px;" />
+              </label>`).join('')}
+          </div>
+        </div>
 
-    <!-- Araç Seçimi -->
-    <div class="section-card" style="margin-bottom:20px;">
-      <div class="section-title" style="margin-bottom:14px;">
-        <i class="fa-solid fa-truck"></i> Araç / Konteyner Seçimi
-      </div>
-      <div id="vgrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;"></div>
-    </div>
+        <div class="lp-card" style="padding:16px;">
+          <label style="font-size:11px;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.04em;">Operasyonel Pay — Padding (cm)</label>
+          <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            ${['left','right','front','back'].map(k => `
+              <label style="font-size:11px;color:var(--ink-2);">${({left:'Sol',right:'Sağ',front:'Ön',back:'Arka'})[k]}
+                <input id="lp-pad-${k}" type="number" value="${DEFAULT_PADDING[k]}" class="lp-qty" style="width:100%;margin-top:3px;" />
+              </label>`).join('')}
+          </div>
+        </div>
 
-    <!-- Palet Listesi -->
-    <div class="section-card" style="margin-bottom:20px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-        <div class="section-title"><i class="fa-solid fa-pallet"></i> Palet Listesi</div>
-        <button onclick="openLibrary()" style="
-          display:inline-flex;align-items:center;gap:6px;
-          padding:6px 14px;border-radius:6px;font-size:11px;font-weight:600;
-          letter-spacing:0.06em;cursor:pointer;
-          background:var(--surface-2);border:1px solid var(--border);color:var(--ink-2);
-          font-family:Verdana,Geneva,sans-serif;">
-          <i class="fa-solid fa-book"></i> Kayıtlı Paletler
+        <div class="lp-card" style="padding:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <label style="font-size:11px;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.04em;">Paletler</label>
+            <button id="lp-refresh" class="lp-chip" title="Yenile"><i class="fa-solid fa-rotate"></i></button>
+          </div>
+          <div id="lp-pallet-list" style="margin-top:10px;max-height:340px;overflow:auto;"></div>
+        </div>
+
+        <button id="lp-calc" style="padding:12px;border:none;border-radius:11px;background:var(--accent);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
+          <i class="fa-solid fa-cubes-stacked"></i>&nbsp; Yerleşimi Hesapla
         </button>
       </div>
 
-      <div style="overflow-x:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:12px;">
-          <thead>
-            <tr style="border-bottom:1px solid var(--border-soft);">
-              <th style="width:16px;padding:6px;"></th>
-              <th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-3);">Palet Adı</th>
-              <th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-3);width:72px;">L (cm)</th>
-              <th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-3);width:72px;">G (cm)</th>
-              <th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-3);width:72px;">Y (cm)</th>
-              <th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-3);width:60px;">Adet</th>
-              <th style="padding:6px 8px;text-align:center;font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-3);width:90px;">İstiflenir</th>
-              <th style="padding:6px 8px;text-align:right;font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-3);width:68px;">m³</th>
-              <th style="width:64px;"></th>
-            </tr>
-          </thead>
-          <tbody id="ptbody"></tbody>
-        </table>
-      </div>
-
-      <button onclick="addRow()" style="
-        display:inline-flex;align-items:center;gap:6px;margin-top:12px;
-        padding:6px 14px;border-radius:6px;font-size:11px;font-weight:600;
-        letter-spacing:0.06em;cursor:pointer;
-        background:var(--surface-2);border:1px solid var(--border);color:var(--ink-2);
-        font-family:Verdana,Geneva,sans-serif;">
-        <i class="fa-solid fa-plus"></i> Palet Ekle
-      </button>
-    </div>
-
-    <!-- Toplam m³ Özeti -->
-    <div class="section-card" style="margin-bottom:20px;">
-      <div style="display:flex;align-items:stretch;gap:0;">
-        <div style="flex:1;padding:4px 20px 4px 0;">
-          <div style="font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:4px;">Toplam Hacim</div>
-          <div style="display:flex;align-items:baseline;gap:6px;">
-            <span id="totalM3" style="font-size:26px;font-weight:600;color:var(--accent);">0.00</span>
-            <span style="font-size:13px;color:var(--ink-3);">m³</span>
+      <!-- SAĞ PANEL -->
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div id="lp-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;"></div>
+        <div class="lp-card" style="position:relative;padding:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <span class="lp-legend"><i style="background:#9F3D3D;"></i>Ağır</span>
+              <span class="lp-legend"><i style="background:#B58858;"></i>Orta</span>
+              <span class="lp-legend"><i style="background:#5A6E3A;"></i>Hafif</span>
+              <span class="lp-legend"><i style="background:rgba(45,74,62,.18);"></i>Araç gövdesi</span>
+            </div>
+            <button id="lp-reset-cam" class="lp-chip"><i class="fa-solid fa-arrows-to-dot"></i> Kamerayı sıfırla</button>
           </div>
-        </div>
-        <div style="width:1px;background:var(--border-soft);"></div>
-        <div style="flex:1;padding:4px 20px;">
-          <div style="font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:4px;">Araç Kapasitesi</div>
-          <div id="vehicleM3" style="font-size:18px;font-weight:600;color:var(--ink-1);">—</div>
-        </div>
-        <div style="width:1px;background:var(--border-soft);"></div>
-        <div style="flex:1;padding:4px 0 4px 20px;">
-          <div style="font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:4px;">Kalan</div>
-          <div id="remainM3" style="font-size:18px;font-weight:600;">—</div>
+          <div style="position:relative;height:560px;background:var(--bg);border-radius:12px;overflow:hidden;">
+            <canvas id="lp-canvas"></canvas>
+            <div id="lp-tip" class="lp-tip"></div>
+            <div id="lp-empty" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--ink-2);font-size:14px;text-align:center;padding:20px;">
+              Palet seçip <b>&nbsp;Yerleşimi Hesapla&apos;ya&nbsp;</b> basın.
+            </div>
+          </div>
+          <div id="lp-unplaced" style="margin-top:10px;"></div>
         </div>
       </div>
-    </div>
-
-    <!-- Hesapla Butonu -->
-    <button onclick="calculate()" style="
-      width:100%;padding:12px;border-radius:8px;
-      background:var(--accent);color:#fff;border:none;
-      font-size:13px;font-weight:600;letter-spacing:0.06em;
-      cursor:pointer;font-family:Verdana,Geneva,sans-serif;
-      display:flex;align-items:center;justify-content:center;gap:8px;
-      margin-bottom:24px;">
-      <i class="fa-solid fa-calculator"></i> Hesapla & 3D Planla
-    </button>
-
-    <!-- Sonuçlar -->
-    <div id="results" style="display:none;">
-
-      <div id="noteBox" style="margin-bottom:16px;"></div>
-
-      <!-- KPI Kartlar -->
-      <div id="statsRow" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;"></div>
-
-      <!-- Progress Barlar -->
-      <div class="section-card" style="margin-bottom:20px;">
-        <div id="progressRows"></div>
-      </div>
-
-      <!-- Görünüm -->
-      <div class="section-card" style="margin-bottom:20px;">
-        <div id="viewTabs" style="display:flex;gap:6px;margin-bottom:14px;"></div>
-        <canvas id="viewCanvas" style="width:100%;display:block;border-radius:6px;"></canvas>
-      </div>
-
-      <!-- Legend -->
-      <div id="legWrap" style="display:flex;flex-wrap:wrap;gap:6px 16px;font-size:11px;color:var(--ink-2);margin-bottom:24px;"></div>
-
-    </div>
-
-    <!-- Save Modal -->
-    <div id="saveModalWrap" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;width:360px;max-width:94vw;">
-        <div class="modal-title" style="margin-bottom:18px;">
-          <i class="fa-solid fa-floppy-disk" style="color:var(--accent);"></i> Paleti Kaydet
-        </div>
-        <div style="font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px;">Kayıt Adı</div>
-        <input type="text" id="saveNameInput" placeholder="Örn: Duvara Sıfır Klozet Paleti"
-          style="width:100%;padding:9px 12px;border-radius:6px;border:1px solid var(--border);
-          background:var(--surface-2);color:var(--ink-1);font-size:13px;
-          font-family:Verdana,Geneva,sans-serif;outline:none;margin-bottom:8px;" />
-        <div id="saveDimPreview" style="font-size:11px;color:var(--ink-3);margin-bottom:20px;"></div>
-        <div style="display:flex;gap:8px;">
-          <button onclick="closeSaveModal()" style="
-            flex:1;padding:9px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;
-            background:var(--surface-2);border:1px solid var(--border);color:var(--ink-2);
-            font-family:Verdana,Geneva,sans-serif;">İptal</button>
-          <button onclick="confirmSave()" style="
-            flex:1;padding:9px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;
-            background:var(--accent);border:none;color:#fff;
-            font-family:Verdana,Geneva,sans-serif;">
-            <i class="fa-solid fa-check"></i> Kaydet</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Library Modal -->
-    <div id="libModalWrap" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;width:420px;max-width:94vw;">
-        <div class="modal-title" style="margin-bottom:18px;">
-          <i class="fa-solid fa-book" style="color:var(--accent);"></i> Kayıtlı Palet Kütüphanesi
-        </div>
-        <div id="savedList" style="max-height:300px;overflow-y:auto;margin-bottom:18px;"></div>
-        <button onclick="closeLibrary()" style="
-          width:100%;padding:9px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;
-          background:var(--surface-2);border:1px solid var(--border);color:var(--ink-2);
-          font-family:Verdana,Geneva,sans-serif;">Kapat</button>
-      </div>
-    </div>
-
-    <!-- Toast -->
-    <div id="ep-toast" style="
-      display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
-      background:var(--ink-1);color:var(--surface);font-size:12px;font-weight:600;
-      padding:9px 20px;border-radius:20px;z-index:9999;
-      font-family:Verdana,Geneva,sans-serif;pointer-events:none;"></div>
-  `;
-}
-
-// ─── Araç Grid ───────────────────────────────────────────────
-function buildVGrid() {
-  const g = document.getElementById('vgrid');
-  if (!g) return;
-  g.innerHTML = '';
-  VEHICLES.forEach(v => {
-    const m3 = vM3(v);
-    const isActive = v.id === selV;
-    const d = document.createElement('div');
-    d.style.cssText = `
-      padding:14px 16px;border-radius:8px;cursor:pointer;
-      border:1px solid ${isActive ? 'var(--accent)' : 'var(--border-soft)'};
-      background:${isActive ? 'var(--accent-soft)' : 'var(--surface)'};
-      transition:border-color .15s,background .15s;`;
-    d.innerHTML = `
-      <div style="font-size:12px;font-weight:600;color:${isActive ? 'var(--accent)' : 'var(--ink-1)'};">
-        ${v.name}
-      </div>
-      <div style="font-size:11px;color:var(--ink-3);margin-top:3px;">
-        ${(v.L/100).toFixed(2)}m × ${(v.W/100).toFixed(2)}m × ${(v.H/100).toFixed(2)}m &nbsp;·&nbsp; ${m3} m³
-      </div>`;
-    d.onclick = () => {
-      selV = v.id;
-      buildVGrid();
-      recalcTotals();
-      document.getElementById('results').style.display = 'none';
-    };
-    g.appendChild(d);
-  });
-}
-
-function vM3(v) { return +((v.L/100)*(v.W/100)*(v.H/100)).toFixed(2); }
-
-// ─── Satır Yönetimi ──────────────────────────────────────────
-function addRow(L=120, G=80, Y=150, qty=1, stackable=true, name='') {
-  window.rows.push({ id: ridx++, L, G, Y, qty, stackable, name });
-  renderRows();
-}
-window.addRow = addRow;
-
-function removeRow(id) { window.rows = window.rows.filter(r => r.id !== id); renderRows(); }
-window.removeRow = removeRow;
-
-function renderRows() {
-  const tb = document.getElementById('ptbody');
-  if (!tb) return;
-  tb.innerHTML = '';
-  window.rows.forEach((r, i) => {
-    const c = PAL_COLORS[i % PAL_COLORS.length];
-    const tr = document.createElement('tr');
-    tr.style.borderBottom = '1px solid var(--border-soft)';
-    tr.innerHTML = `
-      <td style="padding:6px;">
-        <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${c};"></span>
-      </td>
-      <td style="padding:6px 8px;">
-        <input type="text" value="${escHtml(r.name)}" placeholder="Palet ${i+1}"
-          oninput="window.rows[${i}].name=this.value"
-          style="width:100%;background:transparent;border:none;outline:none;
-          color:var(--ink-1);font-size:12px;font-family:Verdana,Geneva,sans-serif;" />
-      </td>
-      <td style="padding:6px 8px;">
-        <input type="number" value="${r.L}" min="1"
-          oninput="window.rows[${i}].L=+this.value;updateRowM3(${i})"
-          style="width:60px;background:transparent;border:none;outline:none;
-          color:var(--ink-1);font-size:12px;font-family:Verdana,Geneva,sans-serif;" />
-      </td>
-      <td style="padding:6px 8px;">
-        <input type="number" value="${r.G}" min="1"
-          oninput="window.rows[${i}].G=+this.value;updateRowM3(${i})"
-          style="width:60px;background:transparent;border:none;outline:none;
-          color:var(--ink-1);font-size:12px;font-family:Verdana,Geneva,sans-serif;" />
-      </td>
-      <td style="padding:6px 8px;">
-        <input type="number" value="${r.Y}" min="1"
-          oninput="window.rows[${i}].Y=+this.value;updateRowM3(${i})"
-          style="width:60px;background:transparent;border:none;outline:none;
-          color:var(--ink-1);font-size:12px;font-family:Verdana,Geneva,sans-serif;" />
-      </td>
-      <td style="padding:6px 8px;">
-        <input type="number" value="${r.qty}" min="0" max="9999"
-          oninput="window.rows[${i}].qty=+this.value;updateRowM3(${i})"
-          style="width:58px;background:transparent;border:none;outline:none;
-          color:var(--ink-1);font-size:12px;font-family:Verdana,Geneva,sans-serif;" />
-      </td>
-      <td style="padding:6px 8px;text-align:center;">
-        <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;">
-          <input type="checkbox" ${r.stackable ? 'checked' : ''}
-            onchange="window.rows[${i}].stackable=this.checked;renderRows()"
-            style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;" />
-          <span style="font-size:11px;color:${r.stackable ? 'var(--accent)' : 'var(--ink-3)'};">
-            ${r.stackable ? 'Evet' : 'Hayır'}
-          </span>
-        </label>
-      </td>
-      <td style="padding:6px 8px;text-align:right;font-weight:600;color:var(--accent);" id="m3r_${r.id}">
-        ${rowM3(r)}
-      </td>
-      <td style="padding:6px 8px;">
-        <div style="display:flex;gap:4px;justify-content:flex-end;">
-          <button onclick="openSaveModal(${i})" title="Kaydet"
-            style="width:28px;height:28px;border-radius:5px;border:1px solid var(--border);
-            background:var(--surface-2);color:var(--ink-2);cursor:pointer;font-size:11px;">
-            <i class="fa-solid fa-floppy-disk"></i>
-          </button>
-          <button onclick="removeRow(${r.id})" title="Sil"
-            style="width:28px;height:28px;border-radius:5px;border:1px solid var(--border);
-            background:var(--surface-2);color:var(--danger);cursor:pointer;font-size:11px;">
-            <i class="fa-solid fa-trash"></i>
-          </button>
-        </div>
-      </td>`;
-    tb.appendChild(tr);
-  });
-  recalcTotals();
-}
-window.renderRows = renderRows;
-
-function rowM3(r) { return +((r.L/100)*(r.G/100)*(r.Y/100)*r.qty).toFixed(3); }
-
-function updateRowM3(i) {
-  const r = window.rows[i];
-  const el = document.getElementById('m3r_' + r.id);
-  if (el) el.textContent = rowM3(r);
-  recalcTotals();
-}
-window.updateRowM3 = updateRowM3;
-
-function recalcTotals() {
-  const total = window.rows.reduce((s, r) => s + rowM3(r), 0);
-  const t = document.getElementById('totalM3');
-  if (t) t.textContent = total.toFixed(2);
-  const v = VEHICLES.find(x => x.id === selV);
-  const vm3 = vM3(v);
-  const vm3El = document.getElementById('vehicleM3');
-  if (vm3El) vm3El.textContent = vm3 + ' m³';
-  const rem = vm3 - total;
-  const remEl = document.getElementById('remainM3');
-  if (remEl) {
-    remEl.textContent = (rem >= 0 ? '+' : '') + rem.toFixed(2) + ' m³';
-    remEl.style.color = rem < 0 ? 'var(--danger)' : rem < vm3 * 0.1 ? 'var(--warn)' : 'var(--ok)';
-  }
-}
-
-// ─── Modal: Kaydet ───────────────────────────────────────────
-function openSaveModal(rowIdx) {
-  pendingSaveIdx = rowIdx;
-  const r = rows[rowIdx];
-  document.getElementById('saveNameInput').value = r.name || '';
-  document.getElementById('saveDimPreview').textContent =
-    `${r.L} × ${r.G} × ${r.Y} cm  ·  ${r.stackable ? 'İstiflenebilir' : 'İstiflenemez'}`;
-  document.getElementById('saveModalWrap').style.display = 'flex';
-  setTimeout(() => document.getElementById('saveNameInput').focus(), 50);
-}
-window.openSaveModal = openSaveModal;
-
-function closeSaveModal() {
-  document.getElementById('saveModalWrap').style.display = 'none';
-  pendingSaveIdx = null;
-}
-window.closeSaveModal = closeSaveModal;
-
-async function confirmSave() {
-  if (pendingSaveIdx === null) return;
-  const r = window.rows[pendingSaveIdx];
-  const name = document.getElementById('saveNameInput').value.trim() || `${r.L}×${r.G}×${r.Y}`;
-  r.name = name;
-  closeSaveModal();
-  renderRows();
-  await savePalletToDB(name, r.L, r.G, r.Y, r.stackable);
-}
-window.confirmSave = confirmSave;
-
-// ─── Modal: Kütüphane ────────────────────────────────────────
-function openLibrary() {
-  renderLibraryList();
-  document.getElementById('libModalWrap').style.display = 'flex';
-}
-window.openLibrary = openLibrary;
-
-function closeLibrary() {
-  document.getElementById('libModalWrap').style.display = 'none';
-}
-window.closeLibrary = closeLibrary;
-
-function renderLibraryList() {
-  const el = document.getElementById('savedList');
-  if (!el) return;
-  if (!savedPallets.length) {
-    el.innerHTML = `<div style="text-align:center;padding:28px 0;color:var(--ink-3);font-size:12px;">
-      <i class="fa-solid fa-box-open" style="font-size:28px;display:block;margin-bottom:10px;"></i>
-      Henüz kayıtlı palet yok.<br>Palet satırındaki
-      <i class="fa-solid fa-floppy-disk"></i> butonunu kullanın.
     </div>`;
+
+  document.getElementById('lp-vehicle').addEventListener('change', onVehicleChange);
+  document.getElementById('lp-refresh').addEventListener('click', fetchPallets);
+  document.getElementById('lp-calc').addEventListener('click', onCalculate);
+  document.getElementById('lp-reset-cam').addEventListener('click', resetCamera);
+  ['L','W','H','maxKg'].forEach(k =>
+    document.getElementById(`lp-c-${k}`).addEventListener('input', readCustom));
+  onVehicleChange();
+}
+
+function onVehicleChange() {
+  const id = document.getElementById('lp-vehicle').value;
+  const v = VEHICLES.find(x => x.id === id);
+  curVehicle = { ...v };
+  document.getElementById('lp-custom-box').classList.toggle('hidden', id !== 'custom');
+  if (id === 'custom') {
+    ['L','W','H','maxKg'].forEach(k => { document.getElementById(`lp-c-${k}`).value = v[k]; });
+  }
+  document.getElementById('lp-veh-dims').textContent =
+    `İç ölçü: ${v.L} × ${v.W} × ${v.H} cm · Max ${(v.maxKg/1000).toLocaleString('tr-TR')} ton`;
+}
+function readCustom() {
+  ['L','W','H','maxKg'].forEach(k => {
+    const val = Number(document.getElementById(`lp-c-${k}`).value);
+    if (val > 0) curVehicle[k] = val;
+  });
+  document.getElementById('lp-veh-dims').textContent =
+    `İç ölçü: ${curVehicle.L} × ${curVehicle.W} × ${curVehicle.H} cm · Max ${(curVehicle.maxKg/1000).toLocaleString('tr-TR')} ton`;
+}
+
+function renderPalletList() {
+  const box = document.getElementById('lp-pallet-list');
+  if (!allPallets.length) {
+    box.innerHTML = `<p style="font-size:12px;color:var(--ink-2);padding:10px 0;">Tanımlı palet yok. Önce <b>Palet Tanımları</b> ekranından palet ekleyin.</p>`;
     return;
   }
-  el.innerHTML = savedPallets.map((p, i) => `
-    <div style="
-      display:flex;align-items:center;gap:10px;padding:10px 12px;
-      border:1px solid var(--border-soft);border-radius:7px;margin-bottom:6px;
-      background:var(--surface-2);cursor:pointer;transition:border-color .15s;"
-      onmouseenter="this.style.borderColor='var(--accent)'"
-      onmouseleave="this.style.borderColor='var(--border-soft)'"
-      onclick="addFromLibrary('${p.id}')">
-      <span style="display:inline-block;width:10px;height:10px;border-radius:2px;
-        background:${PAL_COLORS[i % PAL_COLORS.length]};flex-shrink:0;"></span>
+  box.innerHTML = allPallets.map(p => `
+    <div class="lp-row">
+      <span style="width:12px;height:28px;border-radius:4px;background:${p.color};flex:none;"></span>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:12px;font-weight:600;color:var(--ink-1);">${escHtml(p.name)}</div>
-        <div style="font-size:11px;color:var(--ink-3);">
-          ${p.l} × ${p.g} × ${p.y} cm &nbsp;·&nbsp; ${p.stackable ? 'İstiflenebilir' : 'İstiflenemez'}
-        </div>
+        <div class="nm">${esc(p.name)}</div>
+        <div class="meta">${p.W}×${p.L}×${p.H} cm · ${fmtKg(p.kg)} · ${p.stackable ? 'İstif L'+p.strength : 'İstifsiz'}</div>
       </div>
-      <button onclick="event.stopPropagation();deletePalletFromDB('${p.id}')"
-        style="width:28px;height:28px;border-radius:5px;border:1px solid var(--border);
-        background:var(--surface);color:var(--danger);cursor:pointer;font-size:11px;flex-shrink:0;">
-        <i class="fa-solid fa-trash"></i>
-      </button>
+      <input type="number" min="0" value="${selection[p.id]||0}" class="lp-qty" data-id="${p.id}" />
     </div>`).join('');
+  box.querySelectorAll('input[data-id]').forEach(inp =>
+    inp.addEventListener('input', () => {
+      const q = Math.max(0, parseInt(inp.value) || 0);
+      selection[inp.dataset.id] = q;
+    }));
 }
 
-function addFromLibrary(id) {
-  const p = savedPallets.find(x => x.id === id);
-  if (!p) return;
-  addRow(p.l, p.g, p.y, 1, p.stackable, p.name);
-  closeLibrary();
-}
-window.addFromLibrary = addFromLibrary;
-window.deletePalletFromDB = deletePalletFromDB;
-
-// ─── Hesapla ─────────────────────────────────────────────────
-function calculate() {
-  const v = VEHICLES.find(x => x.id === selV);
-  const activeRows = window.rows.filter(r => r.qty > 0 && r.L > 0 && r.G > 0 && r.Y > 0);
-  if (!activeRows.length) { alert('En az bir palet için bilgi giriniz.'); return; }
-
-  const placed = [];
-  let curX = 0, curY = 0, rowMaxG = 0;
-  const allItems = [];
-  activeRows.forEach(r => { for (let n = 0; n < r.qty; n++) allItems.push({ ...r }); });
-
-  // Her palet tipi icin en iyi rotasyonu onceden belirle
-  function bestOrientation(pL, pG, vL, vW) {
-    const normal  = Math.floor(vL/pL) * Math.floor(vW/pG);
-    const rotated = Math.floor(vL/pG) * Math.floor(vW/pL);
-    if (rotated > normal) return { useL: pG, useG: pL };
-    return { useL: pL, useG: pG };
-  }
-  const rowOrient = {};
-  activeRows.forEach(r => {
-    rowOrient[r.id] = bestOrientation(r.L, r.G, v.L, v.W);
+function onCalculate() {
+  padding = {
+    left:  Number(document.getElementById('lp-pad-left').value)  || 0,
+    right: Number(document.getElementById('lp-pad-right').value) || 0,
+    front: Number(document.getElementById('lp-pad-front').value) || 0,
+    back:  Number(document.getElementById('lp-pad-back').value)  || 0,
+  };
+  // seçimi fiziksel palet örneklerine çoğalt
+  const items = [];
+  allPallets.forEach(p => {
+    const q = selection[p.id] || 0;
+    for (let i = 0; i < q; i++) items.push({ ...p });
   });
+  if (!items.length) { alert('Lütfen en az bir palet adedi girin.'); return; }
 
-  for (const item of allItems) {
-    const ori = rowOrient[item.id];
-    const pL = ori.useL, pG = ori.useG;
-    if (pL > v.L || pG > v.W || item.Y > v.H) continue;
-    if (curX + pL > v.L) { curX = 0; curY += rowMaxG; rowMaxG = 0; }
-    if (curY + pG > v.W) continue;
-    placed.push({
-      x: curX, y: curY, z: 0,
-      l: pL, w: pG, h: item.Y,
-      ci: activeRows.findIndex(r => r.id === item.id),
-      stackable: item.stackable,
-      name: item.name || 'Palet',
-      layer: 1
-    });
-    curX += pL;
-    rowMaxG = Math.max(rowMaxG, pG);
-  }
+  lastResult = packVehicle(curVehicle, items, padding);
+  renderStats(lastResult);
+  renderUnplaced(lastResult);
+  draw3D(lastResult);
+}
 
-  const stackableItems = allItems.filter(it => it.stackable);
-  let si = 0;
-  for (const gp of placed.filter(p => p.stackable && p.layer === 1)) {
-    if (si >= stackableItems.length) break;
-    const item = stackableItems[si];
-    const newZ = gp.z + gp.h;
-    if (newZ + item.Y > v.H) { si++; continue; }
-    placed.push({
-      x: gp.x, y: gp.y, z: newZ,
-      l: gp.l, w: gp.w, h: item.Y,
-      ci: activeRows.findIndex(r => r.id === item.id),
-      stackable: true, name: item.name, layer: 2
-    });
-    si++;
-  }
-
-  const layer1 = placed.filter(p => p.layer === 1).length;
-  const layer2 = placed.filter(p => p.layer === 2).length;
-  const excess = Math.max(0, allItems.length - layer1 - layer2);
-  const usedVol = placed.reduce((s, b) => s + b.l * b.w * b.h, 0) / 1e6;
-  const totalVol = vM3(v);
-  const usedArea = placed.filter(p => p.layer === 1).reduce((s, b) => s + b.l * b.w, 0) / 1e4;
-  const totalArea = (v.L / 100) * (v.W / 100);
-  const vPct = Math.min(100, Math.round(usedVol / totalVol * 100));
-  const aPct = Math.min(100, Math.round(usedArea / totalArea * 100));
-
-  // Progress barlar
-  document.getElementById('progressRows').innerHTML = `
-    <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
-      <span style="font-size:12px;color:var(--ink-2);">Hacim kullanımı</span>
-      <span style="font-size:12px;font-weight:600;color:var(--ink-1);">${vPct}%</span>
+function renderStats(r) {
+  const placedN = r.placed.length, totalN = placedN + r.unplaced.length;
+  const remKg = r.vehicle.maxKg - r.totalKg;
+  const wPct = r.vehicle.maxKg > 0 ? (r.totalKg / r.vehicle.maxKg) * 100 : 0;
+  const balanced = Math.abs(r.comPct - 50) <= 12;
+  document.getElementById('lp-stats').innerHTML = `
+    <div class="lp-stat"><div class="v">${placedN}<span style="font-size:13px;color:var(--ink-2);">/${totalN}</span></div><div class="l">Yerleşen Palet</div></div>
+    <div class="lp-stat">
+      <div class="v">%${r.volPct.toFixed(1)}</div><div class="l">Hacim Doluluk</div>
+      <div class="lp-bar" style="margin-top:8px;"><span style="width:${Math.min(100,r.volPct)}%"></span></div>
     </div>
-    <div style="height:7px;background:var(--border-soft);border-radius:4px;overflow:hidden;margin-bottom:14px;">
-      <div style="height:100%;width:${vPct}%;background:${vPct>=90?'var(--danger)':vPct>=70?'var(--warn)':'var(--accent)'};border-radius:4px;transition:width .5s ease;"></div>
+    <div class="lp-stat">
+      <div class="v">${fmtKg(r.totalKg)}</div>
+      <div class="l">Toplam / Kalan ${fmtKg(remKg)}</div>
+      <div class="lp-bar" style="margin-top:8px;"><span style="width:${Math.min(100,wPct)}%;background:${wPct>100?'#9F3D3D':'var(--accent)'}"></span></div>
     </div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
-      <span style="font-size:12px;color:var(--ink-2);">Alan kullanımı</span>
-      <span style="font-size:12px;font-weight:600;color:var(--ink-1);">${aPct}%</span>
-    </div>
-    <div style="height:7px;background:var(--border-soft);border-radius:4px;overflow:hidden;">
-      <div style="height:100%;width:${aPct}%;background:${aPct>=90?'var(--danger)':aPct>=70?'var(--warn)':'var(--bronze)'};border-radius:4px;transition:width .5s ease;"></div>
+    <div class="lp-stat">
+      <div class="v" style="color:${balanced?'#3D6E50':'#B58858'}">%${r.comPct.toFixed(0)}</div>
+      <div class="l">Ağırlık Merkezi (boy) ${balanced?'· Dengeli':'· Kontrol et'}</div>
     </div>`;
+}
 
-  // KPI kartlar
-  document.getElementById('statsRow').innerHTML = [
-    { val: layer1,                         lbl: '1. Kat',          color: 'var(--accent)' },
-    { val: layer2,                         lbl: '2. Kat (İstif)',  color: 'var(--ok)' },
-    { val: excess > 0 ? excess : '—',      lbl: excess > 0 ? 'Sığmayan' : 'Hepsi Sığdı', color: excess > 0 ? 'var(--danger)' : 'var(--ink-3)' },
-    { val: usedVol.toFixed(1) + ' m³',     lbl: 'Kullanılan Hacim', color: 'var(--info)' },
-  ].map(s => `
-    <div class="kpi-card" style="text-align:center;">
-      <div style="font-size:22px;font-weight:600;color:${s.color};line-height:1;">${s.val}</div>
-      <div style="font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-3);margin-top:6px;">${s.lbl}</div>
-    </div>`).join('');
+function renderUnplaced(r) {
+  const el = document.getElementById('lp-unplaced');
+  if (!r.unplaced.length) { el.innerHTML = ''; return; }
+  const byName = {};
+  r.unplaced.forEach(u => byName[u.name] = (byName[u.name]||0)+1);
+  el.innerHTML = `<div style="font-size:12px;color:#9F3D3D;background:#9F3D3D14;border:1px solid #9F3D3D33;border-radius:9px;padding:9px 12px;">
+    <i class="fa-solid fa-triangle-exclamation"></i> Sığmayan ${r.unplaced.length} palet: ${
+      Object.entries(byName).map(([n,c])=>`${esc(n)} ×${c}`).join(', ')}</div>`;
+}
 
-  // Not kutusu
-  const nb = document.getElementById('noteBox');
-  if (excess > 0) {
-    nb.style.cssText = 'padding:10px 14px;border-radius:7px;font-size:12px;font-weight:600;background:var(--danger-soft);border:1px solid var(--danger);color:var(--danger);';
-    nb.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i>  ${excess} palet araçta yer bulamadı — ek araç gerekiyor. İstiflenebilir ${layer2} adet 2. kata alındı.`;
-  } else if (layer2 > 0) {
-    nb.style.cssText = 'padding:10px 14px;border-radius:7px;font-size:12px;font-weight:600;background:var(--ok-soft);border:1px solid var(--ok);color:var(--ok);';
-    nb.innerHTML = `<i class="fa-solid fa-layer-group"></i>  Tüm ${layer1} palet yüklendi. ${layer2} adet istiflenebilir palet 2. kata çıkarıldı.`;
-  } else {
-    nb.style.cssText = 'padding:10px 14px;border-radius:7px;font-size:12px;font-weight:600;background:var(--warn-soft);border:1px solid var(--warn);color:var(--warn);';
-    nb.innerHTML = `<i class="fa-solid fa-info-circle"></i>  Tüm ${layer1} palet 1 katta yüklendi. Araçta kullanılmayan alan mevcut.`;
+// ════════════════════════════════════════════════════════════
+//  THREE.JS SAHNE
+// ════════════════════════════════════════════════════════════
+function ensureScene() {
+  if (renderer) return;
+  const canvas = document.getElementById('lp-canvas');
+  const wrap = canvas.parentElement;
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(45, 1, 1, 100000);
+  controls = new OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.7);
+  dir.position.set(800, 1400, 900);
+  scene.add(dir);
+  const dir2 = new THREE.DirectionalLight(0xffffff, 0.3);
+  dir2.position.set(-600, 600, -800);
+  scene.add(dir2);
+
+  raycaster = new THREE.Raycaster();
+  pointer = new THREE.Vector2();
+  canvas.addEventListener('mousemove', onPointerMove);
+  canvas.addEventListener('mouseleave', () => hideTip());
+
+  const ro = new ResizeObserver(() => resize());
+  ro.observe(wrap);
+  function loop() {
+    animId = requestAnimationFrame(loop);
+    controls.update();
+    renderer.render(scene, camera);
   }
+  loop();
+}
 
-  // Legend
-  // 3D renk göstergesi
-  const legItems = activeRows.map((r, i) => {
-    const badge = r.stackable
-      ? `<span style="font-size:10px;padding:2px 7px;border-radius:3px;background:var(--accent-soft);color:var(--accent);font-weight:600;">istiflenebilir</span>`
-      : `<span style="font-size:10px;padding:2px 7px;border-radius:3px;background:var(--surface-2);color:var(--ink-3);font-weight:600;">tek kat</span>`;
-    return `<span style="display:inline-flex;align-items:center;gap:5px;">
-      <span style="width:10px;height:10px;border-radius:2px;background:#3D6E50;display:inline-block;"></span>
-      ${escHtml(r.name || 'Palet ' + (i+1))} (${r.L}×${r.G}×${r.Y}) ${badge}
-    </span>`;
+function resize() {
+  if (!renderer) return;
+  const wrap = renderer.domElement.parentElement;
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+
+function draw3D(r) {
+  document.getElementById('lp-empty').style.display = 'none';
+  ensureScene();
+  resize();
+
+  // temizle
+  if (palletMeshGroup) { scene.remove(palletMeshGroup); disposeGroup(palletMeshGroup); }
+  // önceki araç çerçevesi
+  const old = scene.getObjectByName('vehicleGroup');
+  if (old) { scene.remove(old); disposeGroup(old); }
+
+  const V = r.vehicle;
+  // Three: X = uzunluk(L), Y = yükseklik(H), Z = genişlik(W)
+  // Merkezi orijine alalım.
+  const offX = -V.L / 2, offZ = -V.W / 2;
+
+  // ── Araç gövdesi (yarı şeffaf + wireframe) ──
+  const vg = new THREE.Group(); vg.name = 'vehicleGroup';
+  const boxGeo = new THREE.BoxGeometry(V.L, V.H, V.W);
+  const shell = new THREE.Mesh(boxGeo, new THREE.MeshStandardMaterial({
+    color: 0x2D4A3E, transparent: true, opacity: 0.06, depthWrite: false }));
+  shell.position.set(0, V.H/2, 0);
+  vg.add(shell);
+  const edges = new THREE.LineSegments(new THREE.EdgesGeometry(boxGeo),
+    new THREE.LineBasicMaterial({ color: 0x2D4A3E, transparent:true, opacity:0.55 }));
+  edges.position.set(0, V.H/2, 0);
+  vg.add(edges);
+  // zemin grid
+  const grid = new THREE.GridHelper(Math.max(V.L,V.W), 24, 0xB58858, 0xE4DDCE);
+  grid.position.y = 0.5;
+  vg.add(grid);
+  // kapı işareti (arka = +X ucu)
+  const doorMat = new THREE.MeshBasicMaterial({ color:0xB58858, transparent:true, opacity:0.25, side:THREE.DoubleSide });
+  const door = new THREE.Mesh(new THREE.PlaneGeometry(V.W, V.H), doorMat);
+  door.rotation.y = Math.PI/2;
+  door.position.set(V.L/2, V.H/2, 0);
+  vg.add(door);
+  scene.add(vg);
+
+  // ── Paletler ──
+  palletMeshGroup = new THREE.Group();
+  r.placed.forEach((p, idx) => {
+    const fl = p.rot ? p.W : p.L;   // X yönü (uzunluk kapladığı)
+    const fw = p.rot ? p.L : p.W;   // Z yönü (genişlik kapladığı)
+    const geo = new THREE.BoxGeometry(fl, p.H, fw);
+    const col = weightColor(p.kg, r);
+    const mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.7, metalness: 0.05 });
+    const mesh = new THREE.Mesh(geo, mat);
+    // p.cx = uzunluk merkezi (0..L), p.cy = genişlik merkezi (0..W), p.z0 = taban
+    mesh.position.set(offX + p.cx, p.z0 + p.H/2, offZ + p.cy);
+    mesh.userData = { p, baseColor: col, idx: idx+1 };
+    const eg = new THREE.LineSegments(new THREE.EdgesGeometry(geo),
+      new THREE.LineBasicMaterial({ color: 0x000000, transparent:true, opacity:0.18 }));
+    mesh.add(eg);
+    palletMeshGroup.add(mesh);
   });
-  if (layer2 > 0) {
-    legItems.push(`<span style="display:inline-flex;align-items:center;gap:5px;">
-      <span style="width:10px;height:10px;border-radius:2px;background:#C9A06A;display:inline-block;"></span>
-      <span style="font-size:11px;color:var(--ink-2);">2. kat istif paletleri</span>
-    </span>`);
-  }
-  document.getElementById('legWrap').innerHTML = legItems.join('');
+  scene.add(palletMeshGroup);
 
-  // View tabs
-  const viewLabels = {'3d':'3D Görünüm','top':'Üstten','front':'Önden','side':'Yandan'};
-  document.getElementById('viewTabs').innerHTML = ['3d','top','front','side'].map(vt => {
-    const isActive = curView === vt;
-    return `<button onclick="switchView('${vt}',this)" style="
-      padding:5px 14px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;
-      font-family:Verdana,Geneva,sans-serif;letter-spacing:0.04em;
-      border:1px solid ${isActive ? 'var(--accent)' : 'var(--border)'};
-      background:${isActive ? 'var(--accent)' : 'var(--surface-2)'};
-      color:${isActive ? '#fff' : 'var(--ink-2)'};">
-      ${viewLabels[vt]}
-    </button>`;
-  }).join('');
-
-  lastBoxes = placed; lastV = v;
-  renderView(curView);
-  document.getElementById('results').style.display = 'block';
-}
-window.calculate = calculate;
-
-function switchView(v, el) {
-  curView = v;
-  document.querySelectorAll('#viewTabs button').forEach(b => {
-    b.style.background = 'var(--surface-2)';
-    b.style.borderColor = 'var(--border)';
-    b.style.color = 'var(--ink-2)';
-  });
-  el.style.background = 'var(--accent)';
-  el.style.borderColor = 'var(--accent)';
-  el.style.color = '#fff';
-  if (lastV) renderView(v);
-}
-window.switchView = switchView;
-
-function renderView(v) { if (v === '3d') draw3D(); else draw2D(v); }
-
-// ─── 3D Render ───────────────────────────────────────────────
-function adjustColor(hex, amt) {
-  let r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-  r = Math.max(0,Math.min(255,r+amt)); g = Math.max(0,Math.min(255,g+amt)); b = Math.max(0,Math.min(255,b+amt));
-  return '#' + [r,g,b].map(x => x.toString(16).padStart(2,'0')).join('');
+  resetCamera();
 }
 
-function draw3D() {
-  const v = lastV, boxes = lastBoxes;
-  const canvas = document.getElementById('viewCanvas');
-  const W = canvas.parentElement.clientWidth || 800;
-  const H = Math.max(380, Math.min(480, W * 0.38));
-  canvas.width = W; canvas.height = H;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#1C1A17'; ctx.fillRect(0, 0, W, H);
-
-  // İzometrik projeksiyon
-  const isoX = 0.866, isoY = 0.5;
-  const visW = (v.L + v.W) * isoX;
-  const visH = (v.L + v.W) * isoY + v.H;
-  const sc = Math.min((W * 0.78) / visW, (H * 0.78) / visH);
-  const totalProjW = visW * sc;
-  const totalProjH = visH * sc;
-  const ox = (W - totalProjW) / 2 + v.W * isoX * sc;
-  const oy = (H - totalProjH) / 2 + v.W * isoY * sc + v.H * sc;
-
-  function proj(x, y, z) {
-    return {
-      px: ox + (x * isoX - y * isoX) * sc,
-      py: oy + ((x * isoY + y * isoY) - z) * sc
-    };
-  }
-
-  function drawBox(x, y, z, l, w, h, topC, sideC, frontC, strokeC, lw) {
-    const g = 1.2;
-    const p = [
-      proj(x+g,y+g,z),   proj(x+l-g,y+g,z),   proj(x+l-g,y+w-g,z), proj(x+g,y+w-g,z),
-      proj(x+g,y+g,z+h-g), proj(x+l-g,y+g,z+h-g), proj(x+l-g,y+w-g,z+h-g), proj(x+g,y+w-g,z+h-g)
-    ];
-    const face = (idx, col) => {
-      ctx.beginPath(); ctx.moveTo(p[idx[0]].px, p[idx[0]].py);
-      idx.slice(1).forEach(i => ctx.lineTo(p[i].px, p[i].py));
-      ctx.closePath();
-      ctx.fillStyle = col; ctx.fill();
-      ctx.strokeStyle = strokeC; ctx.lineWidth = lw; ctx.stroke();
-    };
-    ctx.globalAlpha = 0.95;
-    face([0,1,2,3], topC);
-    face([1,5,6,2], sideC);
-    face([0,4,5,1], frontC);
-    ctx.globalAlpha = 1;
-  }
-
-  function wireBox(x, y, z, l, w, h, col, lw) {
-    const p = [
-      proj(x,y,z),proj(x+l,y,z),proj(x+l,y+w,z),proj(x,y+w,z),
-      proj(x,y,z+h),proj(x+l,y,z+h),proj(x+l,y+w,z+h),proj(x,y+w,z+h)
-    ];
-    ctx.strokeStyle = col; ctx.lineWidth = lw;
-    [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]].forEach(([a,b]) => {
-      ctx.beginPath(); ctx.moveTo(p[a].px,p[a].py); ctx.lineTo(p[b].px,p[b].py); ctx.stroke();
-    });
-  }
-
-  // Zemin ızgara
-  ctx.strokeStyle = 'rgba(120,100,70,0.2)'; ctx.lineWidth = 0.5;
-  for (let gx = 0; gx <= v.L; gx += 120) {
-    const a = proj(gx,0,0), b = proj(gx,v.W,0);
-    ctx.beginPath(); ctx.moveTo(a.px,a.py); ctx.lineTo(b.px,b.py); ctx.stroke();
-  }
-  for (let gy = 0; gy <= v.W; gy += 100) {
-    const a = proj(0,gy,0), b = proj(v.L,gy,0);
-    ctx.beginPath(); ctx.moveTo(a.px,a.py); ctx.lineTo(b.px,b.py); ctx.stroke();
-  }
-
-  // Araç kasası
-  wireBox(0, 0, 0, v.L, v.W, v.H, 'rgba(200,185,155,0.55)', 1.5);
-
-  // Paletler
-  const sorted = [...boxes].sort((a, b) => {
-    if (a.layer !== b.layer) return a.layer - b.layer;
-    return (b.x + b.y) - (a.x + a.y);
-  });
-
-  sorted.forEach(b => {
-    if (b.layer === 1) {
-      drawBox(b.x,b.y,b.z,b.l,b.w,b.h, '#4A8060','#2D5040','#3A6850', 'rgba(0,0,0,0.5)', 0.6);
-    } else {
-      drawBox(b.x,b.y,b.z,b.l,b.w,b.h, '#D4AA72','#A07840','#BC9458', 'rgba(0,0,0,0.4)', 0.6);
-    }
-  });
-
-  ctx.fillStyle = '#968B7A'; ctx.font = '11px Verdana';
-  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-  ctx.fillText(v.name + '  ·  ' + (v.L/100).toFixed(2)+'m × '+(v.W/100).toFixed(2)+'m × '+(v.H/100).toFixed(2)+'m', 12, 12);
-  const l1=boxes.filter(b=>b.layer===1).length, l2=boxes.filter(b=>b.layer===2).length;
-  ctx.fillStyle='#5A8A72';
-  ctx.fillText(l1+' palet (1. kat)'+(l2>0?'   +   '+l2+' palet (2. kat)':''), 12, 27);
+function weightColor(kg, r) {
+  const maxK = Math.max(...r.placed.map(p=>p.kg), 1);
+  const t = kg / maxK;            // 0 hafif .. 1 ağır
+  // hafif (açık zeytin) → ağır (koyu kiremit)
+  const light = new THREE.Color('#7E9152');
+  const heavy = new THREE.Color('#7A2E2E');
+  return light.clone().lerp(heavy, t).getHex();
 }
 
-
-function draw2D(view) {
-  const v = lastV, boxes = lastBoxes;
-  const canvas = document.getElementById('viewCanvas');
-  const CW = canvas.parentElement.clientWidth || 800, margin = 24;
-  let vW, vH, getRect;
-  if (view === 'top')   { vW = v.L; vH = v.W; getRect = b => ({ x: b.x, y: b.y,           w: b.l, h: b.w, layer: b.layer }); }
-  else if (view === 'front') { vW = v.W; vH = v.H; getRect = b => ({ x: b.y, y: v.H-b.z-b.h,  w: b.w, h: b.h, layer: b.layer }); }
-  else                  { vW = v.L; vH = v.H; getRect = b => ({ x: b.x, y: v.H-b.z-b.h,  w: b.l, h: b.h, layer: b.layer }); }
-  const scale = Math.min((CW - margin * 2) / vW, (320 - margin * 2) / vH);
-  const CH = Math.round(vH * scale) + margin * 2 + 28;
-  canvas.width = CW; canvas.height = CH;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#1C1A17'; ctx.fillRect(0, 0, CW, CH);
-  ctx.fillStyle = '#2A2724'; ctx.fillRect(margin, margin, vW * scale, vH * scale);
-  ctx.strokeStyle = '#3A3630'; ctx.lineWidth = 1.5; ctx.strokeRect(margin, margin, vW * scale, vH * scale);
-
-  [...boxes].sort((a, b) => a.layer - b.layer).forEach(b => {
-    const r = getRect(b);
-    // 1. kat koyu yesil, 2. kat bronz - 2D'de de ayni renk sistemi
-    const fillC  = b.layer === 2 ? '#C9A06A' : '#3D6E50';
-    const strokeC = b.layer === 2 ? 'rgba(255,220,150,.5)' : 'rgba(0,0,0,.4)';
-    ctx.fillStyle = fillC;
-    ctx.fillRect(margin + r.x * scale, margin + r.y * scale, r.w * scale, r.h * scale);
-    ctx.strokeStyle = strokeC;
-    ctx.lineWidth = b.layer === 2 ? 1 : .5;
-    ctx.strokeRect(margin + r.x * scale, margin + r.y * scale, r.w * scale, r.h * scale);
-    if (b.layer === 2 && r.w * scale > 18 && r.h * scale > 12) {
-      ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.font = 'bold 9px Verdana';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('2', margin + r.x * scale + r.w * scale / 2, margin + r.y * scale + r.h * scale / 2);
-    }
-  });
-
-  ctx.fillStyle = '#6B655B'; ctx.font = '11px Verdana'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-  ctx.fillText({ top: 'üstten görünüm (uzunluk × genişlik)', front: 'önden görünüm (genişlik × yükseklik)', side: 'yandan görünüm (uzunluk × yükseklik)' }[view],
-    margin, vH * scale + margin + 6);
+function resetCamera() {
+  if (!camera || !lastResult) return;
+  const V = lastResult.vehicle;
+  const d = Math.max(V.L, V.W, V.H);
+  camera.position.set(V.L*0.75, V.H*1.6 + d*0.4, V.W*1.9 + d*0.3);
+  controls.target.set(0, V.H/2, 0);
+  controls.update();
 }
 
-// ─── Yardımcılar ─────────────────────────────────────────────
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+// ── Hover / tooltip ──
+function onPointerMove(e) {
+  if (!palletMeshGroup) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(palletMeshGroup.children, false);
+  if (hovered) { hovered.material.emissive?.setHex(0x000000); hovered = null; }
+  if (hits.length) {
+    const m = hits[0].object;
+    hovered = m;
+    m.material.emissive = new THREE.Color(0xffffff);
+    m.material.emissiveIntensity = 0.18;
+    const p = m.userData.p;
+    showTip(e, `<b>#${m.userData.idx} · ${esc(p.name)}</b><br>
+      Tip: ${esc(p.type)}<br>
+      Ebat: ${p.W}×${p.L}×${p.H} cm${p.rot?' (90° döndürülmüş)':''}<br>
+      Ağırlık: ${fmtKg(p.kg)}<br>
+      ${p.stackable?('İstiflenebilir · Katman '+p.strength):'İstiflenemez'}`);
+  } else hideTip();
 }
+function showTip(e, html) {
+  const tip = document.getElementById('lp-tip');
+  const rect = renderer.domElement.getBoundingClientRect();
+  tip.innerHTML = html;
+  tip.style.opacity = '1';
+  let x = e.clientX - rect.left + 14, y = e.clientY - rect.top + 14;
+  if (x + 250 > rect.width) x = rect.width - 250;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function hideTip(){ const t=document.getElementById('lp-tip'); if(t) t.style.opacity='0'; }
 
-function showToast(msg) {
-  const t = document.getElementById('ep-toast');
-  if (!t) return;
-  t.textContent = msg; t.style.display = 'block';
-  clearTimeout(t._timer);
-  t._timer = setTimeout(() => { t.style.display = 'none'; }, 2500);
-}
+function disposeGroup(g){ g.traverse(o=>{ o.geometry?.dispose?.(); if(o.material){ (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.dispose()); } }); }
+
+// ── Yardımcılar ──
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtKg = (n) => (n==null||isNaN(n)) ? '—' : Number(n).toLocaleString('tr-TR',{maximumFractionDigits:1})+' kg';
