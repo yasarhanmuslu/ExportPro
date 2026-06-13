@@ -1,653 +1,704 @@
-// ============================================================
-// src/products.js — Ürün Tanımlama Kartı
-// Export Pro V: 1.0.24
-// ============================================================
+// ═══════════════════════════════════════════════════════════════
+// ExportPro — Ürün Kartları (Master Data) — products.js
+// V: 1.0.67
+// ═══════════════════════════════════════════════════════════════
 
+import { supabase } from './utils/supabaseClient.js';
+import { requireAuth } from './auth/auth.js';
 import { renderNavbar } from './components/navbar.js';
-import { requireAuth }  from './auth/auth.js';
-import { supabase }     from './utils/supabaseClient.js';
+import './theme.js';
 
-// ── State ────────────────────────────────────────────────────
-let session           = null;
-let globalProducts    = [];
-let filteredProducts  = [];
-let currentPage       = 1;
-const PAGE_SIZE       = 20;
-let deletingId        = null;
-let editingPriceProductId = null;
-let missingCurrency   = null;   // 'EUR' | 'USD' | 'TRY' | null
+// ── State ───────────────────────────────────────────────────────
+let allProducts = [];
+let filteredProducts = [];
+let duplicateCodes = {};      // { stok_kodu: count }
+let currentPage = 1;
+const PAGE_SIZE = 50;
+let editingId = null;         // null = add mode, uuid = edit mode
+let deleteTargetId = null;
+let importRows = [];
 
-// ── Init ─────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', async () => {
-  renderNavbar('products');
-  session = await requireAuth();
-  if (!session) return;
-  bindEvents();
-  await fetchProducts();
-});
+// Dropdown seçenekleri (veriden türetilir)
+let distinctGruplar = [];
+let distinctSeriler = [];
+let distinctRenkler = [];
 
-// ── Veri Çekme ───────────────────────────────────────────────
-async function fetchProducts() {
-  try {
-    const { data: products, error: pErr } = await supabase
-      .from('products')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .order('product_group', { ascending: true })
-      .order('product_name',  { ascending: true });
-
-    if (pErr) throw pErr;
-
-    const { data: prices, error: prErr } = await supabase
-      .from('product_prices')
-      .select('*')
-      .eq('user_id', session.user.id);
-
-    if (prErr) throw prErr;
-
-    const priceMap = {};
-    (prices || []).forEach(p => {
-      if (!priceMap[p.product_id]) priceMap[p.product_id] = [];
-      priceMap[p.product_id].push(p);
-    });
-
-    globalProducts = (products || []).map(p => ({
-      ...p,
-      prices: priceMap[p.id] || []
-    }));
-
-    updateStats();
-    populateGroupFilter();
-    applyFilters();
-
-  } catch (err) {
-    console.error('fetchProducts error:', err);
-    alert('Ürünler yüklenirken hata oluştu: ' + err.message);
-  }
+// ── Init ────────────────────────────────────────────────────────
+async function init() {
+    await requireAuth();
+    renderNavbar('products');
+    await loadProducts();
+    bindEvents();
 }
+init();
 
-// ── Eksik Fiyat Buton Stilleri ────────────────────────────────
-function updateMissingBtnStyles() {
-  const colorMap = {
-    EUR: { ring: 'ring-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/60' },
-    USD: { ring: 'ring-amber-500',   bg: 'bg-amber-500/10',   border: 'border-amber-500/60'   },
-    TRY: { ring: 'ring-sky-500',     bg: 'bg-sky-500/10',     border: 'border-sky-500/60'     },
-  };
-  document.querySelectorAll('.stat-missing-btn').forEach(btn => {
-    const currency = btn.dataset.currency;
-    const cls = colorMap[currency];
-    if (missingCurrency === currency) {
-      btn.classList.add('ring-2', cls.ring, cls.bg, cls.border);
-      btn.classList.remove('border-[var(--border)]');
-      // İkon her zaman görünür
-      const icon = btn.querySelector('.fa-triangle-exclamation');
-      if (icon) icon.classList.remove('opacity-0');
-    } else {
-      btn.classList.remove('ring-2', cls.ring, cls.bg, cls.border);
-      btn.classList.add('border-[var(--border)]');
-      const icon = btn.querySelector('.fa-triangle-exclamation');
-      if (icon) icon.classList.add('opacity-0');
+// ── Data Loading ────────────────────────────────────────────────
+async function loadProducts() {
+    try {
+        const { data, error } = await supabase
+            .from('urunler')
+            .select('*')
+            .order('stok_kodu', { ascending: true });
+
+        if (error) throw error;
+        allProducts = data || [];
+
+        // Mükerrer stok kodu tespiti
+        duplicateCodes = {};
+        const codeCount = {};
+        allProducts.forEach(p => {
+            codeCount[p.stok_kodu] = (codeCount[p.stok_kodu] || 0) + 1;
+        });
+        Object.entries(codeCount).forEach(([code, count]) => {
+            if (count > 1) duplicateCodes[code] = count;
+        });
+
+        // Distinct değerler (dropdown'lar için)
+        distinctGruplar = [...new Set(allProducts.map(p => p.urun_grubu).filter(Boolean))].sort();
+        distinctSeriler = [...new Set(allProducts.map(p => p.seri_adi).filter(Boolean))].sort();
+        distinctRenkler = [...new Set(allProducts.map(p => p.renk).filter(Boolean))].sort();
+
+        populateFilterDropdowns();
+        populateFormDropdowns();
+        applyFilters();
+        renderKPI();
+    } catch (err) {
+        console.error('loadProducts:', err);
+        alert('Ürünler yüklenirken hata: ' + err.message);
     }
-  });
 }
 
-// ── İstatistikler ─────────────────────────────────────────────
-function updateStats() {
-  const year = new Date().getFullYear();
-  document.getElementById('stat-total').textContent  = globalProducts.length;
-  const groups = new Set(globalProducts.map(p => p.product_group).filter(Boolean));
-  document.getElementById('stat-groups').textContent = groups.size;
+// ── Dropdowns ───────────────────────────────────────────────────
+function populateFilterDropdowns() {
+    const grupSel = document.getElementById('fil-grup');
+    const seriSel = document.getElementById('fil-seri');
 
-  // Eksik fiyat sayıları (cari yıl için)
-  const missingEur = globalProducts.filter(p => !p.prices.some(pr => pr.currency === 'EUR' && pr.price_year === year)).length;
-  const missingUsd = globalProducts.filter(p => !p.prices.some(pr => pr.currency === 'USD' && pr.price_year === year)).length;
-  const missingTry = globalProducts.filter(p => !p.prices.some(pr => pr.currency === 'TRY' && pr.price_year === year)).length;
-  document.getElementById('stat-eur').textContent = missingEur;
-  document.getElementById('stat-usd').textContent = missingUsd;
-  document.getElementById('stat-try').textContent = missingTry;
+    grupSel.innerHTML = '<option value="">Tüm Gruplar</option>' +
+        distinctGruplar.map(g => `<option>${g}</option>`).join('');
+    seriSel.innerHTML = '<option value="">Tüm Seriler</option>' +
+        distinctSeriler.map(s => `<option>${s}</option>`).join('');
 }
 
-// ── Grup Filtresi ─────────────────────────────────────────────
-function populateGroupFilter() {
-  const select = document.getElementById('filter-group');
-  const groups = [...new Set(globalProducts.map(p => p.product_group).filter(Boolean))].sort();
-  const current = select.value;
-  select.innerHTML = '<option value="">Tüm Gruplar</option>';
-  groups.forEach(g => {
-    const opt = document.createElement('option');
-    opt.value = g;
-    opt.textContent = g;
-    if (g === current) opt.selected = true;
-    select.appendChild(opt);
-  });
+function populateFormDropdowns() {
+    const grupSel = document.getElementById('f-urun-grubu');
+    grupSel.innerHTML = '<option value="">Seçiniz</option>' +
+        distinctGruplar.map(g => `<option>${g}</option>`).join('');
+
+    const renkSel = document.getElementById('f-renk');
+    renkSel.innerHTML = '<option value="">Seçiniz</option>' +
+        distinctRenkler.map(r => `<option>${r}</option>`).join('');
 }
 
-// ── Filtreleme ────────────────────────────────────────────────
+// ── KPI ─────────────────────────────────────────────────────────
+function renderKPI() {
+    const total = allProducts.length;
+    const grupCount = distinctGruplar.length;
+    const seriCount = distinctSeriler.length;
+    const dupCount = Object.keys(duplicateCodes).length;
+
+    document.getElementById('kpi-strip').innerHTML = `
+        <div class="kpi-card">
+            <div class="label-caps">TOPLAM ÜRÜN</div>
+            <div class="kpi-value" style="color:var(--ink-1);margin-top:4px;">${total}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="label-caps">ÜRÜN GRUBU</div>
+            <div class="kpi-value" style="color:var(--accent);margin-top:4px;">${grupCount}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="label-caps">SERİ SAYISI</div>
+            <div class="kpi-value" style="color:var(--bronze);margin-top:4px;">${seriCount}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="label-caps">MÜKERRER KOD</div>
+            <div class="kpi-value" style="color:${dupCount > 0 ? 'var(--warn)' : 'var(--ok)'};margin-top:4px;">${dupCount}</div>
+        </div>
+    `;
+}
+
+// ── Search & Filter ─────────────────────────────────────────────
 function applyFilters() {
-  const search = document.getElementById('search-input').value.trim().toLowerCase();
-  const group  = document.getElementById('filter-group').value;
-  const year   = new Date().getFullYear();
+    const query = (document.getElementById('txt-search').value || '').toLocaleLowerCase('tr-TR').trim();
+    const grupFilter = document.getElementById('fil-grup').value;
+    const seriFilter = document.getElementById('fil-seri').value;
 
-  // Clear butonu görünürlüğü
-  const clearBtn = document.getElementById('btn-search-clear');
-  if (clearBtn) clearBtn.classList.toggle('hidden', !search);
+    filteredProducts = allProducts.filter(p => {
+        // Grup filtresi
+        if (grupFilter && p.urun_grubu !== grupFilter) return false;
+        // Seri filtresi
+        if (seriFilter && p.seri_adi !== seriFilter) return false;
+        // Arama (fuzzy: stok_kodu, stok_adi_1, stok_adi_2)
+        if (query) {
+            const haystack = [
+                p.stok_kodu || '',
+                p.stok_adi_1 || '',
+                p.stok_adi_2 || ''
+            ].join(' ').toLocaleLowerCase('tr-TR');
 
-  filteredProducts = globalProducts
-    .filter(p => {
-      const matchSearch = !search ||
-        p.product_name.toLowerCase().includes(search) ||
-        p.product_code.toLowerCase().includes(search);
-      const matchGroup = !group || p.product_group === group;
-      const matchMissing = !missingCurrency ||
-        !p.prices.some(pr => pr.currency === missingCurrency && pr.price_year === year);
-      return matchSearch && matchGroup && matchMissing;
-    })
-    .sort((a, b) => {
-      const gA = (a.product_group || '').toLowerCase();
-      const gB = (b.product_group || '').toLowerCase();
-      if (gA < gB) return -1;
-      if (gA > gB) return 1;
-      const nA = (a.product_name || '').toLowerCase();
-      const nB = (b.product_name || '').toLowerCase();
-      return nA < nB ? -1 : nA > nB ? 1 : 0;
+            // Her kelimeyi ayrı ara (AND mantığı)
+            const words = query.split(/\s+/);
+            if (!words.every(w => haystack.includes(w))) return false;
+        }
+        return true;
     });
 
-  // Sonuç badge'i
-  const badge   = document.getElementById('search-result-badge');
-  const countEl = document.getElementById('search-result-count');
-  if (badge && countEl) {
-    const isFiltered = search || group || missingCurrency;
-    if (isFiltered) {
-      badge.classList.remove('hidden');
-      badge.classList.add('flex');
-      const label = missingCurrency ? `${missingCurrency} fiyatı eksik` : 'sonuç';
-      countEl.textContent = `${filteredProducts.length} ${label}`;
-    } else {
-      badge.classList.add('hidden');
-      badge.classList.remove('flex');
-    }
-  }
-
-  currentPage = 1;
-  renderTable();
+    currentPage = 1;
+    renderTable();
 }
 
-// ── Tablo Render ──────────────────────────────────────────────
+let searchTimer = null;
+function onSearchInput() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applyFilters, 180);
+}
+
+// ── Table Render ────────────────────────────────────────────────
 function renderTable() {
-  const tbody = document.getElementById('product-table-body');
-  const start = (currentPage - 1) * PAGE_SIZE;
-  const page  = filteredProducts.slice(start, start + PAGE_SIZE);
+    const tbody = document.getElementById('table-body');
+    const totalFiltered = filteredProducts.length;
+    const totalPages = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE));
+    if (currentPage > totalPages) currentPage = totalPages;
 
-  if (page.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="11" class="text-center text-[var(--text-secondary)] py-16">
-          <i class="fa-solid fa-box-open text-2xl mb-3 block opacity-40"></i>
-          Ürün bulunamadı
-        </td>
-      </tr>`;
-    updatePagination();
-    return;
-  }
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pageItems = filteredProducts.slice(start, start + PAGE_SIZE);
 
-  let lastGroup = null;
-  tbody.innerHTML = page.map(p => {
-    const groupHeader = p.product_group !== lastGroup
-      ? `<tr class="bg-[var(--bg-primary)]">
-           <td colspan="11" class="px-4 py-2 text-xs font-semibold text-[#2D4A3E] uppercase tracking-widest border-t border-[var(--border)]">
-             <i class="fa-solid fa-layer-group mr-1.5 opacity-60"></i>${escHtml(p.product_group || 'Grupsuz')}
-           </td>
-         </tr>`
-      : '';
-    lastGroup = p.product_group;
+    if (totalFiltered === 0) {
+        tbody.innerHTML = `<tr><td colspan="10">
+            <div class="empty-state"><i class="fa-solid fa-box-open"></i>Sonuç bulunamadı</div>
+        </td></tr>`;
+        document.getElementById('pager').innerHTML = '';
+        return;
+    }
 
-    const eur2026 = p.prices.find(pr => pr.currency === 'EUR' && pr.price_year === 2026);
-    const usd2026 = p.prices.find(pr => pr.currency === 'USD' && pr.price_year === 2026);
-    const try2026 = p.prices.find(pr => pr.currency === 'TRY' && pr.price_year === 2026);
-    const fmtEur  = v => v != null ? '€' + Number(v).toFixed(2) : '<span class="text-[#968B7A]">—</span>';
-    const fmtUsd  = v => v != null ? '$' + Number(v).toFixed(2) : '<span class="text-[#968B7A]">—</span>';
-    const fmtTry  = v => v != null ? '₺' + Number(v).toFixed(2) : '<span class="text-[#968B7A]">—</span>';
-    const fmtKg   = v => v != null ? Number(v).toFixed(2) : '—';
-    const metaParts = [];
-    if (p.color)    metaParts.push(escHtml(p.color));
-    if (p.function) metaParts.push(escHtml(p.function));
-    const metaLine = metaParts.length
-      ? `<div class="text-xs text-[var(--text-secondary)] truncate">${metaParts.join(' · ')}</div>`
-      : '';
+    tbody.innerHTML = pageItems.map((p, i) => {
+        const rowNum = start + i + 1;
+        const isDup = duplicateCodes[p.stok_kodu];
+        const dupHtml = isDup ? `<span class="dup-badge"><i class="fa-solid fa-triangle-exclamation" style="font-size:8px;"></i> ${isDup}x</span>` : '';
 
-    return groupHeader + `
-      <tr class="border-t border-[var(--border)] hover:bg-[var(--bg-hover)] transition-colors">
-        <td class="px-4 py-3">
-          <span class="font-mono text-xs bg-[#E8EEEA] text-[#2D4A3E] px-2 py-0.5 rounded">
-            ${escHtml(p.product_code)}
-          </span>
-        </td>
-        <td class="px-4 py-3 text-sm font-medium text-[var(--text-primary)] max-w-xs">
-          <div class="truncate" title="${escHtml(p.product_name)}">${escHtml(p.product_name)}</div>
-          ${metaLine}
-        </td>
-        <td class="px-4 py-3">
-          <span class="text-xs bg-slate-700/50 text-[#6B655B] px-2 py-0.5 rounded-full">
-            ${escHtml(p.product_group || '—')}
-          </span>
-        </td>
-        <td class="px-4 py-3 text-right text-xs text-[var(--text-secondary)] whitespace-nowrap">
-          ${fmtKg(p.net_weight)} / ${fmtKg(p.gross_weight)}
-        </td>
-        <td class="px-4 py-3 text-right text-sm text-[var(--text-primary)]">${fmtEur(eur2026?.list_price)}</td>
-        <td class="px-4 py-3 text-right text-sm font-semibold text-[#3D6E50]">${fmtEur(eur2026?.net_price)}</td>
-        <td class="px-4 py-3 text-right text-sm text-[var(--text-primary)]">${fmtUsd(usd2026?.list_price)}</td>
-        <td class="px-4 py-3 text-right text-sm font-semibold text-[#B26B33]">${fmtUsd(usd2026?.net_price)}</td>
-        <td class="px-4 py-3 text-right text-sm text-[var(--text-primary)]">${fmtTry(try2026?.list_price)}</td>
-        <td class="px-4 py-3 text-right text-sm font-semibold text-sky-400">${fmtTry(try2026?.net_price)}</td>
-        <td class="px-4 py-3 text-center">
-          <div class="flex items-center justify-center gap-2">
-            <button onclick="openPriceModal('${p.id}')"
-              title="Fiyat Yönetimi"
-              class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[#B26B33] hover:bg-amber-400/10 transition-colors">
-              <i class="fa-solid fa-tag text-sm"></i>
-            </button>
-            <button onclick="openEditProduct('${p.id}')"
-              title="Düzenle"
-              class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[#2D4A3E] hover:bg-[#E8EEEA]/10 transition-colors">
-              <i class="fa-solid fa-pen text-sm"></i>
-            </button>
-            <button onclick="openDeleteModal('${p.id}')"
-              title="Sil"
-              class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[#9F3D3D] hover:bg-rose-400/10 transition-colors">
-              <i class="fa-solid fa-trash text-sm"></i>
-            </button>
-          </div>
-        </td>
-      </tr>`;
-  }).join('');
+        return `<tr data-id="${p.id}" onclick="window._ep.openEdit('${p.id}')">
+            <td style="color:var(--ink-3);font-size:11px;">${rowNum}</td>
+            <td class="col-code">${esc(p.stok_kodu)}${dupHtml}</td>
+            <td class="col-name" title="${esc(p.stok_adi_1)}">${esc(p.stok_adi_1)}</td>
+            <td title="${esc(p.stok_adi_2 || '')}">${esc(p.stok_adi_2 || '-')}</td>
+            <td>${esc(p.birim || '-')}</td>
+            <td>${esc(p.paketleme || '-')}</td>
+            <td>${esc(p.urun_grubu || '-')}</td>
+            <td>${esc(p.renk || '-')}</td>
+            <td>${esc(p.kalite || '-')}</td>
+            <td>
+                <button class="btn-action btn-danger" style="padding:4px 8px;font-size:11px;"
+                    onclick="event.stopPropagation(); window._ep.confirmDelete('${p.id}','${esc(p.stok_kodu)}')">
+                    <i class="fa-solid fa-trash" style="font-size:10px;"></i>
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
 
-  updatePagination();
+    renderPager(totalFiltered, totalPages);
 }
 
-function updatePagination() {
-  const total = filteredProducts.length;
-  const pages = Math.ceil(total / PAGE_SIZE);
-  const start = (currentPage - 1) * PAGE_SIZE + 1;
-  const end   = Math.min(currentPage * PAGE_SIZE, total);
-  document.getElementById('pagination-info').textContent =
-    total === 0 ? '' : `${start}–${end} / ${total} ürün`;
-  document.getElementById('btn-prev').disabled = currentPage <= 1;
-  document.getElementById('btn-next').disabled = currentPage >= pages;
+function renderPager(total, totalPages) {
+    const pagerEl = document.getElementById('pager');
+    const start = (currentPage - 1) * PAGE_SIZE + 1;
+    const end = Math.min(currentPage * PAGE_SIZE, total);
+
+    // Sayfa numaraları (max 7 görünür)
+    let pages = [];
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+        pages.push(1);
+        let s = Math.max(2, currentPage - 2);
+        let e = Math.min(totalPages - 1, currentPage + 2);
+        if (s > 2) pages.push('...');
+        for (let i = s; i <= e; i++) pages.push(i);
+        if (e < totalPages - 1) pages.push('...');
+        pages.push(totalPages);
+    }
+
+    pagerEl.innerHTML = `
+        <span>${start}–${end} / ${total} ürün</span>
+        <div class="pager-btns">
+            <button ${currentPage === 1 ? 'disabled' : ''} onclick="window._ep.goPage(${currentPage - 1})">
+                <i class="fa-solid fa-chevron-left" style="font-size:10px;"></i>
+            </button>
+            ${pages.map(p => p === '...'
+                ? `<button disabled style="border:none;background:none;color:var(--ink-3);">…</button>`
+                : `<button class="${p === currentPage ? 'active' : ''}" onclick="window._ep.goPage(${p})">${p}</button>`
+            ).join('')}
+            <button ${currentPage === totalPages ? 'disabled' : ''} onclick="window._ep.goPage(${currentPage + 1})">
+                <i class="fa-solid fa-chevron-right" style="font-size:10px;"></i>
+            </button>
+        </div>
+    `;
 }
 
-// ── Ürün Modal ────────────────────────────────────────────────
-function openAddProduct() {
-  document.getElementById('product-id').value          = '';
-  document.getElementById('product-code').value        = '';
-  document.getElementById('product-name').value        = '';
-  document.getElementById('product-group').value       = '';
-  document.getElementById('product-color').value        = '';
-  document.getElementById('product-function').value     = '';
-  document.getElementById('product-net-weight').value   = '';
-  document.getElementById('product-gross-weight').value = '';
-  document.getElementById('product-description').value = '';
-  document.getElementById('modal-product-title').textContent = 'Yeni Ürün';
-  showModal('modal-product');
+// ── Modal Helpers ───────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function resetForm() {
+    ['f-stok-kodu','f-adi-1','f-adi-2','f-seri-adi','f-birim','f-paketleme',
+     'f-urun-grubu','f-urun-turu','f-fonk1','f-fonk2','f-fonk3','f-boyut',
+     'f-renk','f-kalite','f-agirlik-net','f-agirlik-brut','f-palet-adedi',
+     'f-en','f-boy','f-yukseklik','f-palet-cinsi'
+    ].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
 }
 
-window.openEditProduct = function(id) {
-  const p = globalProducts.find(x => x.id === id);
-  if (!p) return;
-  document.getElementById('product-id').value          = p.id;
-  document.getElementById('product-code').value        = p.product_code;
-  document.getElementById('product-name').value        = p.product_name;
-  document.getElementById('product-group').value       = p.product_group || '';
-  document.getElementById('product-color').value        = p.color    || '';
-  document.getElementById('product-function').value     = p.function || '';
-  document.getElementById('product-net-weight').value   = p.net_weight   != null ? p.net_weight   : '';
-  document.getElementById('product-gross-weight').value = p.gross_weight != null ? p.gross_weight : '';
-  document.getElementById('product-description').value = p.description  || '';
-  document.getElementById('modal-product-title').textContent = 'Ürün Düzenle';
-  showModal('modal-product');
-};
+function fillForm(p) {
+    document.getElementById('f-stok-kodu').value = p.stok_kodu || '';
+    document.getElementById('f-adi-1').value = p.stok_adi_1 || '';
+    document.getElementById('f-adi-2').value = p.stok_adi_2 || '';
+    document.getElementById('f-seri-adi').value = p.seri_adi || '';
+    document.getElementById('f-birim').value = p.birim || '';
+    document.getElementById('f-paketleme').value = p.paketleme || '';
+    document.getElementById('f-urun-grubu').value = p.urun_grubu || '';
+    document.getElementById('f-urun-turu').value = p.urun_turu || '';
+    document.getElementById('f-fonk1').value = p.fonksiyon_1 || '';
+    document.getElementById('f-fonk2').value = p.fonksiyon_2 || '';
+    document.getElementById('f-fonk3').value = p.fonksiyon_3 || '';
+    document.getElementById('f-boyut').value = p.boyut_ozelligi || '';
+    document.getElementById('f-renk').value = p.renk || '';
+    document.getElementById('f-kalite').value = p.kalite || '';
+    document.getElementById('f-agirlik-net').value = p.agirlik_net ?? '';
+    document.getElementById('f-agirlik-brut').value = p.agirlik_brut ?? '';
+    document.getElementById('f-palet-adedi').value = p.palet_adedi ?? '';
+    document.getElementById('f-en').value = p.en_cm ?? '';
+    document.getElementById('f-boy').value = p.boy_cm ?? '';
+    document.getElementById('f-yukseklik').value = p.yukseklik_cm ?? '';
+    document.getElementById('f-palet-cinsi').value = p.palet_cinsi || '';
+}
 
+function getFormData() {
+    const val = (id) => document.getElementById(id).value.trim() || null;
+    const num = (id) => { const v = document.getElementById(id).value.trim(); return v === '' ? null : Number(v); };
+    return {
+        stok_kodu:      val('f-stok-kodu'),
+        stok_adi_1:     val('f-adi-1'),
+        stok_adi_2:     val('f-adi-2'),
+        seri_adi:       val('f-seri-adi'),
+        birim:          val('f-birim'),
+        paketleme:      val('f-paketleme'),
+        urun_grubu:     val('f-urun-grubu'),
+        urun_turu:      val('f-urun-turu'),
+        fonksiyon_1:    val('f-fonk1'),
+        fonksiyon_2:    val('f-fonk2'),
+        fonksiyon_3:    val('f-fonk3'),
+        boyut_ozelligi: val('f-boyut'),
+        renk:           val('f-renk'),
+        kalite:         val('f-kalite'),
+        agirlik_net:    num('f-agirlik-net'),
+        agirlik_brut:   num('f-agirlik-brut'),
+        palet_adedi:    num('f-palet-adedi'),
+        en_cm:          num('f-en'),
+        boy_cm:         num('f-boy'),
+        yukseklik_cm:   num('f-yukseklik'),
+        palet_cinsi:    val('f-palet-cinsi'),
+    };
+}
+
+// ── CRUD: Add ───────────────────────────────────────────────────
+function openAdd() {
+    editingId = null;
+    resetForm();
+    document.getElementById('modal-title').querySelector('span').textContent = 'Yeni Ürün';
+    document.getElementById('tab-btn-history').style.display = 'none';
+    switchTab('tab-detail');
+    openModal('modal-form');
+}
+
+// ── CRUD: Edit ──────────────────────────────────────────────────
+function openEdit(id) {
+    const p = allProducts.find(x => x.id === id);
+    if (!p) return;
+    editingId = id;
+    resetForm();
+    fillForm(p);
+    document.getElementById('modal-title').querySelector('span').textContent = 'Ürün Düzenle';
+    document.getElementById('tab-btn-history').style.display = '';
+    switchTab('tab-detail');
+    openModal('modal-form');
+    loadHistory(id);
+}
+
+// ── CRUD: Save ──────────────────────────────────────────────────
 async function saveProduct() {
-  const id   = document.getElementById('product-id').value.trim();
-  const code = document.getElementById('product-code').value.trim();
-  const name = document.getElementById('product-name').value.trim();
-  const grp  = document.getElementById('product-group').value.trim();
-  const color = document.getElementById('product-color').value.trim();
-  const func  = document.getElementById('product-function').value.trim();
-  const desc = document.getElementById('product-description').value.trim();
+    const fd = getFormData();
 
-  if (!code) { alert('Ürün kodu zorunludur.'); return; }
-  if (!name) { alert('Ürün adı zorunludur.'); return; }
+    // Validasyon
+    if (!fd.stok_kodu) return alert('Stok Kodu zorunludur.');
+    if (!fd.stok_adi_1) return alert('Stok Adı (Türkçe) zorunludur.');
 
-  // ── Ağırlık doğrulama ──
-  const netW   = validateWeight('product-net-weight', 'Net ağırlık');
-  if (netW === false) return;
-  const grossW = validateWeight('product-gross-weight', 'Brüt ağırlık');
-  if (grossW === false) return;
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return alert('Oturum bulunamadı.');
 
-  // Net ağırlık, brüt ağırlıktan büyük veya eşit olamaz
-  if (netW != null && grossW != null && netW >= grossW) {
-    alert('Net ağırlık, brüt ağırlıktan büyük veya eşit olamaz.\nLütfen değerleri kontrol edin.');
-    document.getElementById('product-net-weight').focus();
-    document.getElementById('product-net-weight').select();
-    return;
-  }
+        if (editingId) {
+            // UPDATE
+            const { error } = await supabase
+                .from('urunler')
+                .update(fd)
+                .eq('id', editingId)
+                .eq('user_id', session.user.id);
+            if (error) throw error;
+        } else {
+            // INSERT
+            fd.user_id = session.user.id;
+            const { error } = await supabase
+                .from('urunler')
+                .insert(fd);
+            if (error) throw error;
+        }
 
-  try {
-    const payload = {
-      user_id:       session.user.id,
-      product_code:  code,
-      product_name:  name,
-      product_group: grp  || null,
-      color:         color || null,
-      function:      func  || null,
-      net_weight:    netW,
-      gross_weight:  grossW,
-      description:   desc || null,
+        closeModal('modal-form');
+        await loadProducts();
+    } catch (err) {
+        console.error('saveProduct:', err);
+        alert('Kayıt hatası: ' + err.message);
+    }
+}
+
+// ── CRUD: Delete ────────────────────────────────────────────────
+function confirmDelete(id, code) {
+    deleteTargetId = id;
+    document.getElementById('del-msg').innerHTML =
+        `<strong>${esc(code)}</strong> kodlu ürün kalıcı olarak silinecektir.`;
+    openModal('modal-delete');
+}
+
+async function executeDelete() {
+    if (!deleteTargetId) return;
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const { error } = await supabase
+            .from('urunler')
+            .delete()
+            .eq('id', deleteTargetId)
+            .eq('user_id', session.user.id);
+        if (error) throw error;
+
+        closeModal('modal-delete');
+        deleteTargetId = null;
+        await loadProducts();
+    } catch (err) {
+        console.error('deleteProduct:', err);
+        alert('Silme hatası: ' + err.message);
+    }
+}
+
+// ── History (Audit Trail) ───────────────────────────────────────
+async function loadHistory(urunId) {
+    const container = document.getElementById('history-content');
+    container.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i>Yükleniyor...</div>';
+
+    try {
+        const { data, error } = await supabase
+            .from('urun_gecmisi')
+            .select('*')
+            .eq('urun_id', urunId)
+            .order('islem_zamani', { ascending: false })
+            .limit(200);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="fa-solid fa-clock-rotate-left"></i>Henüz değişiklik geçmişi yok</div>';
+            return;
+        }
+
+        // Alan adı Türkçe eşleme
+        const alanMap = {
+            stok_kodu: 'Stok Kodu', stok_adi_1: 'Stok Adı (TR)', stok_adi_2: 'Stok Adı (EN)',
+            birim: 'Birim', paketleme: 'Paketleme', seri_adi: 'Seri Adı',
+            urun_grubu: 'Ürün Grubu', urun_turu: 'Ürün Türü',
+            fonksiyon_1: 'Fonk-1', fonksiyon_2: 'Fonk-2', fonksiyon_3: 'Fonk-3',
+            boyut_ozelligi: 'Boyut', renk: 'Renk', kalite: 'Kalite',
+            agirlik_net: 'Ağırlık Net', agirlik_brut: 'Ağırlık Brüt',
+            palet_adedi: 'Palet Ad.', en_cm: 'En', boy_cm: 'Boy',
+            yukseklik_cm: 'Yükseklik', palet_cinsi: 'Palet Cinsi'
+        };
+
+        container.innerHTML = `
+            <div style="max-height:320px;overflow-y:auto;border:1px solid var(--border-soft);border-radius:6px;">
+                <table class="hist-table">
+                    <thead><tr>
+                        <th>Tarih</th>
+                        <th>İşlem</th>
+                        <th>Alan</th>
+                        <th>Eski Değer</th>
+                        <th>Yeni Değer</th>
+                    </tr></thead>
+                    <tbody>
+                        ${data.map(h => {
+                            const dt = new Date(h.islem_zamani);
+                            const dtStr = dt.toLocaleDateString('tr-TR') + ' ' + dt.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                            const opClass = h.islem === 'INSERT' ? 'op-insert' : h.islem === 'DELETE' ? 'op-delete' : 'op-update';
+                            const opLabel = h.islem === 'INSERT' ? 'Eklendi' : h.islem === 'DELETE' ? 'Silindi' : 'Güncellendi';
+                            const alanLabel = h.alan ? (alanMap[h.alan] || h.alan) : '-';
+                            return `<tr>
+                                <td style="white-space:nowrap;">${dtStr}</td>
+                                <td><span class="${opClass}">${opLabel}</span></td>
+                                <td>${alanLabel}</td>
+                                <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;">${esc(h.eski_deger || '-')}</td>
+                                <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;">${esc(h.yeni_deger || '-')}</td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } catch (err) {
+        console.error('loadHistory:', err);
+        container.innerHTML = '<div class="empty-state"><i class="fa-solid fa-circle-exclamation"></i>Geçmiş yüklenemedi</div>';
+    }
+}
+
+// ── Tab Switching ───────────────────────────────────────────────
+function switchTab(tabId) {
+    document.querySelectorAll('.modal-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabId));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === tabId));
+}
+
+// ── Import (Excel/CSV) ─────────────────────────────────────────
+function openImportModal() {
+    importRows = [];
+    document.getElementById('import-preview').style.display = 'none';
+    document.getElementById('import-preview').innerHTML = '';
+    document.getElementById('btn-import-confirm').disabled = true;
+    document.getElementById('import-count').textContent = 'Yükle';
+    document.getElementById('file-input').value = '';
+    openModal('modal-import');
+}
+
+function handleFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const wb = XLSX.read(e.target.result, { type: 'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+            if (rows.length === 0) return alert('Dosyada veri bulunamadı.');
+
+            // Kolon eşleme
+            importRows = rows.map(r => mapImportRow(r)).filter(Boolean);
+
+            const preview = document.getElementById('import-preview');
+            preview.style.display = 'block';
+            preview.innerHTML = `
+                <div style="font-size:12px;color:var(--ink-1);margin-bottom:8px;">
+                    <strong>${importRows.length}</strong> ürün algılandı (ilk 5 gösteriliyor)
+                </div>
+                <table class="hist-table" style="font-size:10px;">
+                    <thead><tr><th>Stok Kodu</th><th>Stok Adı (TR)</th><th>Birim</th><th>Ürün Grubu</th></tr></thead>
+                    <tbody>
+                        ${importRows.slice(0, 5).map(r => `<tr>
+                            <td>${esc(r.stok_kodu || '')}</td>
+                            <td>${esc(r.stok_adi_1 || '')}</td>
+                            <td>${esc(r.birim || '')}</td>
+                            <td>${esc(r.urun_grubu || '')}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            `;
+            document.getElementById('btn-import-confirm').disabled = false;
+            document.getElementById('import-count').textContent = `${importRows.length} Ürün Yükle`;
+        } catch (err) {
+            console.error('handleFile:', err);
+            alert('Dosya okunamadı: ' + err.message);
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+function mapImportRow(r) {
+    // Esnek kolon eşleme: Excel başlığındaki farklı adlandırmaları yakala
+    const get = (...keys) => {
+        for (const k of keys) {
+            if (r[k] !== undefined && r[k] !== '') return String(r[k]).trim();
+        }
+        return null;
+    };
+    const getNum = (...keys) => {
+        const v = get(...keys);
+        if (!v || v === '-') return null;
+        const n = Number(v);
+        return isNaN(n) ? null : n;
     };
 
-    if (id) {
-      const { error } = await supabase
-        .from('products')
-        .update(payload)
-        .eq('id', id)
-        .eq('user_id', session.user.id);
-      if (error) throw error;
-    } else {
-      const { error } = await supabase
-        .from('products')
-        .insert(payload);
-      if (error) throw error;
-    }
+    const stok_kodu = get('Stok Kodu', 'stok_kodu', 'StokKodu', 'SKU');
+    const stok_adi_1 = get('Stok Adı-1 (Türkçe)', 'stok_adi_1', 'Stok Adı (TR)', 'StokAdi1');
+    if (!stok_kodu || !stok_adi_1) return null;
 
-    hideModal('modal-product');
-    await fetchProducts();
-
-  } catch (err) {
-    console.error('saveProduct error:', err);
-    alert('Kayıt hatası: ' + err.message);
-  }
-}
-
-// ── Silme Modal ───────────────────────────────────────────────
-window.openDeleteModal = function(id) {
-  deletingId = id;
-  const p = globalProducts.find(x => x.id === id);
-  document.getElementById('delete-confirm-text').textContent =
-    `"${p?.product_name}" ürünü ve tüm fiyat kayıtları silinecek. Emin misiniz?`;
-  showModal('modal-delete');
-};
-
-async function confirmDelete() {
-  if (!deletingId) return;
-  try {
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', deletingId)
-      .eq('user_id', session.user.id);
-    if (error) throw error;
-    hideModal('modal-delete');
-    deletingId = null;
-    await fetchProducts();
-  } catch (err) {
-    console.error('deleteProduct error:', err);
-    if (err.code === '23503') {
-      alert('Bu ürün silinemez!\nÜrüne ait fiyat kaydı bulunmaktadır.\nÖnce ürün fiyatlarını siliniz.');
-    } else {
-      alert('Silme hatası: ' + err.message);
-    }
-  }
-}
-
-// ── Fiyat Modal ───────────────────────────────────────────────
-window.openPriceModal = function(productId) {
-  editingPriceProductId = productId;
-  const p = globalProducts.find(x => x.id === productId);
-  document.getElementById('price-modal-product-name').textContent =
-    `${p.product_code} — ${p.product_name}`;
-  resetPriceForm();
-  renderPriceList(p.prices);
-  showModal('modal-prices');
-};
-
-function renderPriceList(prices) {
-  const container = document.getElementById('price-list');
-  if (!prices || prices.length === 0) {
-    container.innerHTML = `<p class="text-sm text-[var(--text-secondary)] text-center py-4">Henüz fiyat kaydı yok.</p>`;
-    return;
-  }
-  const sorted = [...prices].sort((a, b) =>
-    b.price_year - a.price_year || a.currency.localeCompare(b.currency)
-  );
-  container.innerHTML = sorted.map(pr => {
-    const disc    = pr.discount_rate != null ? `%${Number(pr.discount_rate).toFixed(2)}` : '—';
-    const sym      = pr.currency === 'EUR' ? '€' : pr.currency === 'USD' ? '$' : '₺';
-    const colorCls = pr.currency === 'EUR' ? 'text-[#3D6E50]' : pr.currency === 'USD' ? 'text-[#B26B33]' : 'text-sky-400';
-    return `
-      <div class="flex items-center justify-between bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl px-4 py-3 gap-3">
-        <div class="flex items-center gap-3 min-w-0">
-          <span class="text-xs font-semibold px-2 py-0.5 rounded ${pr.currency === 'EUR' ? 'bg-emerald-500/10 text-[#3D6E50]' : pr.currency === 'USD' ? 'bg-amber-500/10 text-[#B26B33]' : 'bg-sky-500/10 text-sky-400'}">
-            ${pr.price_year} ${pr.currency}
-          </span>
-          <div class="text-sm min-w-0">
-            <span class="text-[var(--text-secondary)]">Liste:</span>
-            <span class="font-medium ml-1">${sym}${Number(pr.list_price || 0).toFixed(2)}</span>
-            <span class="text-[var(--text-secondary)] ml-3">Net:</span>
-            <span class="font-semibold ml-1 ${colorCls}">${sym}${Number(pr.net_price || 0).toFixed(2)}</span>
-            <span class="text-[var(--text-secondary)] ml-3">İsk:</span>
-            <span class="ml-1 text-[#9F3D3D] font-medium">${disc}</span>
-          </div>
-        </div>
-        <div class="flex gap-1.5 flex-shrink-0">
-          <button onclick="startEditPrice('${pr.id}')"
-            class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[#2D4A3E] hover:bg-[#E8EEEA]/10 transition-colors">
-            <i class="fa-solid fa-pen text-xs"></i>
-          </button>
-          <button onclick="deletePrice('${pr.id}')"
-            class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[#9F3D3D] hover:bg-rose-400/10 transition-colors">
-            <i class="fa-solid fa-trash text-xs"></i>
-          </button>
-        </div>
-      </div>`;
-  }).join('');
-}
-
-window.startEditPrice = function(priceId) {
-  const p  = globalProducts.find(x => x.id === editingPriceProductId);
-  const pr = p?.prices.find(x => x.id === priceId);
-  if (!pr) return;
-  document.getElementById('price-edit-id').value    = pr.id;
-  document.getElementById('price-year').value       = pr.price_year;
-  document.getElementById('price-currency').value   = pr.currency;
-  document.getElementById('price-list').value       = pr.list_price || '';
-  document.getElementById('price-net').value        = pr.net_price  || '';
-  calcDiscount();
-  document.getElementById('btn-price-save-label').textContent = 'Güncelle';
-  document.getElementById('btn-price-cancel-edit').classList.remove('hidden');
-};
-
-function resetPriceForm() {
-  document.getElementById('price-edit-id').value  = '';
-  document.getElementById('price-year').value     = new Date().getFullYear();
-  document.getElementById('price-currency').value = 'EUR';
-  document.getElementById('price-list').value     = '';
-  document.getElementById('price-net').value      = '';
-  document.getElementById('price-discount').value = '';
-  document.getElementById('btn-price-save-label').textContent = 'Ekle';
-  document.getElementById('btn-price-cancel-edit').classList.add('hidden');
-}
-
-function calcDiscount() {
-  const list = parseFloat(document.getElementById('price-list').value);
-  const net  = parseFloat(document.getElementById('price-net').value);
-  if (list > 0 && net >= 0) {
-    document.getElementById('price-discount').value = ((1 - net / list) * 100).toFixed(2);
-  } else {
-    document.getElementById('price-discount').value = '';
-  }
-}
-
-async function savePrice() {
-  const editId   = document.getElementById('price-edit-id').value;
-  const year     = parseInt(document.getElementById('price-year').value);
-  const currency = document.getElementById('price-currency').value;
-  const listVal  = parseFloat(document.getElementById('price-list').value);
-  const netVal   = parseFloat(document.getElementById('price-net').value);
-  const discVal  = parseFloat(document.getElementById('price-discount').value);
-
-  if (!year || !currency) { alert('Yıl ve döviz zorunludur.'); return; }
-
-  try {
-    const payload = {
-      user_id:       session.user.id,
-      product_id:    editingPriceProductId,
-      price_year:    year,
-      currency,
-      list_price:    isNaN(listVal) ? null : listVal,
-      net_price:     isNaN(netVal)  ? null : netVal,
-      discount_rate: isNaN(discVal) ? null : discVal,
+    return {
+        stok_kodu,
+        stok_adi_1,
+        stok_adi_2:     get('Stok Adı-2 (İngilizce)', 'stok_adi_2', 'Stok Adı (EN)', 'StokAdi2'),
+        birim:          get('Birim', 'birim'),
+        paketleme:      get('Paketleme', 'paketleme'),
+        seri_adi:       get('Seri Adı', 'seri_adi', 'SeriAdi'),
+        urun_grubu:     get('Ürün Grubu', 'urun_grubu', 'UrunGrubu'),
+        urun_turu:      get('Ürün Türü', 'urun_turu', 'UrunTuru'),
+        fonksiyon_1:    get('Fonksiyon Özelliği-1 / Klozet', 'fonksiyon_1', 'Fonk1'),
+        fonksiyon_2:    get('Fonksiyon Özelliği-2 / Klozet', 'fonksiyon_2', 'Fonk2'),
+        fonksiyon_3:    get('Fonksiyon Özelliği-3 / Lavabo', 'fonksiyon_3', 'Fonk3'),
+        boyut_ozelligi: get('Boyut Özelliği', 'boyut_ozelligi', 'Boyut'),
+        renk:           get('Renk', 'renk'),
+        kalite:         get('Kalite', 'kalite'),
+        agirlik_net:    getNum('Ürün Ağırlığı(Net Kg.)', 'agirlik_net'),
+        agirlik_brut:   getNum('Ürün Ağırlığı(BrütKg.)', 'agirlik_brut'),
+        palet_adedi:    getNum('Palet Adeti(Ad.)', 'palet_adedi'),
+        en_cm:          getNum('En (Cm)', 'en_cm'),
+        boy_cm:         getNum('Boy (Cm)', 'boy_cm'),
+        yukseklik_cm:   getNum('Yükseklik (Cm)', 'yukseklik_cm'),
+        palet_cinsi:    get('Palet Cinsi', 'palet_cinsi'),
     };
-
-    if (editId) {
-      const { error } = await supabase
-        .from('product_prices')
-        .update(payload)
-        .eq('id', editId)
-        .eq('user_id', session.user.id);
-      if (error) throw error;
-    } else {
-      const { error } = await supabase
-        .from('product_prices')
-        .insert(payload);
-      if (error) throw error;
-    }
-
-    await fetchProducts();
-    const updated = globalProducts.find(x => x.id === editingPriceProductId);
-    renderPriceList(updated.prices);
-    resetPriceForm();
-
-  } catch (err) {
-    console.error('savePrice error:', err);
-    alert('Fiyat kayıt hatası: ' + err.message);
-  }
 }
 
-window.deletePrice = async function(priceId) {
-  if (!confirm('Bu fiyat kaydı silinecek. Emin misiniz?')) return;
-  try {
-    const { error } = await supabase
-      .from('product_prices')
-      .delete()
-      .eq('id', priceId)
-      .eq('user_id', session.user.id);
-    if (error) throw error;
-    await fetchProducts();
-    const updated = globalProducts.find(x => x.id === editingPriceProductId);
-    renderPriceList(updated.prices);
-  } catch (err) {
-    console.error('deletePrice error:', err);
-    if (err.code === '23503') {
-      alert('Bu fiyat kaydı silinemez!\nBağlı kayıtlar bulunmaktadır.');
-    } else {
-      alert('Silme hatası: ' + err.message);
-    }
-  }
-};
+// '-' veya boş → null dönüştürme
+function cleanDash(v) {
+    if (v === null || v === undefined) return null;
+    const s = String(v).trim();
+    return (s === '' || s === '-') ? null : s;
+}
 
-// ── Event Binding ─────────────────────────────────────────────
+async function executeImport() {
+    if (importRows.length === 0) return;
+
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return alert('Oturum bulunamadı.');
+
+        // Her satıra user_id ekle ve dash temizliği yap
+        const payload = importRows.map(r => {
+            const row = { user_id: session.user.id };
+            Object.entries(r).forEach(([k, v]) => {
+                row[k] = cleanDash(v);
+            });
+            return row;
+        });
+
+        // Batch insert (Supabase max ~1000 per call)
+        const batchSize = 500;
+        for (let i = 0; i < payload.length; i += batchSize) {
+            const batch = payload.slice(i, i + batchSize);
+            const { error } = await supabase.from('urunler').insert(batch);
+            if (error) throw error;
+        }
+
+        closeModal('modal-import');
+        alert(`${importRows.length} ürün başarıyla içe aktarıldı.`);
+        importRows = [];
+        await loadProducts();
+    } catch (err) {
+        console.error('executeImport:', err);
+        alert('İçe aktarma hatası: ' + err.message);
+    }
+}
+
+// ── Export (Excel) ──────────────────────────────────────────────
+function exportToExcel() {
+    if (allProducts.length === 0) return alert('Dışa aktarılacak ürün yok.');
+
+    const headers = [
+        'Stok Kodu', 'Stok Adı-1 (Türkçe)', 'Stok Adı-2 (İngilizce)', 'Birim', 'Paketleme',
+        'Seri Adı', 'Ürün Grubu', 'Ürün Türü', 'Fonksiyon Özelliği-1', 'Fonksiyon Özelliği-2',
+        'Fonksiyon Özelliği-3', 'Boyut Özelliği', 'Renk', 'Kalite', 'Ağırlık Net (Kg)',
+        'Ağırlık Brüt (Kg)', 'Palet Adedi', 'En (Cm)', 'Boy (Cm)', 'Yükseklik (Cm)', 'Palet Cinsi'
+    ];
+
+    const rows = allProducts.map(p => [
+        p.stok_kodu, p.stok_adi_1, p.stok_adi_2, p.birim, p.paketleme,
+        p.seri_adi, p.urun_grubu, p.urun_turu, p.fonksiyon_1, p.fonksiyon_2,
+        p.fonksiyon_3, p.boyut_ozelligi, p.renk, p.kalite, p.agirlik_net,
+        p.agirlik_brut, p.palet_adedi, p.en_cm, p.boy_cm, p.yukseklik_cm, p.palet_cinsi
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+    // Kolon genişlikleri
+    ws['!cols'] = headers.map((_, i) => ({ wch: i <= 2 ? 36 : 16 }));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Ürün Kartları');
+    XLSX.writeFile(wb, `Urun_Kartlari_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+// ── Event Bindings ──────────────────────────────────────────────
 function bindEvents() {
-  document.getElementById('btn-add-product').onclick           = openAddProduct;
-  document.getElementById('modal-product-save').onclick        = saveProduct;
-  document.getElementById('modal-product-cancel').onclick      = () => hideModal('modal-product');
-  document.getElementById('modal-product-close').onclick       = () => hideModal('modal-product');
-  document.getElementById('modal-prices-close').onclick        = () => hideModal('modal-prices');
-  document.getElementById('btn-price-save').onclick            = savePrice;
-  document.getElementById('btn-price-cancel-edit').onclick     = resetPriceForm;
-  document.getElementById('price-list').oninput                = calcDiscount;
-  document.getElementById('price-net').oninput                 = calcDiscount;
-  document.getElementById('btn-delete-confirm').onclick        = confirmDelete;
-  document.getElementById('btn-delete-cancel').onclick         = () => hideModal('modal-delete');
-  document.getElementById('search-input').oninput              = applyFilters;
-  document.getElementById('btn-search-clear').onclick          = () => {
-    document.getElementById('search-input').value = '';
-    applyFilters();
-    document.getElementById('search-input').focus();
-  };
-  document.getElementById('filter-group').onchange             = applyFilters;
+    // Search & filter
+    document.getElementById('txt-search').addEventListener('input', onSearchInput);
+    document.getElementById('fil-grup').addEventListener('change', applyFilters);
+    document.getElementById('fil-seri').addEventListener('change', applyFilters);
 
-  // Eksik fiyat filtre kartları
-  document.querySelectorAll('.stat-missing-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const currency = btn.dataset.currency;
-      missingCurrency = missingCurrency === currency ? null : currency;
-      updateMissingBtnStyles();
-      applyFilters();
+    // Toolbar buttons
+    document.getElementById('btn-add').addEventListener('click', openAdd);
+    document.getElementById('btn-import').addEventListener('click', openImportModal);
+    document.getElementById('btn-export').addEventListener('click', exportToExcel);
+    document.getElementById('btn-save').addEventListener('click', saveProduct);
+    document.getElementById('btn-del-confirm').addEventListener('click', executeDelete);
+    document.getElementById('btn-import-confirm').addEventListener('click', executeImport);
+
+    // Modal close buttons
+    document.querySelectorAll('[data-close]').forEach(btn => {
+        btn.addEventListener('click', () => closeModal(btn.dataset.close));
     });
-  });
-  document.getElementById('btn-prev').onclick = () => { currentPage--; renderTable(); };
-  document.getElementById('btn-next').onclick = () => { currentPage++; renderTable(); };
 
-  ['modal-product', 'modal-prices', 'modal-delete'].forEach(id => {
-    document.getElementById(id).addEventListener('click', e => {
-      if (e.target.id === id) hideModal(id);
+    // Backdrop close
+    ['modal-form', 'modal-delete', 'modal-import'].forEach(id => {
+        document.getElementById(id).addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeModal(id);
+        });
     });
-  });
+
+    // Tab switching
+    document.querySelectorAll('.modal-tab').forEach(tab => {
+        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    });
+
+    // File import: drag & drop + click
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        handleFile(e.dataTransfer.files[0]);
+    });
+
+    // Keyboard: ESC closes top modal
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            ['modal-import', 'modal-delete', 'modal-form'].forEach(id => {
+                if (document.getElementById(id).classList.contains('open')) {
+                    closeModal(id);
+                    e.stopPropagation();
+                }
+            });
+        }
+    });
 }
 
-// ── Ağırlık Doğrulama ─────────────────────────────────────────
-// Dönüş: null (boş) | number (geçerli) | false (geçersiz/iptal — kayıt durmalı)
-function validateWeight(elementId, label) {
-  const el  = document.getElementById(elementId);
-  const raw = el.value.trim();
-  if (raw === '') return null;
-
-  let val = parseFloat(raw.replace(',', '.'));
-  if (isNaN(val)) {
-    alert(`${label} geçerli bir sayı olmalıdır.`);
-    el.focus();
-    return false;
-  }
-  if (val < 0) {
-    alert(`${label} negatif değer olamaz.`);
-    el.focus();
-    return false;
-  }
-
-  // 2 hane hassasiyet
-  val = Math.round(val * 100) / 100;
-
-  // 75 kg üzeri onay
-  if (val > 75) {
-    const ok = confirm(`${label} ${val.toFixed(2)} kg olarak girildi (75 kg üzeri).\nDeğer doğru mu? Onaylıyor musunuz?`);
-    if (!ok) {
-      // Onay yok → kayıt yapılmasın, değer kullanıcı düzeltsin diye olduğu gibi kalsın
-      el.focus();
-      el.select();
-      return false;
-    }
-  }
-
-  el.value = val.toFixed(2);
-  return val;
+// ── Utilities ───────────────────────────────────────────────────
+function esc(s) {
+    if (!s) return '';
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
 }
 
-// ── Modal Yardımcıları ────────────────────────────────────────
-function showModal(id) {
-  const el = document.getElementById(id);
-  el.classList.remove('hidden');
-  el.classList.add('flex');
-}
-function hideModal(id) {
-  const el = document.getElementById(id);
-  el.classList.add('hidden');
-  el.classList.remove('flex');
-}
-
-// ── XSS Koruma ───────────────────────────────────────────────
-function escHtml(str) {
-  return String(str ?? '')
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+// ── Global API (onclick'ler için) ───────────────────────────────
+window._ep = {
+    openEdit,
+    confirmDelete,
+    goPage(n) { currentPage = n; renderTable(); }
+};

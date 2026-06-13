@@ -1,298 +1,442 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ürün Kartları — Export Suite</title>
-  <!-- 1. Supabase CDN — EN ÖNCE yüklenmeli (supabaseClient.js window.supabase kullanıyor) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- 2. Tailwind -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = { theme: { extend: {} } }
-  </script>
-  <!-- 3. Font Awesome & CSS -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <link rel="stylesheet" href="src/assets/css/theme.css" />
-  <!-- 4. Tema -->
-  <script type="module" src="src/theme.js"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ürün Kartları — Export Suite</title>
+    <link rel="stylesheet" href="./src/assets/css/theme.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <style>
+        /* ── Layout ─────────────────── */
+        .main-area { margin-left: var(--sidebar-w, 230px); padding: 28px 32px 60px; min-height: 100vh; }
+
+        /* ── KPI Strip ──────────────── */
+        .kpi-strip { display: flex; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
+        .kpi-strip .kpi-card { flex: 1; min-width: 160px; }
+
+        /* ── Toolbar ────────────────── */
+        .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+        .toolbar .search-box {
+            flex: 1; min-width: 240px; max-width: 420px;
+            padding: 8px 12px 8px 34px;
+            border: 1px solid var(--border); border-radius: 7px;
+            background: var(--surface); color: var(--ink-1);
+            font-size: 13px; font-family: var(--font-base);
+            outline: none; transition: border-color .18s;
+        }
+        .toolbar .search-box:focus { border-color: var(--accent); }
+        .toolbar .search-icon {
+            position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+            color: var(--ink-3); font-size: 12px; pointer-events: none;
+        }
+        .toolbar .search-wrap { position: relative; flex: 1; min-width: 240px; max-width: 420px; }
+        .toolbar select {
+            padding: 8px 32px 8px 10px; border: 1px solid var(--border);
+            border-radius: 7px; background: var(--surface); color: var(--ink-1);
+            font-size: 12px; font-family: var(--font-base); cursor: pointer;
+        }
+        .btn-action {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 14px; border-radius: 7px; border: none;
+            font-size: 12px; font-family: var(--font-base); font-weight: 500;
+            cursor: pointer; transition: background .15s, opacity .15s;
+        }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { opacity: .88; }
+        .btn-outline {
+            background: transparent; color: var(--ink-2);
+            border: 1px solid var(--border);
+        }
+        .btn-outline:hover { background: var(--surface-2); }
+        .btn-danger { background: var(--danger-soft); color: var(--danger); }
+        .btn-danger:hover { opacity: .85; }
+
+        /* ── Table ──────────────────── */
+        .table-wrap { overflow-x: auto; border: 1px solid var(--border-soft); border-radius: 8px; background: var(--surface); }
+        .p-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .p-table thead { position: sticky; top: 0; z-index: 2; }
+        .p-table th {
+            background: var(--surface-2); color: var(--ink-3);
+            font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+            padding: 10px 10px; text-align: left; white-space: nowrap;
+            border-bottom: 1px solid var(--border-soft);
+        }
+        .p-table td {
+            padding: 8px 10px; color: var(--ink-2); border-bottom: 1px solid var(--border-soft);
+            white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis;
+        }
+        .p-table tbody tr { cursor: pointer; transition: background .1s; }
+        .p-table tbody tr:hover { background: var(--surface-2); }
+        .p-table .col-code { font-variant-numeric: tabular-nums; font-weight: 500; color: var(--ink-1); min-width: 200px; }
+        .p-table .col-name { min-width: 280px; max-width: 360px; }
+        .dup-badge {
+            display: inline-flex; align-items: center; gap: 3px;
+            background: var(--warn-soft); color: var(--warn);
+            font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 4px;
+            margin-left: 6px; vertical-align: middle;
+        }
+
+        /* ── Pagination ─────────────── */
+        .pager { display: flex; align-items: center; justify-content: space-between; padding: 12px 4px; font-size: 12px; color: var(--ink-3); }
+        .pager-btns { display: flex; gap: 4px; }
+        .pager-btns button {
+            width: 30px; height: 30px; border-radius: 6px; border: 1px solid var(--border);
+            background: var(--surface); color: var(--ink-2); font-size: 11px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: background .12s;
+        }
+        .pager-btns button:hover { background: var(--surface-2); }
+        .pager-btns button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .pager-btns button:disabled { opacity: .35; cursor: default; }
+
+        /* ── Modal ──────────────────── */
+        .modal-backdrop {
+            position: fixed; inset: 0; background: rgba(28,26,23,.45);
+            z-index: 100; display: none; align-items: flex-start; justify-content: center;
+            padding: 40px 16px; overflow-y: auto;
+        }
+        .modal-backdrop.open { display: flex; }
+        .modal-content {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; width: 100%; max-width: 780px;
+            box-shadow: var(--modal-shadow); padding: 0;
+        }
+        .modal-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 18px 24px; border-bottom: 1px solid var(--border-soft);
+        }
+        .modal-head h3 { font-size: 18px; font-weight: 500; color: var(--ink-1); margin: 0; display: flex; align-items: center; gap: 8px; }
+        .modal-close {
+            width: 30px; height: 30px; border-radius: 6px; border: 1px solid var(--border);
+            background: transparent; color: var(--ink-3); font-size: 14px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: background .12s;
+        }
+        .modal-close:hover { background: var(--surface-2); }
+        .modal-body { padding: 20px 24px; }
+        .modal-foot {
+            display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+            padding: 14px 24px; border-top: 1px solid var(--border-soft);
+        }
+
+        /* ── Form Grid ──────────────── */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
+        .form-grid .full { grid-column: 1 / -1; }
+        .fg-label {
+            display: block; font-size: 10px; font-weight: 600; letter-spacing: .12em;
+            text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px;
+        }
+        .fg-input {
+            width: 100%; padding: 7px 10px; border: 1px solid var(--border);
+            border-radius: 6px; background: var(--surface); color: var(--ink-1);
+            font-size: 13px; font-family: var(--font-base); outline: none;
+            transition: border-color .18s;
+        }
+        .fg-input:focus { border-color: var(--accent); }
+        .form-section {
+            font-size: 10px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+            color: var(--ink-3); padding-bottom: 4px; border-bottom: 1px solid var(--border-soft);
+            margin: 6px 0 10px; grid-column: 1 / -1;
+        }
+
+        /* ── Tabs (History) ─────────── */
+        .modal-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border-soft); padding: 0 24px; }
+        .modal-tab {
+            padding: 10px 16px; font-size: 12px; font-weight: 500; color: var(--ink-3);
+            border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent;
+            transition: color .15s, border-color .15s;
+        }
+        .modal-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .modal-tab:hover { color: var(--ink-1); }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        /* ── History Table ──────────── */
+        .hist-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        .hist-table th {
+            background: var(--surface-2); color: var(--ink-3);
+            font-size: 9px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+            padding: 7px 8px; text-align: left; border-bottom: 1px solid var(--border-soft);
+        }
+        .hist-table td { padding: 6px 8px; color: var(--ink-2); border-bottom: 1px solid var(--border-soft); }
+        .hist-table .op-insert { color: var(--ok); font-weight: 600; }
+        .hist-table .op-update { color: var(--info); font-weight: 600; }
+        .hist-table .op-delete { color: var(--danger); font-weight: 600; }
+
+        /* ── Empty State ────────────── */
+        .empty-state { text-align: center; padding: 48px 16px; color: var(--ink-3); }
+        .empty-state i { font-size: 36px; margin-bottom: 12px; display: block; opacity: .4; }
+
+        /* ── Confirm Dialog ─────────── */
+        .confirm-content { max-width: 400px; text-align: center; padding: 32px 24px; }
+        .confirm-content i { font-size: 32px; color: var(--danger); margin-bottom: 12px; }
+        .confirm-content p { font-size: 13px; color: var(--ink-2); margin: 8px 0 20px; }
+
+        /* ── Import Modal ──────────── */
+        .drop-zone {
+            border: 2px dashed var(--border); border-radius: 8px; padding: 32px;
+            text-align: center; color: var(--ink-3); font-size: 13px;
+            cursor: pointer; transition: border-color .18s, background .18s;
+        }
+        .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: var(--accent-soft); }
+        .drop-zone i { font-size: 28px; margin-bottom: 8px; display: block; opacity: .5; }
+        .import-preview { margin-top: 16px; max-height: 200px; overflow-y: auto; font-size: 11px; }
+
+        /* ── Responsive ─────────────── */
+        @media (max-width: 1024px) {
+            .main-area { margin-left: 0; padding: 20px 16px 40px; }
+            .form-grid { grid-template-columns: 1fr; }
+            .modal-content { max-width: 95vw; }
+        }
+    </style>
 </head>
-<body class="min-h-screen flex">
+<body>
+    <div id="navbar-target"></div>
 
-  <!-- Navbar -->
-  <div id="navbar-target"></div>
-
-  <!-- Ana İçerik -->
-  <main class="flex-1 ml-64 p-6 overflow-auto min-h-screen">
-
-    <!-- Başlık + Aksiyonlar -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-      <div>
-        <h1 class="text-2xl font-bold text-[var(--text-primary)]">Ürün Kartları</h1>
-        <p class="text-sm text-[var(--text-secondary)] mt-1">Ürün tanımları ve yıllık fiyat yönetimi</p>
-      </div>
-      <div class="flex gap-2">
-        <button id="btn-add-product"
-          class="flex items-center gap-2 bg-[#2D4A3E] hover:bg-[#1a3329] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
-          <i class="fa-solid fa-plus"></i> Yeni Ürün
-        </button>
-      </div>
-    </div>
-
-    <!-- Filtre & Arama -->
-    <div class="flex flex-col sm:flex-row gap-3 mb-5">
-      <div class="relative flex-1">
-        <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] text-sm pointer-events-none"></i>
-        <input id="search-input" type="text" placeholder="Ürün adı veya kod numarasına göre ara…"
-          class="w-full pl-9 pr-9 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
-        <button id="btn-search-clear"
-          class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors p-0.5"
-          title="Aramayı temizle">
-          <i class="fa-solid fa-xmark text-sm"></i>
-        </button>
-      </div>
-      <div id="search-result-badge" class="hidden items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-[#E45A80]/20 text-[#2D4A3E] text-xs font-medium whitespace-nowrap self-center">
-        <i class="fa-solid fa-filter text-xs"></i>
-        <span id="search-result-count"></span>
-      </div>
-      <select id="filter-group"
-        class="px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80] min-w-[200px]">
-        <option value="">Tüm Gruplar</option>
-      </select>
-    </div>
-
-    <!-- İstatistik Kartları -->
-    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
-      <div class="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4">
-        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1">Toplam Ürün</p>
-        <p id="stat-total" class="text-2xl font-bold text-[#2D4A3E]">—</p>
-      </div>
-      <div class="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4">
-        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1">Grup Sayısı</p>
-        <p id="stat-groups" class="text-2xl font-bold text-[#3D6E50]">—</p>
-      </div>
-      <!-- Eksik fiyat filtre kartları -->
-      <button id="stat-btn-eur"
-        class="stat-missing-btn text-left bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all group"
-        data-currency="EUR" title="EUR fiyatı eksik ürünleri göster">
-        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1 group-hover:text-[#3D6E50] transition-colors">
-          <i class="fa-solid fa-triangle-exclamation mr-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#3D6E50]"></i>Eksik EUR
-        </p>
-        <p id="stat-eur" class="text-2xl font-bold text-[#3D6E50]">—</p>
-        <p class="text-xs text-[var(--text-secondary)] mt-0.5 group-hover:text-[#3D6E50]/70 transition-colors">fiyatsız ürün</p>
-      </button>
-      <button id="stat-btn-usd"
-        class="stat-missing-btn text-left bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all group"
-        data-currency="USD" title="USD fiyatı eksik ürünleri göster">
-        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1 group-hover:text-[#B26B33] transition-colors">
-          <i class="fa-solid fa-triangle-exclamation mr-1 opacity-0 group-hover:opacity-100 transition-opacity text-[#B26B33]"></i>Eksik USD
-        </p>
-        <p id="stat-usd" class="text-2xl font-bold text-[#B26B33]">—</p>
-        <p class="text-xs text-[var(--text-secondary)] mt-0.5 group-hover:text-[#B26B33]/70 transition-colors">fiyatsız ürün</p>
-      </button>
-      <button id="stat-btn-try"
-        class="stat-missing-btn text-left bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4 hover:border-sky-500/50 hover:bg-sky-500/5 transition-all group"
-        data-currency="TRY" title="TL fiyatı eksik ürünleri göster">
-        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1 group-hover:text-sky-400 transition-colors">
-          <i class="fa-solid fa-triangle-exclamation mr-1 opacity-0 group-hover:opacity-100 transition-opacity text-sky-400"></i>Eksik TL
-        </p>
-        <p id="stat-try" class="text-2xl font-bold text-sky-400">—</p>
-        <p class="text-xs text-[var(--text-secondary)] mt-0.5 group-hover:text-sky-400/70 transition-colors">fiyatsız ürün</p>
-      </button>
-    </div>
-
-    <!-- Ürün Tablosu -->
-    <div class="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-[var(--border)]">
-              <th class="text-left text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">Ürün Kodu</th>
-              <th class="text-left text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">Ürün Adı</th>
-              <th class="text-left text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">Grup</th>
-              <th class="text-right text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">Ağırlık (N/B)</th>
-              <th class="text-right text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">2026 EUR Liste</th>
-              <th class="text-right text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">2026 EUR Net</th>
-              <th class="text-right text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">2026 USD Liste</th>
-              <th class="text-right text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">2026 USD Net</th>
-              <th class="text-right text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">2026 TL Liste</th>
-              <th class="text-right text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">2026 TL Net</th>
-              <th class="text-center text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">İşlem</th>
-            </tr>
-          </thead>
-          <tbody id="product-table-body">
-            <tr>
-              <td colspan="11" class="text-center text-[var(--text-secondary)] py-12">
-                <i class="fa-solid fa-spinner fa-spin mr-2"></i>Yükleniyor…
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Sayfalama -->
-    <div id="pagination" class="flex items-center justify-between mt-4 text-sm text-[var(--text-secondary)]">
-      <span id="pagination-info"></span>
-      <div class="flex gap-2">
-        <button id="btn-prev" class="px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--bg-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-          <i class="fa-solid fa-chevron-left"></i>
-        </button>
-        <button id="btn-next" class="px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--bg-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-          <i class="fa-solid fa-chevron-right"></i>
-        </button>
-      </div>
-    </div>
-  </main>
-
-  <!-- ===================== MODAL: Ürün Ekle / Düzenle ===================== -->
-  <div id="modal-product" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-    <div class="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl w-full max-w-lg shadow-2xl">
-      <div class="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
-        <h2 id="modal-product-title" class="text-base font-semibold text-[var(--text-primary)]">Yeni Ürün</h2>
-        <button id="modal-product-close" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
-          <i class="fa-solid fa-xmark text-lg"></i>
-        </button>
-      </div>
-      <div class="px-6 py-5 space-y-4">
-        <input type="hidden" id="product-id" />
-        <div>
-          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Ürün Kodu <span class="text-[#9F3D3D]">*</span></label>
-          <input id="product-code" type="text" placeholder="örn: SETK3204-0315-001-1-1100"
-            class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Ürün Adı <span class="text-[#9F3D3D]">*</span></label>
-          <input id="product-name" type="text" placeholder="örn: HALLEY D.S KLOZET + REZ. + PP KPK"
-            class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Ürün Grubu</label>
-          <input id="product-group" type="text" placeholder="örn: HALLEY SERİSİ"
-            class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Renk</label>
-            <input id="product-color" type="text" maxlength="50" placeholder="örn: Beyaz"
-              class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Fonksiyon</label>
-            <input id="product-function" type="text" maxlength="50" placeholder="örn: Rim-Off"
-              class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Net Ağırlık (kg)</label>
-            <input id="product-net-weight" type="number" step="0.01" min="0" placeholder="0.00"
-              class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Brüt Ağırlık (kg)</label>
-            <input id="product-gross-weight" type="number" step="0.01" min="0" placeholder="0.00"
-              class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
-          </div>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Açıklama</label>
-          <textarea id="product-description" rows="2" placeholder="İsteğe bağlı açıklama"
-            class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80] resize-none"></textarea>
-        </div>
-      </div>
-      <div class="flex justify-end gap-3 px-6 py-4 border-t border-[var(--border)]">
-        <button id="modal-product-cancel" class="px-4 py-2 text-sm rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors">İptal</button>
-        <button id="modal-product-save" class="px-4 py-2 text-sm rounded-lg bg-[#2D4A3E] hover:bg-[#1a3329] text-white font-medium transition-colors">
-          <i class="fa-solid fa-floppy-disk mr-1.5"></i>Kaydet
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===================== MODAL: Fiyat Yönetimi ===================== -->
-  <div id="modal-prices" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-    <div class="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col">
-      <div class="flex items-center justify-between px-6 py-4 border-b border-[var(--border)] flex-shrink-0">
-        <div>
-          <h2 class="text-base font-semibold text-[var(--text-primary)]">Fiyat Yönetimi</h2>
-          <p id="price-modal-product-name" class="text-xs text-[var(--text-secondary)] mt-0.5 truncate max-w-sm"></p>
-        </div>
-        <button id="modal-prices-close" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
-          <i class="fa-solid fa-xmark text-lg"></i>
-        </button>
-      </div>
-
-      <!-- Fiyat Listesi -->
-      <div class="flex-1 overflow-y-auto px-6 py-4">
-        <div id="price-list" class="space-y-3 mb-4"></div>
-
-        <!-- Yeni Fiyat Formu -->
-        <div class="bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl p-4">
-          <h3 class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-3">Yeni Fiyat Ekle</h3>
-          <input type="hidden" id="price-edit-id" />
-          <div class="grid grid-cols-2 gap-3 mb-3">
+    <main class="main-area">
+        <!-- Header -->
+        <header style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px;">
             <div>
-              <label class="block text-xs text-[var(--text-secondary)] mb-1">Yıl <span class="text-[#9F3D3D]">*</span></label>
-              <input id="price-year" type="number" min="2020" max="2099" placeholder="2026"
-                class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
+                <h2 class="page-title"><i class="fa-solid fa-box" style="font-size:20px;"></i> Ürün Kartları</h2>
+                <p style="font-size:13px;color:var(--ink-2);margin-top:2px;">Ana veri merkezi — Tüm ürünlerin tanımları ve palet bilgileri</p>
             </div>
-            <div>
-              <label class="block text-xs text-[var(--text-secondary)] mb-1">Döviz <span class="text-[#9F3D3D]">*</span></label>
-              <select id="price-currency"
-                class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]">
-                <option value="EUR">EUR €</option>
-                <option value="USD">USD $</option>
-                <option value="TRY">TRY ₺</option>
-              </select>
+        </header>
+
+        <!-- KPI Strip -->
+        <div class="kpi-strip" id="kpi-strip"></div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <div class="search-wrap">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" class="search-box" id="txt-search" placeholder="Stok kodu, ürün adı (TR/EN) ile ara..." autocomplete="off" />
             </div>
-          </div>
-          <div class="grid grid-cols-3 gap-3 mb-4">
-            <div>
-              <label class="block text-xs text-[var(--text-secondary)] mb-1">Liste Fiyatı</label>
-              <input id="price-list" type="number" step="0.01" min="0" placeholder="0.00"
-                class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
+            <select id="fil-grup">
+                <option value="">Tüm Gruplar</option>
+            </select>
+            <select id="fil-seri">
+                <option value="">Tüm Seriler</option>
+            </select>
+            <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn-action btn-outline" id="btn-import"><i class="fa-solid fa-file-import"></i> İçe Aktar</button>
+                <button class="btn-action btn-outline" id="btn-export"><i class="fa-solid fa-file-export"></i> Dışa Aktar</button>
+                <button class="btn-action btn-primary" id="btn-add"><i class="fa-solid fa-plus"></i> Yeni Ürün</button>
             </div>
-            <div>
-              <label class="block text-xs text-[var(--text-secondary)] mb-1">Net Fiyat</label>
-              <input id="price-net" type="number" step="0.01" min="0" placeholder="0.00"
-                class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
-            </div>
-            <div>
-              <label class="block text-xs text-[var(--text-secondary)] mb-1">İskonto %</label>
-              <input id="price-discount" type="number" step="0.01" min="0" max="100" placeholder="0.00"
-                class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80] bg-[var(--bg-tertiary)]" readonly />
-            </div>
-          </div>
-          <div class="flex justify-end gap-2">
-            <button id="btn-price-cancel-edit" class="hidden px-3 py-1.5 text-xs rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors">
-              İptal
-            </button>
-            <button id="btn-price-save"
-              class="px-4 py-1.5 text-xs rounded-lg bg-[#2D4A3E] hover:bg-[#1a3329] text-white font-medium transition-colors">
-              <i class="fa-solid fa-plus mr-1"></i><span id="btn-price-save-label">Ekle</span>
-            </button>
-          </div>
         </div>
-      </div>
-    </div>
-  </div>
 
-  <!-- ===================== MODAL: Silme Onayı ===================== -->
-  <div id="modal-delete" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-    <div class="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center">
-      <div class="w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center mx-auto mb-4">
-        <i class="fa-solid fa-triangle-exclamation text-[#9F3D3D] text-xl"></i>
-      </div>
-      <h3 class="text-base font-semibold text-[var(--text-primary)] mb-2">Ürünü Sil</h3>
-      <p id="delete-confirm-text" class="text-sm text-[var(--text-secondary)] mb-6">Bu ürün ve tüm fiyat kayıtları silinecek. Emin misiniz?</p>
-      <div class="flex gap-3 justify-center">
-        <button id="btn-delete-cancel" class="px-5 py-2 text-sm rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors">İptal</button>
-        <button id="btn-delete-confirm" class="px-5 py-2 text-sm rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-medium transition-colors">Sil</button>
-      </div>
-    </div>
-  </div>
+        <!-- Table -->
+        <div class="table-wrap">
+            <table class="p-table" id="product-table">
+                <thead>
+                    <tr>
+                        <th style="width:36px;">#</th>
+                        <th>Stok Kodu</th>
+                        <th>Stok Adı (TR)</th>
+                        <th>Stok Adı (EN)</th>
+                        <th>Birim</th>
+                        <th>Paketleme</th>
+                        <th>Ürün Grubu</th>
+                        <th>Renk</th>
+                        <th>Kalite</th>
+                        <th style="width:40px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
 
-  <script type="module" src="src/products.js"></script>
+        <!-- Pagination -->
+        <div class="pager" id="pager"></div>
+    </main>
+
+    <!-- ═══ ADD / EDIT MODAL ═══ -->
+    <div class="modal-backdrop" id="modal-form">
+        <div class="modal-content">
+            <div class="modal-head">
+                <h3 id="modal-title"><i class="fa-solid fa-box"></i> <span>Yeni Ürün</span></h3>
+                <button class="modal-close" data-close="modal-form"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <!-- Tabs -->
+            <div class="modal-tabs">
+                <button class="modal-tab active" data-tab="tab-detail">Ürün Bilgileri</button>
+                <button class="modal-tab" data-tab="tab-pallet">Palet Tanımları</button>
+                <button class="modal-tab" data-tab="tab-history" id="tab-btn-history" style="display:none;">Geçmiş</button>
+            </div>
+            <div class="modal-body">
+                <!-- Tab: Detail -->
+                <div class="tab-pane active" id="tab-detail">
+                    <div class="form-grid">
+                        <div class="form-section">KİMLİK BİLGİLERİ</div>
+                        <div>
+                            <label class="fg-label">Stok Kodu *</label>
+                            <input class="fg-input" id="f-stok-kodu" placeholder="SETK0504-2105-001-1-4171" />
+                        </div>
+                        <div>
+                            <label class="fg-label">Seri Adı</label>
+                            <input class="fg-input" id="f-seri-adi" placeholder="Alfa, Afacan..." />
+                        </div>
+                        <div class="full">
+                            <label class="fg-label">Stok Adı - Türkçe *</label>
+                            <input class="fg-input" id="f-adi-1" />
+                        </div>
+                        <div class="full">
+                            <label class="fg-label">Stok Adı - İngilizce</label>
+                            <input class="fg-input" id="f-adi-2" />
+                        </div>
+
+                        <div class="form-section">SINIFLANDIRMA</div>
+                        <div>
+                            <label class="fg-label">Birim</label>
+                            <select class="fg-input" id="f-birim">
+                                <option value="">Seçiniz</option>
+                                <option>Adet</option><option>Set</option><option>Metre</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="fg-label">Paketleme</label>
+                            <select class="fg-input" id="f-paketleme">
+                                <option value="">Seçiniz</option>
+                                <option>Kutulu</option><option>Kutusuz</option><option>Poşet</option><option>Koli</option><option>Naylon</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="fg-label">Ürün Grubu</label>
+                            <select class="fg-input" id="f-urun-grubu">
+                                <option value="">Seçiniz</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="fg-label">Ürün Türü</label>
+                            <input class="fg-input" id="f-urun-turu" />
+                        </div>
+
+                        <div class="form-section">FONKSİYON ÖZELLİKLERİ</div>
+                        <div>
+                            <label class="fg-label">Fonksiyon Özelliği-1</label>
+                            <input class="fg-input" id="f-fonk1" />
+                        </div>
+                        <div>
+                            <label class="fg-label">Fonksiyon Özelliği-2</label>
+                            <input class="fg-input" id="f-fonk2" />
+                        </div>
+                        <div>
+                            <label class="fg-label">Fonksiyon Özelliği-3</label>
+                            <input class="fg-input" id="f-fonk3" />
+                        </div>
+                        <div>
+                            <label class="fg-label">Boyut Özelliği</label>
+                            <input class="fg-input" id="f-boyut" placeholder="(30x55x32)" />
+                        </div>
+
+                        <div class="form-section">RENK / KALİTE / AĞIRLIK</div>
+                        <div>
+                            <label class="fg-label">Renk</label>
+                            <select class="fg-input" id="f-renk">
+                                <option value="">Seçiniz</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="fg-label">Kalite</label>
+                            <select class="fg-input" id="f-kalite">
+                                <option value="">Seçiniz</option>
+                                <option>1.Kalite</option><option>2.Kalite</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="fg-label">Ağırlık Net (Kg)</label>
+                            <input type="number" step="0.01" class="fg-input" id="f-agirlik-net" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Pallet -->
+                <div class="tab-pane" id="tab-pallet">
+                    <div class="form-grid">
+                        <div class="form-section">PALET TANIMLARI</div>
+                        <div>
+                            <label class="fg-label">Ağırlık Brüt (Kg)</label>
+                            <input type="number" step="0.01" class="fg-input" id="f-agirlik-brut" />
+                        </div>
+                        <div>
+                            <label class="fg-label">Palet Adedi (Ad.)</label>
+                            <input type="number" step="1" class="fg-input" id="f-palet-adedi" />
+                        </div>
+                        <div>
+                            <label class="fg-label">En (Cm)</label>
+                            <input type="number" step="1" class="fg-input" id="f-en" />
+                        </div>
+                        <div>
+                            <label class="fg-label">Boy (Cm)</label>
+                            <input type="number" step="1" class="fg-input" id="f-boy" />
+                        </div>
+                        <div>
+                            <label class="fg-label">Yükseklik (Cm)</label>
+                            <input type="number" step="1" class="fg-input" id="f-yukseklik" />
+                        </div>
+                        <div>
+                            <label class="fg-label">Palet Cinsi</label>
+                            <select class="fg-input" id="f-palet-cinsi">
+                                <option value="">Seçiniz</option>
+                                <option>EUR1</option><option>EUR3</option>
+                                <option>Euro Palet</option><option>Standart Palet</option><option>Ahşap Kafes</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: History -->
+                <div class="tab-pane" id="tab-history">
+                    <div id="history-content">
+                        <div class="empty-state"><i class="fa-solid fa-clock-rotate-left"></i>Geçmiş yükleniyor...</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn-action btn-outline" data-close="modal-form">İptal</button>
+                <button class="btn-action btn-primary" id="btn-save"><i class="fa-solid fa-check"></i> Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ DELETE CONFIRM MODAL ═══ -->
+    <div class="modal-backdrop" id="modal-delete">
+        <div class="modal-content" style="max-width:420px;">
+            <div class="confirm-content">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <h3 style="font-size:16px;font-weight:500;color:var(--ink-1);margin:0;">Ürünü Sil</h3>
+                <p id="del-msg">Bu ürün kalıcı olarak silinecektir.</p>
+                <div style="display:flex;gap:8px;justify-content:center;">
+                    <button class="btn-action btn-outline" data-close="modal-delete">Vazgeç</button>
+                    <button class="btn-action btn-danger" id="btn-del-confirm"><i class="fa-solid fa-trash"></i> Evet, Sil</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ IMPORT MODAL ═══ -->
+    <div class="modal-backdrop" id="modal-import">
+        <div class="modal-content" style="max-width:560px;">
+            <div class="modal-head">
+                <h3><i class="fa-solid fa-file-import"></i> <span>Excel / CSV İçe Aktarma</span></h3>
+                <button class="modal-close" data-close="modal-import"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="drop-zone" id="drop-zone">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <div>Excel (.xlsx) veya CSV dosyanızı sürükleyip bırakın</div>
+                    <div style="font-size:11px;color:var(--ink-3);margin-top:4px;">veya tıklayarak seçin</div>
+                    <input type="file" id="file-input" accept=".xlsx,.csv" style="display:none;" />
+                </div>
+                <div class="import-preview" id="import-preview" style="display:none;"></div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn-action btn-outline" data-close="modal-import">İptal</button>
+                <button class="btn-action btn-primary" id="btn-import-confirm" disabled><i class="fa-solid fa-upload"></i> <span id="import-count">Yükle</span></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script type="module" src="./src/products.js"></script>
 </body>
 </html>
