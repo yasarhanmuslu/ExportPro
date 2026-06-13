@@ -34,10 +34,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ─────────────────────────────────────────────
 async function fetchProducts(session) {
     const { data, error } = await supabase
-        .from('products')
-        .select('id, product_code, product_name, gross_weight')
+        .from('urunler')
+        .select('id, stok_kodu, stok_adi_1, agirlik_brut')
         .eq('user_id', session.user.id)
-        .order('product_name', { ascending: true });
+        .order('stok_adi_1', { ascending: true });
     if (error) { console.error('Ürünler yüklenemedi:', error.message); return; }
     globalProducts = data || [];
 }
@@ -206,7 +206,7 @@ function renderItems() {
 
     container.innerHTML = itemsBuffer.map((it, idx) => {
         const opts = globalProducts.map(p =>
-            `<option value="${p.id}" ${it.product_id === p.id ? 'selected' : ''}>${escHtml(p.product_name)}${p.product_code ? ' ('+escHtml(p.product_code)+')' : ''}</option>`
+            `<option value="${p.id}" ${it.product_id === p.id ? 'selected' : ''}>${escHtml(p.stok_adi_1)}${p.stok_kodu ? ' ('+escHtml(p.stok_kodu)+')' : ''}</option>`
         ).join('');
         const lineW = (Number(it.unit_gross_weight) || 0) * (Number(it.quantity) || 0);
         return `
@@ -237,9 +237,9 @@ function renderItems() {
         const prod = globalProducts.find(p => p.id === e.target.value);
         if (prod) {
             itemsBuffer[idx].product_id = prod.id;
-            itemsBuffer[idx].product_name = prod.product_name;
-            itemsBuffer[idx].product_code = prod.product_code || '';
-            itemsBuffer[idx].unit_gross_weight = prod.gross_weight != null ? Number(prod.gross_weight) : null;
+            itemsBuffer[idx].product_name = prod.stok_adi_1;
+            itemsBuffer[idx].product_code = prod.stok_kodu || '';
+            itemsBuffer[idx].unit_gross_weight = prod.agirlik_brut != null ? Number(prod.agirlik_brut) : null;
         } else {
             itemsBuffer[idx].product_id = null;
         }
