@@ -1,6 +1,6 @@
 import { supabase } from '../utils/supabaseClient.js';
 
-const APP_VERSION = 'V: 1.0.67';
+const APP_VERSION = 'V: 1.0.71';
 
 // MENU MODELI
 //   type: 'link'  -> dogrudan sayfa

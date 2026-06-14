@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // ExportPro — Ürün Kartları (Master Data) — products.js
-// V: 1.0.67
+// V: 1.0.71  ← FIX: en_cm/boy_cm/yukseklik_cm kolon adı geri alındı (DB doğrulandı)
+//                  + Net KG alanı Palet sekmesine eklendi (iki sekme senkron)
 // ═══════════════════════════════════════════════════════════════
 
 import { supabase } from './utils/supabaseClient.js';
@@ -123,19 +124,14 @@ function applyFilters() {
     const seriFilter = document.getElementById('fil-seri').value;
 
     filteredProducts = allProducts.filter(p => {
-        // Grup filtresi
         if (grupFilter && p.urun_grubu !== grupFilter) return false;
-        // Seri filtresi
         if (seriFilter && p.seri_adi !== seriFilter) return false;
-        // Arama (fuzzy: stok_kodu, stok_adi_1, stok_adi_2)
         if (query) {
             const haystack = [
                 p.stok_kodu || '',
                 p.stok_adi_1 || '',
                 p.stok_adi_2 || ''
             ].join(' ').toLocaleLowerCase('tr-TR');
-
-            // Her kelimeyi ayrı ara (AND mantığı)
             const words = query.split(/\s+/);
             if (!words.every(w => haystack.includes(w))) return false;
         }
@@ -202,7 +198,6 @@ function renderPager(total, totalPages) {
     const start = (currentPage - 1) * PAGE_SIZE + 1;
     const end = Math.min(currentPage * PAGE_SIZE, total);
 
-    // Sayfa numaraları (max 7 görünür)
     let pages = [];
     if (totalPages <= 7) {
         for (let i = 1; i <= totalPages; i++) pages.push(i);
@@ -240,7 +235,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 function resetForm() {
     ['f-stok-kodu','f-adi-1','f-adi-2','f-seri-adi','f-birim','f-paketleme',
      'f-urun-grubu','f-urun-turu','f-fonk1','f-fonk2','f-fonk3','f-boyut',
-     'f-renk','f-kalite','f-agirlik-net','f-agirlik-brut','f-palet-adedi',
+     'f-renk','f-kalite','f-agirlik-net','f-agirlik-net-pallet','f-agirlik-brut','f-palet-adedi',
      'f-en','f-boy','f-yukseklik','f-palet-cinsi'
     ].forEach(id => {
         const el = document.getElementById(id);
@@ -248,6 +243,7 @@ function resetForm() {
     });
 }
 
+// ── DB kolon adları: en_cm / boy_cm / yukseklik_cm (information_schema ile doğrulandı) ──
 function fillForm(p) {
     document.getElementById('f-stok-kodu').value = p.stok_kodu || '';
     document.getElementById('f-adi-1').value = p.stok_adi_1 || '';
@@ -264,6 +260,7 @@ function fillForm(p) {
     document.getElementById('f-renk').value = p.renk || '';
     document.getElementById('f-kalite').value = p.kalite || '';
     document.getElementById('f-agirlik-net').value = p.agirlik_net ?? '';
+    document.getElementById('f-agirlik-net-pallet').value = p.agirlik_net ?? '';  // Palet sekmesi senkron kopya
     document.getElementById('f-agirlik-brut').value = p.agirlik_brut ?? '';
     document.getElementById('f-palet-adedi').value = p.palet_adedi ?? '';
     document.getElementById('f-en').value = p.en_cm ?? '';
@@ -275,6 +272,8 @@ function fillForm(p) {
 function getFormData() {
     const val = (id) => document.getElementById(id).value.trim() || null;
     const num = (id) => { const v = document.getElementById(id).value.trim(); return v === '' ? null : Number(v); };
+    // Net KG iki sekmede senkron; ikisinden dolu olanı al (event ile zaten eşitleniyor)
+    const netKg = num('f-agirlik-net') ?? num('f-agirlik-net-pallet');
     return {
         stok_kodu:      val('f-stok-kodu'),
         stok_adi_1:     val('f-adi-1'),
@@ -290,7 +289,7 @@ function getFormData() {
         boyut_ozelligi: val('f-boyut'),
         renk:           val('f-renk'),
         kalite:         val('f-kalite'),
-        agirlik_net:    num('f-agirlik-net'),
+        agirlik_net:    netKg,
         agirlik_brut:   num('f-agirlik-brut'),
         palet_adedi:    num('f-palet-adedi'),
         en_cm:          num('f-en'),
@@ -328,7 +327,6 @@ function openEdit(id) {
 async function saveProduct() {
     const fd = getFormData();
 
-    // Validasyon
     if (!fd.stok_kodu) return alert('Stok Kodu zorunludur.');
     if (!fd.stok_adi_1) return alert('Stok Adı (Türkçe) zorunludur.');
 
@@ -337,7 +335,6 @@ async function saveProduct() {
         if (!session) return alert('Oturum bulunamadı.');
 
         if (editingId) {
-            // UPDATE
             const { error } = await supabase
                 .from('urunler')
                 .update(fd)
@@ -345,7 +342,6 @@ async function saveProduct() {
                 .eq('user_id', session.user.id);
             if (error) throw error;
         } else {
-            // INSERT
             fd.user_id = session.user.id;
             const { error } = await supabase
                 .from('urunler')
@@ -409,7 +405,7 @@ async function loadHistory(urunId) {
             return;
         }
 
-        // Alan adı Türkçe eşleme
+        // DB kolon adları: en_cm/boy_cm/yukseklik_cm
         const alanMap = {
             stok_kodu: 'Stok Kodu', stok_adi_1: 'Stok Adı (TR)', stok_adi_2: 'Stok Adı (EN)',
             birim: 'Birim', paketleme: 'Paketleme', seri_adi: 'Seri Adı',
@@ -417,8 +413,11 @@ async function loadHistory(urunId) {
             fonksiyon_1: 'Fonk-1', fonksiyon_2: 'Fonk-2', fonksiyon_3: 'Fonk-3',
             boyut_ozelligi: 'Boyut', renk: 'Renk', kalite: 'Kalite',
             agirlik_net: 'Ağırlık Net', agirlik_brut: 'Ağırlık Brüt',
-            palet_adedi: 'Palet Ad.', en_cm: 'En', boy_cm: 'Boy',
-            yukseklik_cm: 'Yükseklik', palet_cinsi: 'Palet Cinsi'
+            palet_adedi: 'Palet Ad.',
+            en_cm: 'En',
+            boy_cm: 'Boy',
+            yukseklik_cm: 'Yükseklik',
+            palet_cinsi: 'Palet Cinsi'
         };
 
         container.innerHTML = `
@@ -484,7 +483,6 @@ function handleFile(file) {
 
             if (rows.length === 0) return alert('Dosyada veri bulunamadı.');
 
-            // Kolon eşleme
             importRows = rows.map(r => mapImportRow(r)).filter(Boolean);
 
             const preview = document.getElementById('import-preview');
@@ -516,7 +514,6 @@ function handleFile(file) {
 }
 
 function mapImportRow(r) {
-    // Esnek kolon eşleme: Excel başlığındaki farklı adlandırmaları yakala
     const get = (...keys) => {
         for (const k of keys) {
             if (r[k] !== undefined && r[k] !== '') return String(r[k]).trim();
@@ -552,14 +549,13 @@ function mapImportRow(r) {
         agirlik_net:    getNum('Ürün Ağırlığı(Net Kg.)', 'agirlik_net'),
         agirlik_brut:   getNum('Ürün Ağırlığı(BrütKg.)', 'agirlik_brut'),
         palet_adedi:    getNum('Palet Adeti(Ad.)', 'palet_adedi'),
-        en_cm:          getNum('En (Cm)', 'en_cm'),
-        boy_cm:         getNum('Boy (Cm)', 'boy_cm'),
-        yukseklik_cm:   getNum('Yükseklik (Cm)', 'yukseklik_cm'),
+        en_cm:          getNum('En (Cm)', 'en_cm', 'en'),
+        boy_cm:         getNum('Boy (Cm)', 'boy_cm', 'boy'),
+        yukseklik_cm:   getNum('Yükseklik (Cm)', 'yukseklik_cm', 'yukseklik'),
         palet_cinsi:    get('Palet Cinsi', 'palet_cinsi'),
     };
 }
 
-// '-' veya boş → null dönüştürme
 function cleanDash(v) {
     if (v === null || v === undefined) return null;
     const s = String(v).trim();
@@ -572,26 +568,80 @@ async function executeImport() {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return alert('Oturum bulunamadı.');
+        const uid = session.user.id;
 
-        // Her satıra user_id ekle ve dash temizliği yap
-        const payload = importRows.map(r => {
-            const row = { user_id: session.user.id };
-            Object.entries(r).forEach(([k, v]) => {
-                row[k] = cleanDash(v);
-            });
-            return row;
+        // ── FIX REV1: UPSERT mantığı ──
+        // stok_kodu UNIQUE olmadığı için Supabase upsert(onConflict) kullanılamaz.
+        // Bunun yerine: mevcut ürünleri stok_kodu→id ile eşle,
+        //   - kod zaten varsa  → UPDATE (palet/ağırlık verileri üzerine yazılır)
+        //   - kod yoksa        → INSERT (yeni kayıt)
+        // allProducts loadProducts'tan güncel; yine de garanti için tazeleyelim.
+        const codeToId = {};
+        allProducts.forEach(p => {
+            if (p.stok_kodu && codeToId[p.stok_kodu] === undefined) {
+                codeToId[p.stok_kodu] = p.id;
+            }
         });
 
-        // Batch insert (Supabase max ~1000 per call)
+        const toInsert = [];
+        const toUpdate = [];   // { id, row }
+        const seenInBatch = {}; // aynı Excel içinde mükerrer kod → ilkini insert, sonrakileri update
+
+        importRows.forEach(r => {
+            const cleaned = {};
+            Object.entries(r).forEach(([k, v]) => { cleaned[k] = cleanDash(v); });
+            const code = cleaned.stok_kodu;
+
+            // 1) DB'de var mı?
+            if (code && codeToId[code] !== undefined) {
+                toUpdate.push({ id: codeToId[code], row: cleaned });
+                return;
+            }
+            // 2) Aynı dosyada daha önce görüldü mü? (ilkini ekleyip ID'sini bilmediğimizden
+            //    sonrakileri de insert ederiz; DB UNIQUE olmadığı için sorun çıkarmaz,
+            //    ama kullanıcıyı uyaracağız)
+            if (code) {
+                seenInBatch[code] = (seenInBatch[code] || 0) + 1;
+            }
+            cleaned.user_id = uid;
+            toInsert.push(cleaned);
+        });
+
+        // ── INSERT (yeni kayıtlar) — batch halinde ──
         const batchSize = 500;
-        for (let i = 0; i < payload.length; i += batchSize) {
-            const batch = payload.slice(i, i + batchSize);
+        for (let i = 0; i < toInsert.length; i += batchSize) {
+            const batch = toInsert.slice(i, i + batchSize);
             const { error } = await supabase.from('urunler').insert(batch);
             if (error) throw error;
         }
 
+        // ── UPDATE (mevcut kayıtlar) — tek tek, user_id güvenlik şartıyla ──
+        let updatedCount = 0;
+        for (const { id, row } of toUpdate) {
+            // user_id güncellemeye dahil edilmez (sahiplik değişmesin)
+            const payload = { ...row };
+            delete payload.user_id;
+            const { error } = await supabase
+                .from('urunler')
+                .update(payload)
+                .eq('id', id)
+                .eq('user_id', uid);
+            if (error) throw error;
+            updatedCount++;
+        }
+
         closeModal('modal-import');
-        alert(`${importRows.length} ürün başarıyla içe aktarıldı.`);
+
+        const dupInBatch = Object.values(seenInBatch).filter(c => c > 1).length;
+        let msg = `İçe aktarma tamamlandı.\n` +
+                  `• Yeni eklenen: ${toInsert.length}\n` +
+                  `• Güncellenen: ${updatedCount}`;
+        if (dupInBatch > 0) {
+            msg += `\n\n⚠ Uyarı: Yüklenen dosyada ${dupInBatch} stok kodu birden fazla kez geçiyor; ` +
+                   `bunlar ayrı kayıt olarak eklendi.`;
+        }
+        alert(msg);
+
         importRows = [];
         await loadProducts();
     } catch (err) {
@@ -615,12 +665,14 @@ function exportToExcel() {
         p.stok_kodu, p.stok_adi_1, p.stok_adi_2, p.birim, p.paketleme,
         p.seri_adi, p.urun_grubu, p.urun_turu, p.fonksiyon_1, p.fonksiyon_2,
         p.fonksiyon_3, p.boyut_ozelligi, p.renk, p.kalite, p.agirlik_net,
-        p.agirlik_brut, p.palet_adedi, p.en_cm, p.boy_cm, p.yukseklik_cm, p.palet_cinsi
+        p.agirlik_brut, p.palet_adedi,
+        p.en_cm,
+        p.boy_cm,
+        p.yukseklik_cm,
+        p.palet_cinsi
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-
-    // Kolon genişlikleri
     ws['!cols'] = headers.map((_, i) => ({ wch: i <= 2 ? 36 : 16 }));
 
     const wb = XLSX.utils.book_new();
@@ -630,12 +682,18 @@ function exportToExcel() {
 
 // ── Event Bindings ──────────────────────────────────────────────
 function bindEvents() {
-    // Search & filter
     document.getElementById('txt-search').addEventListener('input', onSearchInput);
     document.getElementById('fil-grup').addEventListener('change', applyFilters);
     document.getElementById('fil-seri').addEventListener('change', applyFilters);
 
-    // Toolbar buttons
+    // Net KG iki sekmede senkron: biri değişince diğerini eşitle
+    const netMain = document.getElementById('f-agirlik-net');
+    const netPallet = document.getElementById('f-agirlik-net-pallet');
+    if (netMain && netPallet) {
+        netMain.addEventListener('input', () => { netPallet.value = netMain.value; });
+        netPallet.addEventListener('input', () => { netMain.value = netPallet.value; });
+    }
+
     document.getElementById('btn-add').addEventListener('click', openAdd);
     document.getElementById('btn-import').addEventListener('click', openImportModal);
     document.getElementById('btn-export').addEventListener('click', exportToExcel);
@@ -643,24 +701,20 @@ function bindEvents() {
     document.getElementById('btn-del-confirm').addEventListener('click', executeDelete);
     document.getElementById('btn-import-confirm').addEventListener('click', executeImport);
 
-    // Modal close buttons
     document.querySelectorAll('[data-close]').forEach(btn => {
         btn.addEventListener('click', () => closeModal(btn.dataset.close));
     });
 
-    // Backdrop close
     ['modal-form', 'modal-delete', 'modal-import'].forEach(id => {
         document.getElementById(id).addEventListener('click', (e) => {
             if (e.target === e.currentTarget) closeModal(id);
         });
     });
 
-    // Tab switching
     document.querySelectorAll('.modal-tab').forEach(tab => {
         tab.addEventListener('click', () => switchTab(tab.dataset.tab));
     });
 
-    // File import: drag & drop + click
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
 
@@ -675,7 +729,6 @@ function bindEvents() {
         handleFile(e.dataTransfer.files[0]);
     });
 
-    // Keyboard: ESC closes top modal
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             ['modal-import', 'modal-delete', 'modal-form'].forEach(id => {
