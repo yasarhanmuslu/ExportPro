@@ -17,17 +17,19 @@
         /* ── Toolbar ────────────────── */
         .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
         .toolbar .search-box {
-            flex: 1; min-width: 240px; max-width: 420px;
-            padding: 8px 12px 8px 34px;
+            width: 100%; min-width: 0;
+            padding: 8px 12px 8px 42px !important;
             border: 1px solid var(--border); border-radius: 7px;
             background: var(--surface); color: var(--ink-1);
             font-size: 13px; font-family: var(--font-base);
             outline: none; transition: border-color .18s;
+            box-sizing: border-box;
         }
         .toolbar .search-box:focus { border-color: var(--accent); }
         .toolbar .search-icon {
-            position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
-            color: var(--ink-3); font-size: 12px; pointer-events: none;
+            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+            color: var(--ink-3); font-size: 13px; pointer-events: none;
+            z-index: 1;
         }
         .toolbar .search-wrap { position: relative; flex: 1; min-width: 240px; max-width: 420px; }
         .toolbar select {
@@ -430,6 +432,13 @@
                     <div style="font-size:11px;color:var(--ink-3);margin-top:4px;">veya tıklayarak seçin</div>
                     <input type="file" id="file-input" accept=".xlsx,.csv" style="display:none;" />
                 </div>
+                <label style="display:flex;align-items:center;gap:8px;margin:12px 0;
+                              font-size:13px;color:var(--ink-1);cursor:pointer;">
+                    <input type="checkbox" id="chk-clear-before-import" style="width:16px;height:16px;cursor:pointer;">
+                    <span>Mevcut tüm ürünleri sil, dosyadan sıfırdan yükle
+                        <span style="color:var(--warn);font-size:11px;">(dikkat: geri alınamaz)</span>
+                    </span>
+                </label>
                 <div class="import-preview" id="import-preview" style="display:none;"></div>
             </div>
             <div class="modal-foot">

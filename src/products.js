@@ -1,7 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 // ExportPro — Ürün Kartları (Master Data) — products.js
-// V: 1.0.71  ← FIX: en_cm/boy_cm/yukseklik_cm kolon adı geri alındı (DB doğrulandı)
-//                  + Net KG alanı Palet sekmesine eklendi (iki sekme senkron)
+// V: 1.0.74  ← FIX: saveProduct mükerrer stok_kodu engeli + arama çubuğu CSS
 // ═══════════════════════════════════════════════════════════════
 
 import { supabase } from './utils/supabaseClient.js';
@@ -330,6 +329,19 @@ async function saveProduct() {
     if (!fd.stok_kodu) return alert('Stok Kodu zorunludur.');
     if (!fd.stok_adi_1) return alert('Stok Adı (Türkçe) zorunludur.');
 
+    // ── Mükerrer stok kodu kontrolü ──
+    const inputCode = fd.stok_kodu.toString().trim();
+    const existing = allProducts.find(p =>
+        p.stok_kodu && p.stok_kodu.toString().trim() === inputCode
+    );
+    if (existing) {
+        // Düzenleme modunda kendi kaydıysa sorun yok, başkasına aitse engelle
+        if (!editingId || existing.id !== editingId) {
+            alert('Bu stok kodu ile kayıtlı bir ürün zaten mevcut!\n\nStok Kodu: ' + inputCode);
+            return;
+        }
+    }
+
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return alert('Oturum bulunamadı.');
@@ -469,6 +481,8 @@ function openImportModal() {
     document.getElementById('btn-import-confirm').disabled = true;
     document.getElementById('import-count').textContent = 'Yükle';
     document.getElementById('file-input').value = '';
+    const clearBox = document.getElementById('chk-clear-before-import');
+    if (clearBox) clearBox.checked = false;
     openModal('modal-import');
 }
 
@@ -479,7 +493,17 @@ function handleFile(file) {
         try {
             const wb = XLSX.read(e.target.result, { type: 'array' });
             const ws = wb.Sheets[wb.SheetNames[0]];
-            const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+            // Başlık satırını otomatik tespit et:
+            // İlk satır "Ürün Kartları" gibi gruplama başlığıysa gerçek başlıklar 2. satırdadır.
+            const matrix = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+            let headerRow = 0;
+            for (let i = 0; i < Math.min(matrix.length, 5); i++) {
+                const cells = matrix[i].map(c => String(c).trim());
+                if (cells.includes('Stok Kodu')) { headerRow = i; break; }
+            }
+
+            const rows = XLSX.utils.sheet_to_json(ws, { defval: '', range: headerRow });
 
             if (rows.length === 0) return alert('Dosyada veri bulunamadı.');
 
@@ -562,6 +586,12 @@ function cleanDash(v) {
     return (s === '' || s === '-') ? null : s;
 }
 
+// stok_kodu normalize: görünmez boşlukları temizleyip string'e çevirir.
+function normCode(v) {
+    if (v === null || v === undefined) return '';
+    return String(v).trim();
+}
+
 async function executeImport() {
     if (importRows.length === 0) return;
 
@@ -570,78 +600,116 @@ async function executeImport() {
         if (!session) return alert('Oturum bulunamadı.');
         const uid = session.user.id;
 
-        // ── FIX REV1: UPSERT mantığı ──
-        // stok_kodu UNIQUE olmadığı için Supabase upsert(onConflict) kullanılamaz.
-        // Bunun yerine: mevcut ürünleri stok_kodu→id ile eşle,
-        //   - kod zaten varsa  → UPDATE (palet/ağırlık verileri üzerine yazılır)
-        //   - kod yoksa        → INSERT (yeni kayıt)
-        // allProducts loadProducts'tan güncel; yine de garanti için tazeleyelim.
+        // ── Onay kutusu: mevcut tüm ürünleri silip dosyadan sıfırla ──
+        const clearBox = document.getElementById('chk-clear-before-import');
+        const clearFirst = !!(clearBox && clearBox.checked);
+
+        // ════════════════════════════════════════════════════════════
+        // MOD 1 — SIFIRLA: tüm ürünleri sil, 646 satırı temiz INSERT et
+        // ════════════════════════════════════════════════════════════
+        if (clearFirst) {
+            const ok = confirm(
+                `DİKKAT: Mevcut tüm ürünleriniz silinecek ve dosyadaki ` +
+                `${importRows.length} ürün sıfırdan yüklenecek.\n\nBu işlem geri alınamaz. Devam edilsin mi?`
+            );
+            if (!ok) return;
+
+            // 1) Kullanıcının tüm ürünlerini sil (RLS güvenlik şartı)
+            const { error: delErr } = await supabase
+                .from('urunler')
+                .delete()
+                .eq('user_id', uid);
+            if (delErr) throw delErr;
+
+            // 2) Temiz INSERT
+            const rows = importRows.map(r => {
+                const cleaned = {};
+                Object.entries(r).forEach(([k, v]) => { cleaned[k] = cleanDash(v); });
+                cleaned.stok_kodu = normCode(cleaned.stok_kodu) || null;
+                cleaned.user_id = uid;
+                return cleaned;
+            });
+
+            const batchSize = 500;
+            for (let i = 0; i < rows.length; i += batchSize) {
+                const { error } = await supabase.from('urunler').insert(rows.slice(i, i + batchSize));
+                if (error) throw error;
+            }
+
+            closeModal('modal-import');
+            alert(`Sıfırdan yükleme tamamlandı.\n• Eklenen ürün: ${rows.length}`);
+            importRows = [];
+            await loadProducts();
+            return;
+        }
+
+        // ════════════════════════════════════════════════════════════
+        // MOD 2 — AKILLI UPSERT: koda göre güncelle / yoksa ekle
+        // ════════════════════════════════════════════════════════════
+        // DB'deki mevcut kayıtlar → normalize edilmiş stok_kodu -> id haritası
         const codeToId = {};
         allProducts.forEach(p => {
-            if (p.stok_kodu && codeToId[p.stok_kodu] === undefined) {
-                codeToId[p.stok_kodu] = p.id;
+            const code = normCode(p.stok_kodu);
+            if (code && codeToId[code] === undefined) {
+                codeToId[code] = p.id;
             }
         });
 
-        const toInsert = [];
-        const toUpdate = [];   // { id, row }
-        const seenInBatch = {}; // aynı Excel içinde mükerrer kod → ilkini insert, sonrakileri update
+        let insertedCount = 0;
+        let updatedCount = 0;
+        const batchSize = 500;
+        let insertBuffer = [];
 
-        importRows.forEach(r => {
+        const flushInserts = async () => {
+            if (insertBuffer.length === 0) return;
+            for (let i = 0; i < insertBuffer.length; i += batchSize) {
+                const { error } = await supabase
+                    .from('urunler')
+                    .insert(insertBuffer.slice(i, i + batchSize));
+                if (error) throw error;
+            }
+            insertedCount += insertBuffer.length;
+            insertBuffer = [];
+        };
+
+        // Sıralı işleme: aynı dosyada tekrar eden kodlar yerel haritadan yakalanır
+        for (const r of importRows) {
             const cleaned = {};
             Object.entries(r).forEach(([k, v]) => { cleaned[k] = cleanDash(v); });
-            const code = cleaned.stok_kodu;
+            const code = normCode(cleaned.stok_kodu);
+            cleaned.stok_kodu = code || null;
 
-            // 1) DB'de var mı?
             if (code && codeToId[code] !== undefined) {
-                toUpdate.push({ id: codeToId[code], row: cleaned });
-                return;
+                // UPDATE — mevcut kayıt (user_id sahipliği korunur)
+                const payload = { ...cleaned };
+                delete payload.user_id;
+                const { error } = await supabase
+                    .from('urunler')
+                    .update(payload)
+                    .eq('id', codeToId[code])
+                    .eq('user_id', uid);
+                if (error) throw error;
+                updatedCount++;
+            } else {
+                // INSERT — önce mevcut buffer'ı boşalt ki yeni ID'yi bekleyen
+                // sonraki güncellemeler için kaydı tek tek ekleyip ID'sini alalım
+                await flushInserts();
+                cleaned.user_id = uid;
+                const { data, error } = await supabase
+                    .from('urunler')
+                    .insert(cleaned)
+                    .select('id')
+                    .single();
+                if (error) throw error;
+                insertedCount++;
+                // Yerel haritayı anlık güncelle → dosya içi tekrarlar update'e döner
+                if (code && data && data.id) codeToId[code] = data.id;
             }
-            // 2) Aynı dosyada daha önce görüldü mü? (ilkini ekleyip ID'sini bilmediğimizden
-            //    sonrakileri de insert ederiz; DB UNIQUE olmadığı için sorun çıkarmaz,
-            //    ama kullanıcıyı uyaracağız)
-            if (code) {
-                seenInBatch[code] = (seenInBatch[code] || 0) + 1;
-            }
-            cleaned.user_id = uid;
-            toInsert.push(cleaned);
-        });
-
-        // ── INSERT (yeni kayıtlar) — batch halinde ──
-        const batchSize = 500;
-        for (let i = 0; i < toInsert.length; i += batchSize) {
-            const batch = toInsert.slice(i, i + batchSize);
-            const { error } = await supabase.from('urunler').insert(batch);
-            if (error) throw error;
         }
-
-        // ── UPDATE (mevcut kayıtlar) — tek tek, user_id güvenlik şartıyla ──
-        let updatedCount = 0;
-        for (const { id, row } of toUpdate) {
-            // user_id güncellemeye dahil edilmez (sahiplik değişmesin)
-            const payload = { ...row };
-            delete payload.user_id;
-            const { error } = await supabase
-                .from('urunler')
-                .update(payload)
-                .eq('id', id)
-                .eq('user_id', uid);
-            if (error) throw error;
-            updatedCount++;
-        }
+        await flushInserts();
 
         closeModal('modal-import');
-
-        const dupInBatch = Object.values(seenInBatch).filter(c => c > 1).length;
-        let msg = `İçe aktarma tamamlandı.\n` +
-                  `• Yeni eklenen: ${toInsert.length}\n` +
-                  `• Güncellenen: ${updatedCount}`;
-        if (dupInBatch > 0) {
-            msg += `\n\n⚠ Uyarı: Yüklenen dosyada ${dupInBatch} stok kodu birden fazla kez geçiyor; ` +
-                   `bunlar ayrı kayıt olarak eklendi.`;
-        }
-        alert(msg);
-
+        alert(`İçe aktarma tamamlandı.\n• Yeni eklenen: ${insertedCount}\n• Güncellenen: ${updatedCount}`);
         importRows = [];
         await loadProducts();
     } catch (err) {
