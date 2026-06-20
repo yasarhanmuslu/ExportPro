@@ -33,10 +33,11 @@
 
     <!-- Arama & Filtre -->
     <div class="flex flex-col sm:flex-row gap-3 mb-5">
-      <div class="relative flex-1">
-        <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] text-sm pointer-events-none"></i>
+      <div style="position:relative;width:320px;">
+        <i class="fa-solid fa-search text-[var(--text-secondary)]" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;z-index:2;"></i>
         <input id="search-input" type="text" placeholder="Palet adı veya cinsine göre ara…"
-          class="w-full pl-9 pr-9 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
+          style="padding-left:42px !important;"
+          class="w-full pr-9 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80]" />
         <button id="btn-search-clear"
           class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors p-0.5" title="Aramayı temizle">
           <i class="fa-solid fa-xmark text-sm"></i>
@@ -50,26 +51,28 @@
         <option value="Non-Euro">Non-Euro</option>
         <option value="Diğer">Diğer</option>
       </select>
+      <select id="filter-stack"
+        class="px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[#E45A80] min-w-[180px]">
+        <option value="">Tüm İstif Durumu</option>
+        <option value="yes">İstiflenebilir</option>
+        <option value="no">İstiflenemez</option>
+      </select>
     </div>
 
-    <!-- İstatistik -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-      <div class="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4">
-        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1">Toplam Palet</p>
-        <p id="stat-total" class="text-2xl font-bold text-[#2D4A3E]">—</p>
-      </div>
-      <div class="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4">
-        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1">İstiflenebilir</p>
-        <p id="stat-stackable" class="text-2xl font-bold text-[#3D6E50]">—</p>
-      </div>
-      <div class="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4">
-        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1">EUR1 / EUR3</p>
-        <p id="stat-euro" class="text-2xl font-bold text-[#B26B33]">—</p>
-      </div>
-      <div class="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4">
-        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1">Ort. Ağırlık (kg)</p>
-        <p id="stat-avg-weight" class="text-2xl font-bold text-sky-400">—</p>
-      </div>
+    <!-- İstatistik — 3 panel, tıklanabilir filtre -->
+    <div class="grid grid-cols-3 gap-3 mb-6">
+      <button id="kpi-total" type="button" style="display:flex;flex-direction:column;justify-content:center;height:80px;padding:0 16px;text-align:left;" class="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl hover:border-[#2D4A3E] transition-colors">
+        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider" style="margin:0;">Toplam Palet</p>
+        <p id="stat-total" class="text-2xl font-bold text-[#2D4A3E]" style="margin:4px 0 0;">—</p>
+      </button>
+      <button id="kpi-stackable" type="button" style="display:flex;flex-direction:column;justify-content:center;height:80px;padding:0 16px;text-align:left;" class="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl hover:border-[#3D6E50] transition-colors">
+        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider" style="margin:0;">İstiflenebilir / İstiflenemez</p>
+        <p id="stat-stackable" class="text-2xl font-bold text-[#3D6E50]" style="margin:4px 0 0;">—</p>
+      </button>
+      <button id="kpi-euro" type="button" style="display:flex;flex-direction:column;justify-content:center;height:80px;padding:0 16px;text-align:left;" class="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl hover:border-[#B26B33] transition-colors">
+        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider" style="margin:0;">EUR1 / EUR3</p>
+        <p id="stat-euro" class="text-2xl font-bold text-[#B26B33]" style="margin:4px 0 0;">—</p>
+      </button>
     </div>
 
     <!-- Tablo -->
@@ -85,11 +88,12 @@
               <th class="text-center text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">Katman</th>
               <th class="text-right text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">Ürün Çeşidi</th>
               <th class="text-right text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">Ağırlık (kg)</th>
+              <th class="text-center text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">Notlar</th>
               <th class="text-center text-xs text-slate-400 uppercase tracking-wider px-4 py-3 font-medium">İşlem</th>
             </tr>
           </thead>
           <tbody id="pallet-table-body">
-            <tr><td colspan="8" class="text-center text-[var(--text-secondary)] py-12">
+            <tr><td colspan="9" class="text-center text-[var(--text-secondary)] py-12">
               <i class="fa-solid fa-spinner fa-spin mr-2"></i>Yükleniyor…
             </td></tr>
           </tbody>

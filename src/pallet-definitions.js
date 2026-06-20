@@ -1,8 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // ExportPro — Palet Tanımları — pallet-definitions.js
-// V: 1.0.73
-// FIX-A2: Adet input focus kaybı düzeltildi (DOM yeniden yaratma yerine in-place güncelleme)
-// FIX-A2: Seçilen ürünün standart palet adedi bilgisi chip'te gösteriliyor
+// V: 1.0.75
+// FIX-A2: Ana ekran tasarım revizyonu — KPI 3'lü, İstif filtresi, Notlar kolonu
 // ═══════════════════════════════════════════════════════════════
 
 import { supabase } from './utils/supabaseClient.js';
@@ -78,19 +77,27 @@ function renderTable() {
     const tbody = document.getElementById('pallet-table-body');
     const search = (document.getElementById('search-input').value || '').trim().toLowerCase();
     const typeF  = document.getElementById('filter-type').value;
+    const stackF = document.getElementById('filter-stack').value;
 
     let rows = globalPallets.filter(p => {
         const matchSearch = !search ||
             (p.name || '').toLowerCase().includes(search) ||
             (p.pallet_type || '').toLowerCase().includes(search);
         const matchType = !typeF || p.pallet_type === typeF;
-        return matchSearch && matchType;
+        const matchStack = !stackF ||
+            (stackF === 'yes' && p.stackable) ||
+            (stackF === 'no' && !p.stackable);
+        return matchSearch && matchType && matchStack;
     });
 
     document.getElementById('btn-search-clear').classList.toggle('hidden', !search);
 
+    // Mevcut fixed popover'ları temizle
+    document.querySelectorAll('.note-fixed-pop').forEach(el => el.remove());
+    const notesPopoverData = [];
+
     if (rows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-[var(--text-secondary)] py-12">Kayıt bulunamadı.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-[var(--text-secondary)] py-12">Kayıt bulunamadı.</td></tr>`;
         return;
     }
 
@@ -101,6 +108,16 @@ function renderTable() {
             ? `<span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-[#3D6E50]"><i class="fa-solid fa-layer-group text-[10px]"></i>Evet</span>`
             : `<span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-slate-500/10 text-[var(--text-secondary)]">Hayır</span>`;
         const layer = (p.stackable && p.stack_strength) ? p.stack_strength : '—';
+        // Notlar: varsa ikon + click popover (fixed konumlu, overflow-hidden'dan bağımsız)
+        const notesCell = (p.notes && p.notes.trim())
+            ? `<div class="note-wrap" style="position:relative;display:inline-block;">
+                   <i class="fa-solid fa-sticky-note note-toggle" style="color:var(--text-secondary);cursor:pointer;font-size:14px;"></i>
+               </div>`
+            : '';
+        // Popover HTML'i ayrı tutuluyor, body'ye eklenecek (JS tarafında)
+        if (p.notes && p.notes.trim()) {
+            notesPopoverData.push({ id: p.id, html: escHtml(p.notes.trim()).replace(/\n/g, '<br>') });
+        }
         return `
         <tr class="border-b border-[var(--border)] hover:bg-[var(--bg-hover)] transition-colors">
             <td class="px-4 py-3 font-medium text-[var(--text-primary)]">${escHtml(p.name)}</td>
@@ -110,6 +127,7 @@ function renderTable() {
             <td class="px-4 py-3 text-center text-[var(--text-secondary)]">${layer}</td>
             <td class="px-4 py-3 text-right text-[var(--text-secondary)]">${variety} çeşit</td>
             <td class="px-4 py-3 text-right font-medium text-[var(--text-primary)]">${fmtKg(p.total_weight)}</td>
+            <td class="px-4 py-3 text-center">${notesCell}</td>
             <td class="px-4 py-3 text-center">
                 <button class="btn-edit text-[var(--text-secondary)] hover:text-[#2D4A3E] transition-colors px-2" data-id="${p.id}" title="Düzenle">
                     <i class="fa-solid fa-pen-to-square"></i>
@@ -120,18 +138,75 @@ function renderTable() {
 
     tbody.querySelectorAll('.btn-edit').forEach(b =>
         b.addEventListener('click', () => openEdit(b.dataset.id)));
+
+    // Fixed popover'ları body'ye ekle ve click event bağla
+    notesPopoverData.forEach(nd => {
+        const div = document.createElement('div');
+        div.className = 'note-fixed-pop';
+        div.dataset.noteId = nd.id;
+        div.style.cssText = 'display:none;position:fixed;z-index:9999;width:280px;max-height:220px;border-radius:8px;border:1px solid var(--border);background:var(--bg-secondary);box-shadow:0 8px 30px rgba(0,0,0,.2);font-size:12px;line-height:1.5;color:var(--text-primary);word-wrap:break-word;overflow-wrap:break-word;';
+        div.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px 4px;border-bottom:1px solid var(--border);">
+            <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-secondary);">Not</span>
+            <i class="fa-solid fa-xmark note-close-fixed" style="cursor:pointer;font-size:12px;color:var(--text-secondary);padding:2px 4px;"></i>
+        </div>
+        <div style="padding:8px 10px;max-height:170px;overflow-y:auto;">${nd.html}</div>`;
+        document.body.appendChild(div);
+
+        div.querySelector('.note-close-fixed').addEventListener('click', () => { div.style.display = 'none'; });
+    });
+
+    // İkon click → fixed popover'ı aç/kapat
+    tbody.querySelectorAll('.note-wrap').forEach(wrap => {
+        const toggle = wrap.querySelector('.note-toggle');
+        if (!toggle) return;
+        // Hangi palet satırına ait? tr'den data-id bul
+        const tr = wrap.closest('tr');
+        const editBtn = tr ? tr.querySelector('.btn-edit') : null;
+        const palletId = editBtn ? editBtn.dataset.id : null;
+        if (!palletId) return;
+
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const pop = document.querySelector(`.note-fixed-pop[data-note-id="${palletId}"]`);
+            if (!pop) return;
+            // Diğerlerini kapat
+            document.querySelectorAll('.note-fixed-pop').forEach(p => { if (p !== pop) p.style.display = 'none'; });
+            const isOpen = pop.style.display !== 'none';
+            if (isOpen) { pop.style.display = 'none'; return; }
+            // Konumlandır: ikonun viewport pozisyonuna göre
+            const rect = toggle.getBoundingClientRect();
+            pop.style.display = 'block';
+            const popH = pop.offsetHeight;
+            // Üstte yer varsa yukarı, yoksa aşağı
+            if (rect.top > popH + 12) {
+                pop.style.top = (rect.top - popH - 8) + 'px';
+            } else {
+                pop.style.top = (rect.bottom + 8) + 'px';
+            }
+            // Sağa taşmayı engelle
+            let leftPos = rect.right - 280;
+            if (leftPos < 8) leftPos = 8;
+            pop.style.left = leftPos + 'px';
+        });
+    });
+
+    // Sayfa tıklamasıyla açık popover'ı kapat
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.note-wrap') && !e.target.closest('.note-fixed-pop')) {
+            document.querySelectorAll('.note-fixed-pop').forEach(p => { p.style.display = 'none'; });
+        }
+    });
 }
 
 function computeStats() {
     const total = globalPallets.length;
     const stackable = globalPallets.filter(p => p.stackable).length;
-    const euro = globalPallets.filter(p => p.pallet_type === 'EUR1' || p.pallet_type === 'EUR3').length;
-    const weights = globalPallets.map(p => Number(p.total_weight)).filter(n => !isNaN(n) && n > 0);
-    const avg = weights.length ? (weights.reduce((a, b) => a + b, 0) / weights.length) : 0;
+    const notStackable = total - stackable;
+    const eur1 = globalPallets.filter(p => p.pallet_type === 'EUR1').length;
+    const eur3 = globalPallets.filter(p => p.pallet_type === 'EUR3').length;
     document.getElementById('stat-total').textContent = total;
-    document.getElementById('stat-stackable').textContent = stackable;
-    document.getElementById('stat-euro').textContent = euro;
-    document.getElementById('stat-avg-weight').textContent = avg ? avg.toLocaleString('tr-TR', { maximumFractionDigits: 1 }) : '—';
+    document.getElementById('stat-stackable').textContent = `${stackable} / ${notStackable}`;
+    document.getElementById('stat-euro').textContent = `${eur1} / ${eur3}`;
 }
 
 // ─────────────────────────────────────────────
@@ -654,8 +729,32 @@ function initEvents() {
 
     document.getElementById('search-input').addEventListener('input', renderTable);
     document.getElementById('filter-type').addEventListener('change', renderTable);
+    document.getElementById('filter-stack').addEventListener('change', renderTable);
     document.getElementById('btn-search-clear').addEventListener('click', () => {
         document.getElementById('search-input').value = '';
+        renderTable();
+    });
+
+    // ── KPI panel tıklama → ilgili filtreyi tetikle ──
+    document.getElementById('kpi-total').addEventListener('click', () => {
+        // Tüm filtreleri sıfırla → tümünü göster
+        document.getElementById('filter-type').value = '';
+        document.getElementById('filter-stack').value = '';
+        document.getElementById('search-input').value = '';
+        renderTable();
+    });
+    document.getElementById('kpi-stackable').addEventListener('click', () => {
+        // İstif filtresini toggle et
+        const sel = document.getElementById('filter-stack');
+        sel.value = sel.value === 'yes' ? '' : 'yes';
+        renderTable();
+    });
+    document.getElementById('kpi-euro').addEventListener('click', () => {
+        // EUR1 → EUR3 → hepsi toggle
+        const sel = document.getElementById('filter-type');
+        if (sel.value === '') sel.value = 'EUR1';
+        else if (sel.value === 'EUR1') sel.value = 'EUR3';
+        else sel.value = '';
         renderTable();
     });
 
