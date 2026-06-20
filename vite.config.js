@@ -21,6 +21,7 @@ export default defineConfig({
         productAnalysis: resolve(__dirname, 'product-analysis.html'),
         marketAnalysis: resolve(__dirname, 'market-analysis.html'),
         loadingPlanner: resolve(__dirname, 'loading-planner.html'),
+        presentation: resolve(__dirname, 'presentation.html'),
       }
     }
   }
