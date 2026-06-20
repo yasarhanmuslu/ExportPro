@@ -1,7 +1,8 @@
 // ═══════════════════════════════════════════════════════════════
 // ExportPro — Palet Tanımları — pallet-definitions.js
-// V: 1.0.71
-// FIX: select kolon adları en_cm/boy_cm/yukseklik_cm (liste boş gelme hatası giderildi)
+// V: 1.0.73
+// FIX-A2: Adet input focus kaybı düzeltildi (DOM yeniden yaratma yerine in-place güncelleme)
+// FIX-A2: Seçilen ürünün standart palet adedi bilgisi chip'te gösteriliyor
 // ═══════════════════════════════════════════════════════════════
 
 import { supabase } from './utils/supabaseClient.js';
@@ -18,7 +19,7 @@ const TARE_BY_TYPE = { 'EUR1': 25, 'EUR3': 35, 'Non-Euro': 0, 'Diğer': 0 };
 // ─────────────────────────────────────────────
 let globalPallets  = [];
 let globalProducts = [];
-let itemsBuffer    = [];   // { product_id, product_name, product_code, quantity, unit_gross_weight }
+let itemsBuffer    = [];   // { product_id, product_name, product_code, quantity, unit_net_weight, unit_gross_weight, palet_adedi }
 let editingId      = null;
 let weightOverride = false;
 let sessionRef     = null;
@@ -44,7 +45,7 @@ async function fetchProducts(session) {
     // FIX: DB kolon adları en_cm/boy_cm/yukseklik_cm (information_schema ile doğrulandı)
     const { data, error } = await supabase
         .from('urunler')
-        .select('id, stok_kodu, stok_adi_1, stok_adi_2, agirlik_net, agirlik_brut, en_cm, boy_cm, yukseklik_cm, palet_cinsi')
+        .select('id, stok_kodu, stok_adi_1, stok_adi_2, agirlik_net, agirlik_brut, en_cm, boy_cm, yukseklik_cm, palet_cinsi, palet_adedi')
         .eq('user_id', session.user.id)
         .order('stok_adi_1', { ascending: true });
     if (error) { console.error('Ürünler yüklenemedi:', error.message); return; }
@@ -165,13 +166,29 @@ function openEdit(id) {
     editingId = id;
     weightOverride = !!p.weight_override;
     palletTypeTouched = true;  // FIX REV2: mevcut palette ölçüler zaten dolu, otomatik doldurma yapma
-    itemsBuffer = (p.pallet_items || []).map(it => ({
-        product_id: it.product_id || null,
-        product_name: it.product_name || '',
-        product_code: it.product_code || '',
-        quantity: Number(it.quantity) || 0,
-        unit_gross_weight: it.unit_gross_weight != null ? Number(it.unit_gross_weight) : null,
-    }));
+    itemsBuffer = (p.pallet_items || []).map(it => {
+        // DB'den gelen brüt ağırlık
+        const savedGross = it.unit_gross_weight != null ? Number(it.unit_gross_weight) : null;
+        // Net ağırlık ve palet adedi: pallet_items'ta varsa al, yoksa globalProducts'tan eşleştir
+        let savedNet = it.unit_net_weight != null ? Number(it.unit_net_weight) : null;
+        let paletAdedi = null;
+        if (it.product_id) {
+            const prod = globalProducts.find(pr => pr.id === it.product_id);
+            if (prod) {
+                if (savedNet == null && prod.agirlik_net != null) savedNet = Number(prod.agirlik_net);
+                if (prod.palet_adedi != null) paletAdedi = Number(prod.palet_adedi);
+            }
+        }
+        return {
+            product_id: it.product_id || null,
+            product_name: it.product_name || '',
+            product_code: it.product_code || '',
+            quantity: Number(it.quantity) || 0,
+            unit_net_weight: savedNet,
+            unit_gross_weight: savedGross,
+            palet_adedi: paletAdedi,
+        };
+    });
     document.getElementById('modal-pallet-title').textContent = 'Palet Düzenle';
     document.getElementById('pallet-id').value = p.id;
     document.getElementById('pallet-name').value = p.name || '';
@@ -214,34 +231,56 @@ function renderItems() {
     const empty = document.getElementById('items-empty');
     empty.classList.toggle('hidden', itemsBuffer.length > 0);
 
-    container.innerHTML = itemsBuffer.map((it, idx) => {
+    // ── Başlık satırı (kalemler varsa göster) ──
+    const headerHtml = itemsBuffer.length > 0
+        ? `<div class="grid gap-2 items-center px-2 mb-1" style="grid-template-columns: 5fr 1fr 1.4fr 1.4fr 1fr 28px;">
+               <span class="text-[10px] uppercase tracking-wider text-[var(--text-secondary)] font-medium">Ürün</span>
+               <span class="text-[10px] uppercase tracking-wider text-[var(--text-secondary)] font-medium text-right">Adet</span>
+               <span class="text-[10px] uppercase tracking-wider text-[var(--text-secondary)] font-medium text-right">Net kg</span>
+               <span class="text-[10px] uppercase tracking-wider text-[var(--text-secondary)] font-medium text-right">Brüt kg</span>
+               <span class="text-[10px] uppercase tracking-wider text-[var(--text-secondary)] font-medium text-right">Satır kg</span>
+               <span></span>
+           </div>`
+        : '';
+
+    const rowsHtml = itemsBuffer.map((it, idx) => {
         const isSelected = !!it.product_id;
         const lineW = (Number(it.unit_gross_weight) || 0) * (Number(it.quantity) || 0);
 
-        // ── FIX Problem 3: Seçili ürün için chip (word-wrap, tam isim) ──
-        // Seçilmemişse normal arama input'u göster
+        // ── Ürün alanı: seçiliyse chip, değilse arama input ──
+        const paletAdetiHint = (isSelected && it.palet_adedi)
+            ? `<div style="font-size:10px;color:#B26B33;margin-top:2px;line-height:1.2;">
+                   <i class="fa-solid fa-layer-group" style="font-size:9px;margin-right:3px;"></i>Std. Palet Adedi: ${Number(it.palet_adedi).toLocaleString('tr-TR')}
+               </div>`
+            : '';
+
         const productArea = isSelected
-            ? `<!-- Seçili ürün: chip görünümü (satır kırma aktif, tam isim okunabilir) -->
-               <div class="flex items-start gap-1.5 rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] px-2 py-1.5 min-h-[32px]">
+            ? `<div class="flex items-start gap-1.5 rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] px-2 py-1.5 min-h-[32px]">
                    <div class="flex-1 text-xs leading-snug" style="white-space:normal;word-break:break-word;line-height:1.4;">
                        <span class="font-medium text-[var(--text-primary)]">${escHtml(it.product_name)}</span>
                        ${it.product_code ? `<span class="text-[var(--text-secondary)] text-[10px] ml-1">${escHtml(it.product_code)}</span>` : ''}
+                       ${paletAdetiHint}
                    </div>
                    <button type="button" class="item-clear-btn flex-shrink-0 mt-0.5 w-4 h-4 flex items-center justify-center text-[var(--text-secondary)] hover:text-[#9F3D3D] transition-colors" data-idx="${idx}" title="Ürünü kaldır / değiştir">
                        <i class="fa-solid fa-xmark text-[10px]"></i>
                    </button>
                </div>
-               <!-- Gizli input: event binding için gerekli, görünmez -->
                <input type="text" class="item-search hidden" data-idx="${idx}" autocomplete="off" value="" />`
-            : `<!-- Boş satır: arama input -->
-               <input type="text" class="item-search w-full px-2 py-1.5 rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-xs focus:outline-none"
+            : `<input type="text" class="item-search w-full px-2 py-1.5 rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-xs focus:outline-none"
                    placeholder="Ürün ara (kod / TR / EN)…"
                    value="${escHtml(it.product_name || '')}"
                    data-idx="${idx}" autocomplete="off" />`;
 
+        // Net ağırlık: readonly, bilgi amaçlı
+        const netVal = it.unit_net_weight != null ? it.unit_net_weight : '';
+        // Brüt ağırlık: düzenlenebilir
+        const grossVal = it.unit_gross_weight != null ? it.unit_gross_weight : '';
+
         return `
-        <div class="item-row grid grid-cols-12 gap-2 items-start bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg p-2" data-idx="${idx}">
-            <div class="col-span-6" style="position:relative;">
+        <div class="item-row grid gap-2 items-start bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg p-2"
+             data-idx="${idx}"
+             style="grid-template-columns: 5fr 1fr 1.4fr 1.4fr 1fr 28px;">
+            <div style="position:relative;">
                 ${productArea}
                 <div class="ac-dropdown hidden" data-idx="${idx}"
                     style="position:absolute;top:100%;left:0;right:0;z-index:60;max-height:200px;overflow-y:auto;
@@ -249,22 +288,27 @@ function renderItems() {
                            margin-top:2px;box-shadow:0 4px 16px rgba(0,0,0,.12);">
                 </div>
             </div>
-            <div class="col-span-2">
-                <input type="number" min="0" step="any"
-                    class="item-qty w-full px-2 py-1.5 rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-xs text-right focus:outline-none"
-                    placeholder="Adet" value="${it.quantity || ''}" data-idx="${idx}">
-            </div>
-            <div class="col-span-2">
-                <input type="number" min="0" step="0.01"
-                    class="item-uw w-full px-2 py-1.5 rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-xs text-right focus:outline-none"
-                    placeholder="Br.kg"
-                    value="${it.unit_gross_weight != null ? it.unit_gross_weight : ''}"
-                    data-idx="${idx}" title="Birim brüt ağırlık (kg) — elle değiştirebilirsiniz">
-            </div>
-            <div class="col-span-1 text-right text-[11px] text-[var(--text-secondary)] font-mono pt-2">
+            <!-- Adet -->
+            <input type="number" min="0" step="any"
+                class="item-qty w-full px-2 py-1.5 rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-xs text-right focus:outline-none"
+                placeholder="Adet" value="${it.quantity || ''}" data-idx="${idx}">
+            <!-- Net Ağırlık (readonly, bilgi amaçlı) -->
+            <input type="number" step="0.01" readonly tabindex="-1"
+                class="item-nw w-full px-2 py-1.5 rounded-md border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-secondary)] text-xs text-right cursor-default opacity-70"
+                placeholder="—" value="${netVal}" data-idx="${idx}"
+                title="Net ağırlık (kg) — ürün kartından gelir, salt okunur">
+            <!-- Brüt Ağırlık (düzenlenebilir) -->
+            <input type="number" min="0" step="0.01"
+                class="item-uw w-full px-2 py-1.5 rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-xs text-right focus:outline-none"
+                placeholder="Br.kg"
+                value="${grossVal}"
+                data-idx="${idx}" title="Birim brüt ağırlık (kg) — düzenlenebilir">
+            <!-- Satır toplam (brüt × adet) -->
+            <div class="line-total text-right text-[11px] text-[var(--text-secondary)] font-mono pt-2">
                 ${lineW ? lineW.toLocaleString('tr-TR', { maximumFractionDigits: 2 }) : '—'}
             </div>
-            <div class="col-span-1 text-center pt-1">
+            <!-- Sil -->
+            <div class="text-center pt-1">
                 <button type="button" class="item-remove text-[#9F3D3D] hover:opacity-70 transition-opacity px-1" data-idx="${idx}">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
@@ -272,9 +316,10 @@ function renderItems() {
         </div>`;
     }).join('');
 
-    // ── FIX Problem 2a: Autocomplete — sadece görünür (seçilmemiş) input'lara bağla ──
+    container.innerHTML = headerHtml + rowsHtml;
+
+    // ── Autocomplete — sadece görünür input'lara bağla ──
     container.querySelectorAll('.item-search').forEach(inp => {
-        // Gizli input'ları atla (seçili ürünün hidden input'u)
         if (inp.classList.contains('hidden')) return;
 
         const idx = +inp.dataset.idx;
@@ -287,12 +332,11 @@ function renderItems() {
                 const q = inp.value.toLocaleLowerCase('tr-TR').trim();
                 if (q.length < 1) { dd.classList.add('hidden'); return; }
 
-                // FIX Problem 2a: BİLİNGUAL ARAMA — stok_kodu + stok_adi_1 (TR) + stok_adi_2 (EN)
                 const matches = globalProducts.filter(p => {
                     const hay = [
                         p.stok_kodu  || '',
                         p.stok_adi_1 || '',
-                        p.stok_adi_2 || ''   // ← EN isim de aranıyor
+                        p.stok_adi_2 || ''
                     ].join(' ').toLocaleLowerCase('tr-TR');
                     return q.split(/\s+/).every(w => hay.includes(w));
                 }).slice(0, 30);
@@ -300,14 +344,13 @@ function renderItems() {
                 if (matches.length === 0) {
                     dd.innerHTML = `<div style="padding:8px 10px;font-size:11px;color:var(--text-secondary);">Sonuç yok</div>`;
                 } else {
-                    // FIX: Dropdown'da hem TR hem EN isim göster + ağırlık bilgisi
                     dd.innerHTML = matches.map(p => {
-                        // Brüt varsa brüt, yoksa net, yoksa hiçbir şey gösterme
-                        const weightLabel = p.agirlik_brut != null
-                            ? `<span style="color:var(--text-secondary);font-size:10px;margin-left:4px;">${p.agirlik_brut} kg</span>`
-                            : p.agirlik_net != null
-                                ? `<span style="color:#B26B33;font-size:10px;margin-left:4px;">${p.agirlik_net} kg (net)</span>`
-                                : '';
+                        const grossLabel = p.agirlik_brut != null
+                            ? `<span style="color:var(--text-secondary);font-size:10px;margin-left:4px;">${p.agirlik_brut} kg brüt</span>`
+                            : '';
+                        const netLabel = p.agirlik_net != null
+                            ? `<span style="color:#B26B33;font-size:10px;margin-left:4px;">${p.agirlik_net} kg net</span>`
+                            : '';
                         return `
                             <div class="ac-option" data-pid="${p.id}"
                                 style="padding:7px 10px;cursor:pointer;border-bottom:1px solid var(--border-soft);transition:background .1s;">
@@ -323,7 +366,7 @@ function renderItems() {
                                     : ''}
                                 <div style="margin-top:2px;">
                                     <span style="font-size:10px;color:var(--text-secondary);">${escHtml(p.stok_kodu)}</span>
-                                    ${weightLabel}
+                                    ${netLabel}${grossLabel}
                                 </div>
                             </div>`;
                     }).join('');
@@ -338,27 +381,21 @@ function renderItems() {
                         const prod = globalProducts.find(p => p.id === opt.dataset.pid);
                         if (!prod) return;
 
-                        // FIX Problem 2b-c: Ağırlık mantığı
-                        // agirlik_brut varsa önce onu kullan,
-                        // yoksa agirlik_net'i kullan (646 üründe net dolu, brüt boş)
-                        // ikisi de yoksa null bırak — kullanıcı elle girer
-                        const usedWeight = prod.agirlik_brut != null
-                            ? Number(prod.agirlik_brut)
-                            : prod.agirlik_net != null
-                                ? Number(prod.agirlik_net)
-                                : null;
+                        // Net ağırlık: her zaman ürün kartından (readonly)
+                        const netW = prod.agirlik_net != null ? Number(prod.agirlik_net) : null;
+                        // Brüt ağırlık: DB'de varsa otomatik doldur, yoksa null (kullanıcı girer)
+                        const grossW = prod.agirlik_brut != null ? Number(prod.agirlik_brut) : null;
 
                         itemsBuffer[idx].product_id        = prod.id;
                         itemsBuffer[idx].product_name      = prod.stok_adi_1;
                         itemsBuffer[idx].product_code      = prod.stok_kodu || '';
-                        itemsBuffer[idx].unit_gross_weight = usedWeight;
+                        itemsBuffer[idx].unit_net_weight   = netW;
+                        itemsBuffer[idx].unit_gross_weight = grossW;
+                        itemsBuffer[idx].palet_adedi       = prod.palet_adedi != null ? Number(prod.palet_adedi) : null;
 
-                        // ── FIX REV2: Palet ölçülerini SADECE BOŞSA doldur ──
-                        // Kullanıcı elle girdiyse veya karma palette 2./3. ürün
-                        // ekleniyorsa mevcut değerlerin üzerine yazma.
+                        // Palet ölçülerini SADECE BOŞSA doldur
                         fillPalletDimsIfEmpty(prod);
 
-                        // Render + hesaplama tetikle
                         renderItems();
                         recalcWeight();
                     });
@@ -369,7 +406,6 @@ function renderItems() {
         inp.addEventListener('blur', () => setTimeout(() => dd.classList.add('hidden'), 150));
         inp.addEventListener('focus', () => { if (inp.value.length >= 1) inp.dispatchEvent(new Event('input')); });
 
-        // Serbest metin: listeden seçilmemişse, yazılanı product_name kaydet
         inp.addEventListener('change', () => {
             if (!itemsBuffer[idx].product_id) {
                 itemsBuffer[idx].product_name = inp.value.trim();
@@ -377,17 +413,18 @@ function renderItems() {
         });
     });
 
-    // ── FIX Problem 3: Chip "×" — ürün seçimini sıfırla / değiştir ──
+    // ── Chip "×" — ürün seçimini sıfırla ──
     container.querySelectorAll('.item-clear-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const idx = +btn.dataset.idx;
             itemsBuffer[idx].product_id        = null;
             itemsBuffer[idx].product_name      = '';
             itemsBuffer[idx].product_code      = '';
+            itemsBuffer[idx].unit_net_weight   = null;
             itemsBuffer[idx].unit_gross_weight = null;
+            itemsBuffer[idx].palet_adedi       = null;
             renderItems();
             recalcWeight();
-            // Yeni render sonrası arama input'una odaklan
             const inp = container.querySelector(`.item-search[data-idx="${idx}"]:not(.hidden)`);
             if (inp) inp.focus();
         });
@@ -399,7 +436,7 @@ function renderItems() {
         updateLineAndWeight();
     }));
 
-    // Birim ağırlık değişince yeniden hesapla (manuel override)
+    // Birim brüt ağırlık değişince yeniden hesapla
     container.querySelectorAll('.item-uw').forEach(inp => inp.addEventListener('input', e => {
         itemsBuffer[+e.target.dataset.idx].unit_gross_weight =
             e.target.value === '' ? null : (parseFloat(e.target.value) || 0);
@@ -415,7 +452,7 @@ function renderItems() {
 }
 
 function addItem() {
-    itemsBuffer.push({ product_id: null, product_name: '', product_code: '', quantity: 1, unit_gross_weight: null });
+    itemsBuffer.push({ product_id: null, product_name: '', product_code: '', quantity: 1, unit_net_weight: null, unit_gross_weight: null, palet_adedi: null });
     renderItems();
 }
 
@@ -451,8 +488,19 @@ function fillPalletDimsIfEmpty(prod) {
     }
 }
 
+// ── IN-PLACE satır toplam güncelleme (DOM yeniden yaratılmaz, focus korunur) ──
 function updateLineAndWeight() {
-    renderItems();
+    const container = document.getElementById('items-container');
+    itemsBuffer.forEach((it, idx) => {
+        const lineW = (Number(it.unit_gross_weight) || 0) * (Number(it.quantity) || 0);
+        const row = container.querySelector(`.item-row[data-idx="${idx}"]`);
+        if (!row) return;
+        // Satır toplam alanını bul (grid'deki 5. child → index 4, 0-based)
+        const lineTotal = row.querySelector('.line-total');
+        if (lineTotal) {
+            lineTotal.textContent = lineW ? lineW.toLocaleString('tr-TR', { maximumFractionDigits: 2 }) : '—';
+        }
+    });
     recalcWeight();
 }
 
@@ -460,7 +508,8 @@ function updateLineAndWeight() {
 // AĞIRLIK HESABI
 //   ürün ağırlığı = Σ(birim_brüt × adet)
 //   dara          = palet cinsine göre (EUR1=25, EUR3=35, diğer=0)
-//   toplam        = ürün + dara  (override yoksa otomatik yazılır)
+//   toplam        = ürün ağırlığı + dara  (override yoksa otomatik yazılır)
+//   NOT: Brüt ağırlık = net + ambalaj olduğu için ayrıca net eklenmez
 // ─────────────────────────────────────────────
 function productsWeight() {
     return itemsBuffer.reduce((sum, it) =>
@@ -541,6 +590,7 @@ async function savePallet() {
                 product_name: it.product_name.trim(),
                 product_code: it.product_code || null,
                 quantity: Number(it.quantity) || 0,
+                unit_net_weight: it.unit_net_weight != null ? Number(it.unit_net_weight) : null,
                 unit_gross_weight: it.unit_gross_weight != null ? Number(it.unit_gross_weight) : null,
             }));
 
