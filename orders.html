@@ -8,352 +8,439 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
     <link rel="stylesheet" href="./src/assets/css/theme.css">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { background: #F6F3EC !important; color: #1C1A17 !important; }
-        .modal-backdrop { background: rgba(28,26,23,0.50) !important; backdrop-filter: blur(4px); }
+        body { background: var(--surface-0, #F6F3EC) !important; color: #1C1A17 !important; }
+
         input, select, textarea {
             background: #fff !important; border: 1px solid #E4DDCE !important;
             border-radius: 6px !important; color: #1C1A17 !important;
             font-family: Verdana, Geneva, sans-serif !important; font-size: 13px !important;
+            padding: 0 12px; width: 100%; height: 38px;
         }
+        textarea { height: auto !important; padding: 10px 12px !important; }
         input:focus, select:focus, textarea:focus {
             outline: none !important; border-color: #2D4A3E !important;
             box-shadow: 0 0 0 3px rgba(45,74,62,0.08) !important;
         }
-        input, select, textarea {
-            background: #fff; border: 1px solid #E4DDCE;
-            border-radius: 6px; padding: 0 12px;
-            color: #1C1A17; font-size: 13px; width: 100%; height: 38px;
-        }
-        input:focus, select:focus, textarea:focus { outline: none; border-color: #2D4A3E; box-shadow: 0 0 0 3px rgba(45,74,62,0.08); }
-        .modal-backdrop { position: fixed; inset: 0; background: rgba(28,26,23,0.5); backdrop-filter: blur(4px); display: flex; align-items: flex-start; justify-content: center; z-index: 100; padding: 1rem; overflow-y: auto; }
-        .modal-backdrop.hidden { display: none; }
-        .modal-content { background: rgb(15 23 42); border: 1px solid rgb(30 41 59); border-radius: 1rem; padding: 1.5rem; width: 100%; max-width: 60rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); margin: auto; }
-        /* Kart Sistemi */
-        .order-card { background:#fff; border-radius:10px; border:0.5px solid #E4DDCE; overflow:hidden; margin-bottom:8px; }
-        .card-wrap { display:flex; }
-        .card-left-bar { width:4px; flex-shrink:0; }
-        .card-inner { display:flex; flex:1; }
-        .card-body { padding:12px 14px; flex:1; }
-        .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
-        .card-firm { font-size:14px; font-weight:600; color:#1C1A17; }
-        .card-country { font-size:11px; color:#968B7A; margin-left:6px; }
-        .card-badges { display:flex; gap:5px; align-items:center; flex-wrap:wrap; }
-        .card-info-row { display:flex; gap:20px; flex-wrap:wrap; }
-        .card-info-group { display:flex; flex-direction:column; gap:4px; }
-        .ci-row { display:flex; align-items:flex-start; gap:5px; font-size:12px; color:#968B7A; }
-        .ci-row i { font-size:12px; margin-top:1px; flex-shrink:0; }
-        .ci-row span { color:#1C1A17; }
-        .ci-lbl { color:#968B7A; margin-right:2px; }
-        .card-note { font-size:11px; color:#6B655B; background:#F6F3EC; border-radius:5px; padding:5px 8px; margin-top:8px; line-height:1.5; border-left:2px solid #D6D2C9; }
-        .card-fin { display:flex; flex-direction:column; justify-content:center; padding:12px 16px; min-width:160px; border-left:0.5px solid #E4DDCE; gap:6px; }
-        .fin-row { display:flex; justify-content:space-between; align-items:center; font-size:12px; }
-        .fin-lbl { color:#968B7A; }
-        .fin-val { font-weight:600; font-size:13px; color:#1C1A17; }
-        .fin-val-kalan { color:#B26B33; font-weight:600; font-size:13px; }
-        .fin-val-sifir { color:#968B7A; font-size:12px; }
-        /* Durum badge */
-        .sb { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; padding:3px 10px; border-radius:999px; }
-        .sb-dot { width:6px; height:6px; border-radius:50%; display:inline-block; }
-        .sb-devam   { background:#e2e8f0; color:#475569; }
-        .sb-sari    { background:#fef08a; color:#854d0e; }
-        .sb-yesil   { background:#bbf7d0; color:#166534; }
-        .sb-kirmizi { background:#fecaca; color:#991b1b; }
-        .sb-mavi    { background:#bfdbfe; color:#1e40af; }
-        .tag-yeni { background:#bfdbfe; color:#1e40af; font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px; display:inline-flex; align-items:center; gap:3px; }
-        .tag-ihracat  { background:#e0e7ff; color:#3730a3; font-size:10px; font-weight:600; padding:2px 7px; border-radius:999px; }
-        .tag-ihrac    { background:#fef9c3; color:#854d0e; font-size:10px; font-weight:600; padding:2px 7px; border-radius:999px; }
-        .tag-kdv      { background:#dcfce7; color:#166534; font-size:10px; font-weight:600; padding:2px 7px; border-radius:999px; }
-        .btn-manage { font-size:12px; color:#fff; background:#2D4A3E; border:none; border-radius:6px; padding:6px 14px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; margin-top:10px; transition:background 0.15s; font-weight:600; }
-        .btn-manage:hover { background:#1a3329; }
-        
-        .section-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgb(249 115 22); border-bottom: 1px solid rgb(30 41 59); padding-bottom: 0.5rem; margin-bottom: 0.75rem; }
-        /* Modal Sekmeler */
-        .modal-tab { padding: 8px 18px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 2px solid transparent; color: rgb(100 116 139); cursor: pointer; transition: all 0.15s; background: transparent; border-top: none; border-left: none; border-right: none; }
-        .modal-tab:hover { color: rgb(148 163 184); }
-        .modal-tab.tab-active { color: rgb(249 115 22); border-bottom-color: rgb(249 115 22); }
+
+        /* ── SATIR MİMARİSİ — DENSE GRID ── */
+        .order-row { display:flex; align-items:stretch; background:#fff; border:0.5px solid #E4DDCE; border-radius:8px; overflow:hidden; margin-bottom:4px; }
+        .row-bar   { width:3px; flex-shrink:0; }
+        .row-body  { flex:1; min-width:0; display:flex; align-items:center; }
+
+        /* Sütun 1: Firma — flex:2 */
+        .row-col-firm { flex:2; min-width:0; padding:8px 12px; display:flex; flex-direction:column; gap:3px; justify-content:center; border-right:0.5px solid #F0EDE4; }
+        .row-firm     { font-size:12px; font-weight:700; color:#1C1A17; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .row-firm-sub { display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
+        .row-country  { font-size:9px; color:#968B7A; text-transform:uppercase; letter-spacing:.06em; background:#F6F3EC; padding:1px 5px; border-radius:3px; white-space:nowrap; }
+        .row-tags     { display:flex; gap:3px; flex-wrap:wrap; }
+        .row-note     { font-size:10px; color:#6B655B; background:#F6F3EC; border-left:2px solid #D6D2C9; padding:2px 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+        /* Sütun 2: Sip.No + Tarihler — tek satır, flex:2.8 */
+        .row-col-dates { flex:2.8; min-width:0; padding:8px 12px; display:flex; align-items:center; gap:0; border-right:0.5px solid #F0EDE4; }
+        .dates-grid    { display:grid; grid-template-columns:repeat(6,1fr); gap:0 10px; width:100%; }
+        .d-cell { display:flex; flex-direction:column; gap:0; }
+        .d-lbl  { font-size:8px; color:#968B7A; text-transform:uppercase; letter-spacing:.06em; line-height:1.3; white-space:nowrap; }
+        .d-val  { font-size:11px; color:#1C1A17; font-weight:600; line-height:1.4; white-space:nowrap; }
+        .d-warn { font-size:11px; color:#9F3D3D; font-weight:700; line-height:1.4; white-space:nowrap; }
+
+        /* Sütun 3: Finansal — flex:1.8 */
+        .row-col-fin  { flex:1.8; min-width:0; padding:8px 12px; display:flex; flex-direction:column; gap:1px; justify-content:center; border-right:0.5px solid #F0EDE4; }
+        .fin-r  { display:flex; justify-content:space-between; align-items:baseline; gap:6px; }
+        .fin-r2 { display:flex; gap:12px; }
+        .fin-lbl    { font-size:10px; color:#968B7A; white-space:nowrap; }
+        .fin-val    { font-size:12px; font-weight:700; color:#1C1A17; white-space:nowrap; }
+        .fin-sub    { font-size:11px; color:#968B7A; white-space:nowrap; }
+        .fin-kalan  { font-size:12px; font-weight:700; color:#B26B33; white-space:nowrap; }
+        .fin-sifir  { font-size:11px; color:#968B7A; white-space:nowrap; }
+        .fin-divider { height:1px; background:#F0EDE4; margin:1px 0; }
+
+        /* Sütun 4: Aksiyon */
+        .row-col-act { flex-shrink:0; padding:0 12px; display:flex; align-items:center; justify-content:center; }
+        .btn-yonet   { font-size:10px; font-weight:700; color:#fff; background:#2D4A3E; border:none; border-radius:5px; padding:5px 10px; cursor:pointer; white-space:nowrap; display:flex; align-items:center; gap:4px; transition:background .15s; }
+        .btn-yonet:hover { background:#1a3329; }
+
+        /* Badge sistemi */
+        .stag { display:inline-flex; align-items:center; font-size:9px; font-weight:700; padding:1px 6px; border-radius:999px; white-space:nowrap; }
+        .stag-devam      { background:#e2e8f0; color:#475569; }
+        .stag-uretimde   { background:#e9d5ff; color:#6b21a8; }
+        .stag-sevkhazir  { background:#bfdbfe; color:#1e40af; }
+        .stag-sevkedildi { background:#bfdbfe; color:#1e40af; }
+        .stag-bakiye     { background:#fef08a; color:#854d0e; }
+        .stag-odeme      { background:#bbf7d0; color:#166534; }
+        .stag-teslim     { background:#bbf7d0; color:#166534; }
+        .stag-tamamlandi { background:#bbf7d0; color:#166534; }
+        .stag-iptal      { background:#fecaca; color:#991b1b; }
+        .stag-gecikme    { background:#fecaca; color:#991b1b; }
+        .stag-uretehazir { background:#ddd6fe; color:#5b21b6; }
+        .stag-default    { background:#e2e8f0; color:#475569; }
+
+        .type-ihracat { background:#e0e7ff; color:#3730a3; font-size:9px; font-weight:700; padding:1px 6px; border-radius:999px; white-space:nowrap; }
+        .type-ihrac   { background:#fef9c3; color:#854d0e; font-size:9px; font-weight:700; padding:1px 6px; border-radius:999px; white-space:nowrap; }
+        .type-kdv     { background:#dcfce7; color:#166534; font-size:9px; font-weight:700; padding:1px 6px; border-radius:999px; white-space:nowrap; }
+
+        /* ── MODAL ── */
+        .modal-backdrop { position:fixed; inset:0; background:rgba(28,26,23,0.5); backdrop-filter:blur(4px); display:flex; align-items:flex-start; justify-content:center; z-index:100; padding:1rem; overflow-y:auto; }
+        .modal-backdrop.hidden { display:none; }
+        .modal-content { background:#fff; border:1px solid #E4DDCE; border-radius:12px; padding:1.5rem; width:100%; max-width:62rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.15); margin:auto; }
+        .modal-head { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #E4DDCE; padding-bottom:14px; margin-bottom:0; }
+        .modal-title { font-size:16px; font-weight:700; color:#1C1A17; display:flex; align-items:center; gap:8px; }
+        .modal-close { background:none; border:none; cursor:pointer; color:#968B7A; font-size:18px; }
+        .modal-close:hover { color:#1C1A17; }
+
+        .modal-tabs { display:flex; gap:0; border-bottom:1px solid #E4DDCE; margin-bottom:16px; }
+        .modal-tab { padding:8px 18px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; border-bottom:2px solid transparent; color:#968B7A; cursor:pointer; background:transparent; border-top:none; border-left:none; border-right:none; transition:all .15s; }
+        .modal-tab:hover { color:#1C1A17; }
+        .modal-tab.tab-active { color:#2D4A3E; border-bottom-color:#2D4A3E; }
+
+        .section-card { background:#F6F3EC; border:1px solid #E4DDCE; border-radius:8px; padding:14px; margin-bottom:0; }
+        .section-lbl { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:#B26B33; border-bottom:1px solid #E4DDCE; padding-bottom:8px; margin-bottom:10px; }
+
+        /* Status tag checkboxlar */
+        .tag-grid { display:flex; flex-wrap:wrap; gap:8px; }
+        .tag-cb-wrap { display:none; }
+        .tag-cb-label { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; padding:4px 10px; border-radius:999px; cursor:pointer; border:1.5px solid #E4DDCE; color:#6B655B; background:#fff; transition:all .12s; user-select:none; }
+        .tag-cb-wrap:checked + .tag-cb-label { border-color:#2D4A3E; background:#2D4A3E; color:#fff; }
+
         /* Items table */
-        .items-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        .items-table th { padding: 8px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgb(100 116 139); border-bottom: 1px solid rgb(30 41 59); text-align: left; }
-        .items-table td { padding: 6px 8px; border-bottom: 1px solid rgba(30,41,59,0.5); vertical-align: top; }
-        .items-table input, .items-table select { height: 34px !important; font-size: 12px !important; }
-	.customer-dropdown-item {
-            padding: 9px 14px; cursor: pointer; font-size: 13px;
-            border-bottom: 1px solid #F0EDE4;
-            transition: background 0.1s;
-        }
-        .customer-dropdown-item:last-child { border-bottom: none; }
-        .customer-dropdown-item:hover { background: #F6F3EC; }
-        #customer-search-input { padding-left: 32px !important; }
-        #order-search-input { padding-left: 2.8rem !important; }
+        .items-table { width:100%; border-collapse:collapse; font-size:12px; }
+        .items-table th { padding:8px 10px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#968B7A; border-bottom:1px solid #E4DDCE; text-align:left; }
+        .items-table td { padding:6px 8px; border-bottom:1px solid #F0EDE4; vertical-align:top; }
+        .items-table input, .items-table select { height:34px !important; font-size:12px !important; }
+
+        /* Customer dropdown */
+        .customer-dropdown-item { padding:9px 14px; cursor:pointer; font-size:13px; border-bottom:1px solid #F0EDE4; transition:background .1s; }
+        .customer-dropdown-item:last-child { border-bottom:none; }
+        .customer-dropdown-item:hover { background:#F6F3EC; }
+
+        /* Import modal */
+        .import-zone { border:2px dashed #D6D2C9; border-radius:8px; padding:32px; text-align:center; cursor:pointer; transition:border-color .15s; }
+        .import-zone:hover, .import-zone.drag-over { border-color:#2D4A3E; background:#F6F3EC; }
+        .import-log { background:#F6F3EC; border:1px solid #E4DDCE; border-radius:6px; padding:10px 14px; font-size:12px; font-family:monospace; max-height:200px; overflow-y:auto; margin-top:12px; }
+        .log-ok   { color:#166534; }
+        .log-warn { color:#854d0e; }
+        .log-err  { color:#991b1b; }
+
+        #order-search-input { padding-left:2.8rem !important; }
+        #customer-search-input { padding-left:32px !important; }
     </style>
 </head>
 <body class="min-h-screen">
 
-    <div id="navbar-target"></div>
+<div id="navbar-target"></div>
 
-    <main class="min-h-screen" style="margin-left:230px;padding:32px;">
-        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b">
-            <div>
-                <h2 class="page-title">
-                    <i class="fa-solid fa-box-open text-[#2D4A3E]"></i> Sipariş Takip Pro
-                </h2>
-                <p class="text-sm text-slate-400 mt-1">Sipariş tutarları, avanslar, üretim & ödeme durumları ve kalan bakiye süreçlerinin takibi.</p>
-            </div>
-            <div class="flex items-center gap-3">
-                <button id="btn-export-orders" class="px-4 py-2 bg-[#FBF8F1] hover:bg-[#F0EDE4F1] border border-slate-700 rounded-lg text-sm font-semibold flex items-center gap-2 text-slate-300 cursor-pointer">
-                    <i class="fa-solid fa-file-excel text-emerald-500"></i> Dışa Aktar
-                </button>
-                <button id="btn-open-order-modal" class="px-4 py-2 bg-[#2D4A3E] hover:bg-[#1a3329]00 text-white rounded-lg text-sm font-semibold flex items-center gap-2 shadow-lg cursor-pointer">
-                    <i class="fa-solid fa-plus"></i> Yeni Sipariş Gir
-                </button>
-            </div>
-        </header>
+<main class="min-h-screen" style="margin-left:230px;padding:32px;">
 
-        <!-- Filtreler -->
-        <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            <div class="relative">
-                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-500 text-sm z-10"></i>
-                <input type="text" id="order-search-input" placeholder="Firma veya sipariş no ara..." style="padding-left:2.8rem">
-            </div>
-            <select id="filter-order-currency">
-                <option value="">Tüm Para Birimleri</option>
-                <option value="EUR">EUR (€)</option>
-                <option value="USD">USD ($)</option>
-                <option value="TRY">TRY (₺)</option>
-            </select>
-            <select id="filter-order-status">
-                <option value="">Tüm Sipariş Durumları</option>
-                <option value="Devam Ediyor">⬜ Devam Ediyor</option>
-                <option value="Ödeme Bekliyor">🟡 Ödeme Bekliyor</option>
-                <option value="Tamamlandı">🟢 Tamamlandı</option>
-                <option value="İptal / Gecikme">🔴 İptal / Gecikme</option>
-                <option value="Yeni Müşteri">🔵 Yeni Müşteri</option>
-            </select>
-        </section>
+    <!-- Başlık -->
+    <header style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid #E4DDCE;">
+        <div>
+            <h2 class="page-title" style="display:flex;align-items:center;gap:8px;">
+                <i class="fa-solid fa-boxes-stacked" style="color:#2D4A3E;"></i> Sipariş Takip Pro
+            </h2>
+            <p style="font-size:13px;color:#968B7A;margin-top:4px;">Sipariş tutarları, avanslar, üretim & ödeme durumları ve kalan bakiye süreçlerinin takibi.</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+            <button id="btn-import-excel" style="height:38px;padding:0 16px;background:#fff;border:1px solid #E4DDCE;border-radius:8px;font-size:13px;font-weight:600;color:#1C1A17;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                <i class="fa-solid fa-file-excel" style="color:#166534;"></i> Excel Import
+            </button>
+            <button id="btn-export-orders" style="height:38px;padding:0 16px;background:#fff;border:1px solid #E4DDCE;border-radius:8px;font-size:13px;font-weight:600;color:#1C1A17;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                <i class="fa-solid fa-download" style="color:#968B7A;"></i> Dışa Aktar
+            </button>
+            <button id="btn-open-order-modal" style="height:38px;padding:0 18px;background:#2D4A3E;border:none;border-radius:8px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                <i class="fa-solid fa-plus"></i> Yeni Sipariş
+            </button>
+        </div>
+    </header>
 
-        <div class="flex items-center justify-between mb-4">
-            <span class="text-xs text-slate-500 font-medium">Listelenen sipariş:</span>
-            <span id="total-filtered-count" class="text-orange-400 font-bold text-sm">0 Kayıt</span>
+    <!-- Filtreler -->
+    <section style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div style="position:relative;">
+            <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#968B7A;font-size:13px;z-index:1;pointer-events:none;"></i>
+            <input type="text" id="order-search-input" placeholder="Firma veya sipariş no ara...">
+        </div>
+        <select id="filter-order-currency">
+            <option value="">Tüm Para Birimleri</option>
+            <option value="EUR">EUR (€)</option>
+            <option value="USD">USD ($)</option>
+            <option value="TRY">TRY (₺)</option>
+            <option value="GBP">GBP (£)</option>
+        </select>
+        <select id="filter-order-status">
+            <option value="">Tüm Durumlar</option>
+            <option value="Devam Ediyor">Devam Ediyor</option>
+            <option value="Üretimde">Üretimde</option>
+            <option value="Üretime Hazır">Üretime Hazır</option>
+            <option value="Sevke Hazır">Sevke Hazır</option>
+            <option value="Sevk Edildi">Sevk Edildi</option>
+            <option value="Bakiye Bekliyor">Bakiye Bekliyor</option>
+            <option value="Ödeme Tamamlandı">Ödeme Tamamlandı</option>
+            <option value="Teslim Edildi">Teslim Edildi</option>
+            <option value="İptal">İptal</option>
+            <option value="Gecikme">Gecikme</option>
+        </select>
+    </section>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <span style="font-size:12px;color:#968B7A;">Listelenen sipariş:</span>
+        <span id="total-filtered-count" style="font-size:13px;font-weight:700;color:#B26B33;">0 Sipariş</span>
+    </div>
+
+    <section id="orders-card-list">
+        <div style="text-align:center;color:#968B7A;padding:32px;">Yükleniyor...</div>
+    </section>
+
+</main>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- MODAL: Sipariş Giriş / Düzenleme                   -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div id="order-modal" class="modal-backdrop hidden">
+    <div class="modal-content">
+        <div class="modal-head">
+            <div class="modal-title">
+                <i class="fa-solid fa-cart-plus" style="color:#2D4A3E;"></i>
+                <span id="order-modal-title">Yeni Sipariş Girişi</span>
+            </div>
+            <button class="modal-close" id="btn-close-order-modal"><i class="fa-solid fa-xmark"></i></button>
         </div>
 
-        <section id="orders-cards-container">
-            <div id="orders-card-list">
-                <div class="text-center text-slate-500 py-8">Yükleniyor...</div>
+        <div class="modal-tabs">
+            <button id="tab-general" class="modal-tab tab-active"><i class="fa-solid fa-circle-info" style="margin-right:5px;"></i>Genel Bilgiler</button>
+            <button id="tab-items"   class="modal-tab"><i class="fa-solid fa-list-ul" style="margin-right:5px;"></i>Sipariş Kalemleri</button>
+        </div>
+
+        <form id="order-form">
+            <input type="hidden" id="order-id">
+
+            <!-- PANEL: Genel Bilgiler -->
+            <div id="panel-general" style="display:flex;flex-direction:column;gap:14px;">
+
+                <!-- 1. Temel Bilgiler -->
+                <div class="section-card">
+                    <p class="section-lbl"><i class="fa-solid fa-circle-info" style="margin-right:4px;"></i>1. Temel Bilgiler</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Müşteri / Firma *</label>
+                            <div id="customer-dropdown-wrapper" style="position:relative;">
+                                <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#968B7A;font-size:11px;pointer-events:none;z-index:1;"></i>
+                                <input type="text" id="customer-search-input" placeholder="Firma adı veya ülke ara..." autocomplete="off">
+                                <input type="hidden" id="order-customer-select">
+                                <div id="customer-dropdown-list" class="hidden" style="position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid #2D4A3E;border-radius:6px;max-height:220px;overflow-y:auto;z-index:200;box-shadow:0 8px 24px rgba(28,26,23,0.12);"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Sipariş No *</label>
+                            <input type="text" id="order_number" placeholder="Örn: 2026-01">
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">İDEVİT Sip. No</label>
+                            <input type="text" id="idevit_order_no" placeholder="Örn: 0000258">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">İDEAL Sip. No</label>
+                            <input type="text" id="ideal_order_no" placeholder="Örn: 0003474">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Sipariş Türü</label>
+                            <select id="order_type">
+                                <option value="">-- Seçiniz --</option>
+                                <option value="İhracat">İhracat</option>
+                                <option value="İhraç Kayıt">İhraç Kayıt</option>
+                                <option value="KDV">KDV</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Sipariş Tarihi *</label>
+                            <input type="date" id="order_date" required>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Sevk Tarihi</label>
+                            <input type="date" id="shipment_date">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Vade Tarihi</label>
+                            <input type="date" id="due_date">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Finansal -->
+                <div class="section-card">
+                    <p class="section-lbl"><i class="fa-solid fa-coins" style="margin-right:4px;"></i>2. Finansal Bilgiler</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Para Birimi *</label>
+                            <select id="currency" required>
+                                <option value="EUR">EUR (€)</option>
+                                <option value="USD">USD ($)</option>
+                                <option value="TRY">TRY (₺)</option>
+                                <option value="GBP">GBP (£)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Toplam Tutar *</label>
+                            <input type="text" id="total_amount" required placeholder="15.000,00" style="text-align:right;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Tahsil Edilen Avans</label>
+                            <input type="text" id="advance_payment" placeholder="3.500,00" style="text-align:right;">
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+                        <div style="background:#F6F3EC;border:1px solid #E4DDCE;border-radius:6px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-size:11px;font-weight:700;color:#968B7A;text-transform:uppercase;letter-spacing:.07em;">Kalan Bakiye</span>
+                            <span id="live-remaining-balance" style="font-weight:700;font-size:15px;color:#B26B33;">0,00</span>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Adet / Miktar</label>
+                            <input type="text" id="order_quantity" placeholder="Örn: 1.010 adet">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Ödeme Şekli</label>
+                            <select id="payment_method">
+                                <option value="">-- Seçiniz --</option>
+                                <option value="Peşin">Peşin</option>
+                                <option value="100% T/T">100% T/T</option>
+                                <option value="Mal Mukabili">Mal Mukabili</option>
+                                <option value="Bedelsiz">Bedelsiz</option>
+                                <option value="30 Gün Vade">30 Gün Vade</option>
+                                <option value="60 Gün Vade">60 Gün Vade</option>
+                                <option value="90 Gün Vade">90 Gün Vade</option>
+                                <option value="120 Gün Vade">120 Gün Vade</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Sipariş Durumu -->
+                <div class="section-card">
+                    <p class="section-lbl"><i class="fa-solid fa-tags" style="margin-right:4px;"></i>3. Sipariş Durum Etiketleri</p>
+                    <p style="font-size:11px;color:#968B7A;margin-bottom:10px;">Bir siparişe birden fazla etiket seçilebilir.</p>
+                    <div class="tag-grid" id="status-tags-container">
+                        <!-- JS ile render edilir -->
+                    </div>
+                </div>
+
+                <!-- Not -->
+                <div>
+                    <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Açıklama / Not</label>
+                    <textarea id="order_notes" rows="2" placeholder="İhracat detayları, revizyon notları, özel koşullar..."></textarea>
+                </div>
+
             </div>
-        </section>
-    </main>
 
-    <!-- Modal -->
-    <div id="order-modal" class="modal-backdrop hidden">
-        <div class="modal-content">
-            <!-- Başlık -->
-            <div class="flex items-center justify-between border-b border-slate-700 pb-4 mb-0">
-                <h3 id="order-modal-title" class="text-lg font-bold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-cart-plus text-[#2D4A3E]"></i> Yeni Sipariş Girişi
-                </h3>
-                <button id="btn-close-order-modal" class="text-[#968B7A] hover:text-slate-300 cursor-pointer">
-                    <i class="fa-solid fa-xmark text-lg"></i>
-                </button>
+            <!-- PANEL: Sipariş Kalemleri -->
+            <div id="panel-items" class="hidden">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                    <div>
+                        <p style="font-size:12px;font-weight:700;color:#1C1A17;text-transform:uppercase;letter-spacing:.07em;">Kalem Listesi</p>
+                        <p style="font-size:11px;color:#968B7A;margin-top:2px;">Ürün seçin veya serbest metin girin. Tutar otomatik hesaplanır.</p>
+                    </div>
+                    <button type="button" id="btn-add-item-row" style="height:34px;padding:0 14px;background:#2D4A3E;border:none;border-radius:6px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;">
+                        <i class="fa-solid fa-plus"></i> Satır Ekle
+                    </button>
+                </div>
+                <div style="overflow-x:auto;border:1px solid #E4DDCE;border-radius:8px;">
+                    <table class="items-table">
+                        <thead>
+                            <tr style="background:#F6F3EC;">
+                                <th>Ürün Adı</th>
+                                <th>Ürün Kodu</th>
+                                <th style="text-align:right;">Adet</th>
+                                <th style="text-align:right;">Birim Fiyat</th>
+                                <th style="text-align:right;">Tutar</th>
+                                <th style="text-align:center;">Not / Sil</th>
+                            </tr>
+                        </thead>
+                        <tbody id="items-table-body">
+                            <tr><td colspan="6" style="text-align:center;color:#968B7A;padding:24px;font-size:13px;">Henüz sipariş kalemi eklenmedi.</td></tr>
+                        </tbody>
+                        <tfoot>
+                            <tr style="border-top:2px solid #E4DDCE;background:#F6F3EC;">
+                                <td colspan="4" style="text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;padding:10px 14px;">Kalem Toplamı:</td>
+                                <td style="text-align:right;font-weight:700;font-size:14px;color:#2D4A3E;padding:10px 14px;" id="items-total">0,00</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <div id="items-total-warning" class="hidden" style="margin-top:8px;font-size:12px;font-weight:600;color:#854d0e;background:#fef9c3;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;"></div>
             </div>
 
-            <!-- Sekmeler -->
-            <div class="flex gap-0 border-b border-slate-700 mb-4">
-                <button id="tab-general" class="modal-tab tab-active">
-                    <i class="fa-solid fa-circle-info mr-1.5"></i> Genel Bilgiler
+            <!-- Alt Butonlar -->
+            <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid #E4DDCE;padding-top:16px;margin-top:16px;">
+                <button type="button" id="btn-delete-order" class="hidden" style="height:36px;padding:0 16px;background:#fff;border:1px solid #fca5a5;border-radius:6px;color:#991b1b;font-size:13px;font-weight:600;cursor:pointer;display:none;align-items:center;gap:6px;">
+                    <i class="fa-solid fa-trash-can"></i> Siparişi Sil
                 </button>
-                <button id="tab-items" class="modal-tab">
-                    <i class="fa-solid fa-list-ul mr-1.5"></i> Sipariş Kalemleri
-                </button>
+                <div style="display:flex;align-items:center;gap:10px;margin-left:auto;">
+                    <button type="button" id="btn-order-cancel" style="height:36px;padding:0 16px;background:#fff;border:1px solid #E4DDCE;border-radius:6px;color:#6B655B;font-size:13px;font-weight:600;cursor:pointer;">İptal</button>
+                    <button type="submit" style="height:36px;padding:0 18px;background:#2D4A3E;border:none;border-radius:6px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                        <i class="fa-solid fa-floppy-disk"></i> Siparişi Kaydet
+                    </button>
+                </div>
             </div>
-
-            <form id="order-form">
-                <input type="hidden" id="order-id">
-
-                <!-- PANEL: Genel Bilgiler -->
-                <div id="panel-general" class="space-y-4">
-                    <div class="section-card">
-                        <p class="section-label"><i class="fa-solid fa-circle-info mr-1"></i> 1. Temel Bilgiler & Durum</p>
-                        <div class="grid grid-cols-2 gap-4 mb-3">
-                            <div>
-    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Müşteri / Firma *</label>
-    <div id="customer-dropdown-wrapper" style="position:relative;">
-        <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#968B7A;font-size:11px;pointer-events:none;z-index:1;"></i>
-        <input type="text" id="customer-search-input" placeholder="Firma adı veya ülke ara..." style="padding-left:32px;" autocomplete="off">
-        <input type="hidden" id="order-customer-select"></select>
-        <div id="customer-dropdown-list" class="hidden" style="
-            position:absolute;top:calc(100% + 4px);left:0;right:0;
-            background:#fff;border:1px solid #2D4A3E;border-radius:6px;
-            max-height:220px;overflow-y:auto;z-index:200;
-            box-shadow:0 8px 24px rgba(28,26,23,0.12);
-        "></div>
+        </form>
     </div>
 </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sipariş No</label>
-                                <input type="text" id="order_number" placeholder="Örn: EXP-2026-001">
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-3 gap-4 mb-3">
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">İDEVİT SİP. NO</label>
-                                <input type="text" id="idevit_order_no" placeholder="Örn: 0000258">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">İDEAL SİP. NO</label>
-                                <input type="text" id="ideal_order_no" placeholder="Örn: 0003474">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sipariş Türü</label>
-                                <select id="order_type">
-                                    <option value="">-- Seçiniz --</option>
-                                    <option value="İhracat">İhracat</option>
-                                    <option value="İhraç Kayıt">İhraç Kayıt</option>
-                                    <option value="KDV">KDV</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-3 gap-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sipariş Tarihi *</label>
-                                <input type="date" id="order_date" required>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sevk Tarihi</label>
-                                <input type="date" id="shipment_date">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Vade Tarihi</label>
-                                <input type="date" id="due_date">
-                            </div>
-                        </div>
-                    </div>
 
-                    <div class="section-card">
-                        <p class="section-label"><i class="fa-solid fa-coins mr-1"></i> 2. Finansal Bilgiler</p>
-                        <div class="grid grid-cols-3 gap-4 mb-3">
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Para Birimi *</label>
-                                <select id="currency" required>
-                                    <option value="EUR">EUR (€)</option>
-                                    <option value="USD">USD ($)</option>
-                                    <option value="TRY">TRY (₺)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Toplam Tutar *</label>
-                                <input type="text" id="total_amount" required placeholder="15.000,00" style="text-align:right;color:white">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Tahsil Edilen Avans</label>
-                                <input type="text" id="advance_payment" placeholder="3.500,00" style="text-align:right;color:rgb(52 211 153)">
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="bg-[#F6F3EC] p-3 border border-slate-800 rounded-xl flex justify-between items-center col-span-1">
-                                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Kalan Bakiye:</span>
-                                <span id="live-remaining-balance" class="font-mono font-bold text-lg text-[#B26B33]">0,00</span>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Adet / Miktar</label>
-                                <input type="text" id="order_quantity" placeholder="Örn: 500 adet">
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-1 gap-4 mt-3">
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Ödeme Şekli</label>
-                                <select id="payment_method">
-                                    <option value="">-- Seçiniz --</option>
-                                    <option value="Peşin">Peşin</option>
-                                    <option value="Mal Mukabili">Mal Mukabili</option>
-                                    <option value="Bedelsiz">Bedelsiz</option>
-                                    <option value="30 Gün Vade">30 Gün Vade</option>
-                                    <option value="60 Gün Vade">60 Gün Vade</option>
-                                    <option value="90 Gün Vade">90 Gün Vade</option>
-                                    <option value="120 Gün Vade">120 Gün Vade</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- MODAL: Excel Import                                 -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div id="import-modal" class="modal-backdrop hidden">
+    <div class="modal-content" style="max-width:48rem;">
+        <div class="modal-head">
+            <div class="modal-title">
+                <i class="fa-solid fa-file-excel" style="color:#166534;"></i>
+                <span>Excel ile Sipariş Import</span>
+            </div>
+            <button class="modal-close" id="btn-close-import-modal"><i class="fa-solid fa-xmark"></i></button>
+        </div>
 
-                    <div class="section-card">
-                        <p class="section-label"><i class="fa-solid fa-signal mr-1"></i> 3. Sipariş Durumu</p>
-                        <div class="grid grid-cols-1 gap-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sipariş Durumu</label>
-                                <select id="order_status">
-                                    <option value="Devam Ediyor">⬜ Devam Ediyor</option>
-                                    <option value="Ödeme Bekliyor">🟡 Ödeme Bekliyor</option>
-                                    <option value="Tamamlandı">🟢 Tamamlandı</option>
-                                    <option value="İptal / Gecikme">🔴 İptal / Gecikme</option>
-                                    <option value="Yeni Müşteri">🔵 Yeni Müşteri</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Açıklama / Not</label>
-                        <textarea id="order_notes" rows="2" placeholder="İhracat detayları, özel koşullar..." style="height:auto;padding:10px 12px;"></textarea>
-                    </div>
+        <div style="margin-top:16px;">
+            <!-- Uyarı -->
+            <div id="import-first-run-banner" style="background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px;">
+                <i class="fa-solid fa-triangle-exclamation" style="color:#854d0e;margin-top:2px;flex-shrink:0;"></i>
+                <div>
+                    <p style="font-size:13px;font-weight:700;color:#854d0e;margin-bottom:2px;">İlk Toplu Giriş — Sıfırlama Modu</p>
+                    <p style="font-size:12px;color:#92400e;">Aşağıdaki seçeneği işaretlediğinizde mevcut tüm sipariş verileri <strong>kalıcı olarak silinecek</strong> ve Excel'deki veriler temiz olarak yüklenecektir.</p>
                 </div>
+            </div>
 
-                <!-- PANEL: Sipariş Kalemleri -->
-                <div id="panel-items" class="hidden">
-                    <div class="flex items-center justify-between mb-3">
-                        <div>
-                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Kalem Listesi</p>
-                            <p class="text-xs text-slate-500 mt-0.5">Ürün seçin veya serbest metin girin. Tutar otomatik hesaplanır.</p>
-                        </div>
-                        <button type="button" id="btn-add-item-row" class="px-3 py-1.5 bg-[#2D4A3E] hover:bg-[#243f34] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer">
-                            <i class="fa-solid fa-plus"></i> Satır Ekle
-                        </button>
-                    </div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#1C1A17;margin-bottom:16px;cursor:pointer;">
+                <input type="checkbox" id="import-clear-first" style="width:16px;height:16px;border-radius:3px;cursor:pointer;">
+                Yüklemeden önce mevcut tüm siparişleri sil (İlk toplu giriş)
+            </label>
 
-                    <div style="overflow-x:auto;background:rgba(15,23,42,0.6);border:1px solid rgb(30 41 59);border-radius:0.5rem;">
-                        <table class="items-table">
-                            <thead>
-                                <tr>
-                                    <th>Ürün Adı</th>
-                                    <th>Ürün Kodu</th>
-                                    <th class="text-right">Adet</th>
-                                    <th class="text-right">Birim Fiyat</th>
-                                    <th class="text-right">Tutar</th>
-                                    <th class="text-center">Not / Sil</th>
-                                </tr>
-                            </thead>
-                            <tbody id="items-table-body">
-                                <tr><td colspan="6" class="text-center text-slate-500 py-6 text-sm">Henüz sipariş kalemi eklenmedi.</td></tr>
-                            </tbody>
-                            <tfoot>
-                                <tr style="border-top:2px solid rgb(30 41 59);">
-                                    <td colspan="4" class="text-right text-xs font-semibold text-slate-400 uppercase tracking-wider py-3 px-4">Kalem Toplamı:</td>
-                                    <td class="text-right font-mono font-bold text-emerald-400 py-3 px-4" id="items-total">0,00</td>
-                                    <td></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                    <div id="items-total-warning" class="hidden mt-2 text-xs text-amber-400 font-semibold bg-amber-950/30 border border-amber-900/40 rounded-lg px-3 py-2"></div>
-                </div>
+            <!-- Drop zone -->
+            <div class="import-zone" id="import-drop-zone">
+                <i class="fa-solid fa-cloud-arrow-up" style="font-size:28px;color:#D6D2C9;margin-bottom:8px;display:block;"></i>
+                <p style="font-size:13px;font-weight:600;color:#1C1A17;margin-bottom:4px;">Excel dosyasını buraya sürükleyin</p>
+                <p style="font-size:12px;color:#968B7A;">veya tıklayarak seçin (.xlsx, .xls)</p>
+                <input type="file" id="import-file-input" accept=".xlsx,.xls" style="display:none;">
+            </div>
 
-                <!-- Alt butonlar -->
-                <div class="flex items-center justify-between border-t border-slate-800 pt-5 mt-4">
-                    <button type="button" id="btn-delete-order" class="hidden px-4 py-2 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/50 text-[#9F3D3D] text-sm font-semibold rounded-lg cursor-pointer">
-                        <i class="fa-solid fa-trash-can"></i> Siparişi Sil
-                    </button>
-                    <div class="flex items-center gap-3 ml-auto">
-                        <button type="button" id="btn-order-cancel" class="px-4 py-2 bg-[#FBF8F1] hover:bg-[#FBF8F1] border border-slate-700 rounded-lg text-sm font-semibold text-slate-300 cursor-pointer">İptal</button>
-                        <button type="submit" class="px-4 py-2 bg-[#2D4A3E] hover:bg-[#1a3329] text-white rounded-lg text-sm font-semibold cursor-pointer">
-                            <i class="fa-solid fa-floppy-disk mr-1"></i> Siparişi Kaydet
-                        </button>
-                    </div>
-                </div>
-            </form>
+            <!-- Log -->
+            <div id="import-log-wrap" class="hidden">
+                <div class="import-log" id="import-log"></div>
+            </div>
+
+            <!-- Butonlar -->
+            <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:16px;">
+                <button type="button" id="btn-import-cancel" style="height:36px;padding:0 16px;background:#fff;border:1px solid #E4DDCE;border-radius:6px;color:#6B655B;font-size:13px;font-weight:600;cursor:pointer;">İptal</button>
+                <button type="button" id="btn-import-run" disabled style="height:36px;padding:0 18px;background:#D6D2C9;border:none;border-radius:6px;color:#6B655B;font-size:13px;font-weight:700;cursor:not-allowed;display:flex;align-items:center;gap:6px;">
+                    <i class="fa-solid fa-upload"></i> Import Başlat
+                </button>
+            </div>
         </div>
     </div>
+</div>
 
-    <script type="module" src="./src/orders.js"></script>
+<script type="module" src="./src/orders.js"></script>
 </body>
 </html>
