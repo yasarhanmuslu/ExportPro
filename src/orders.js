@@ -923,13 +923,27 @@ async function handleImportRun() {
                 continue;
             }
 
-            // Tarih parse: DD.MM.YYYY → YYYY-MM-DD
+            // Tarih parse: DD.MM.YYYY veya Excel serial number → YYYY-MM-DD
             const parseDateTR = (val) => {
                 if (!val) return null;
                 const s = String(val).trim();
+                // YYYY-MM-DD formatı — doğrudan kullan
                 if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+                // DD.MM.YYYY formatı
                 const parts = s.split('.');
-                if (parts.length === 3) return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+                if (parts.length === 3 && parts[2].length === 4) {
+                    return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+                }
+                // Excel serial number (sayısal): XLSX.js bazen DD.MM.YYYY yerine bunu verir
+                const num = parseFloat(s);
+                if (!isNaN(num) && num > 1000 && num < 100000) {
+                    // Excel epoch: 1900-01-01 = 1, ancak Excel'in hatalı artık yıl düzeltmesi için -1
+                    const excelEpoch = new Date(1899, 11, 30);
+                    const date = new Date(excelEpoch.getTime() + num * 86400000);
+                    if (!isNaN(date.getTime())) {
+                        return date.toISOString().slice(0, 10);
+                    }
+                }
                 return null;
             };
 
