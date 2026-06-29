@@ -34,9 +34,14 @@ async function loadOrders() {
 // ── Geciken sipariş uyarısı
 function updateOverdueAlert() {
     const today = new Date(); today.setHours(0,0,0,0);
+    const CLOSED_TAGS = ['Ödeme Tamamlandı', 'Teslim Edildi', 'İptal'];
+    const isClosed = (o) => {
+        const tags = (o.status_tags && o.status_tags.length > 0) ? o.status_tags : [o.order_status || ''];
+        return tags.some(t => CLOSED_TAGS.includes(t));
+    };
     const overdue = allOrders.filter(o => {
         if (!o.due_date) return false;
-        if (o.order_status === 'Tamamlandı') return false;
+        if (isClosed(o)) return false;
         return new Date(o.due_date) < today;
     });
     const alertEl = document.getElementById('alert-overdue');
@@ -50,14 +55,20 @@ function getFiltered() {
     const endOfMonth = new Date(today.getFullYear(), today.getMonth()+1, 0);
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
+    const CLOSED_TAGS = ['Ödeme Tamamlandı', 'Teslim Edildi', 'İptal'];
+    const isClosed = (o) => {
+        const tags = (o.status_tags && o.status_tags.length > 0) ? o.status_tags : [o.order_status || ''];
+        return tags.some(t => CLOSED_TAGS.includes(t));
+    };
+
     return allOrders.filter(o => {
         if (currentFilter === 'all') return true;
         if (currentFilter === 'active') {
-            return o.order_status !== 'Tamamlandı';
+            return !isClosed(o);
         }
         if (currentFilter === 'overdue') {
             if (!o.due_date) return false;
-            if (o.order_status === 'Tamamlandı') return false;
+            if (isClosed(o)) return false;
             return new Date(o.due_date) < today;
         }
         if (currentFilter === 'thismonth') {
@@ -136,18 +147,64 @@ function renderCalendar() {
         visible.forEach(ev => {
             const name = ev.order.customers?.company_name || 'Müşteri';
             const shortName = name.length > 14 ? name.slice(0,13)+'…' : name;
-            const isOverdue = ev.type === 'due'
-                && new Date(ev.order.due_date) < today
-                && ev.order.order_status !== 'Tamamlandı';
-            let cls = 'badge-shipment';
-            let icon = 'fa-truck';
-            if (ev.type === 'due') { cls = isOverdue ? 'badge-due' : 'badge-due-ok'; icon = 'fa-clock'; }
-            const tooltipText = `${name} | ${ev.order.order_number || '—'} | ${ev.order.order_status || '—'}`;
+
+            // Status tags'e göre badge rengi belirle
+            const tags = (ev.order.status_tags && ev.order.status_tags.length > 0)
+                ? ev.order.status_tags
+                : (ev.order.order_status ? [ev.order.order_status] : ['Devam Ediyor']);
+            const primaryTag = tags[0];
+
+            // Öncelik sırası: en kritik / en ileri aşama kazanır
+            const TAG_PRIORITY = [
+                'İptal', 'Gecikme',
+                'Teslim Edildi', 'Ödeme Tamamlandı',
+                'Bakiye Bekliyor',
+                'Sevk Edildi', 'Sevke Hazır',
+                'Üretimde', 'Üretime Hazır',
+                'Yeni Müşteri', 'Devam Ediyor',
+            ];
+            const TAG_BADGE = {
+                'Devam Ediyor':    'badge-tag-devam',
+                'Üretimde':        'badge-tag-uretim',
+                'Üretime Hazır':   'badge-tag-uretim',
+                'Sevke Hazır':     'badge-tag-sevkhazir',
+                'Sevk Edildi':     'badge-tag-sevkedildi',
+                'Bakiye Bekliyor': 'badge-tag-bakiye',
+                'Ödeme Tamamlandı':'badge-tag-odeme',
+                'Teslim Edildi':   'badge-tag-teslim',
+                'İptal':           'badge-tag-iptal',
+                'Gecikme':         'badge-tag-gecikme',
+                'Yeni Müşteri':    'badge-tag-yenimusteri',
+            };
+            const TAG_ICON = {
+                'Devam Ediyor':    'fa-rotate',
+                'Üretimde':        'fa-industry',
+                'Üretime Hazır':   'fa-box-open',
+                'Sevke Hazır':     'fa-dolly',
+                'Sevk Edildi':     'fa-truck',
+                'Bakiye Bekliyor': 'fa-clock',
+                'Ödeme Tamamlandı':'fa-circle-check',
+                'Teslim Edildi':   'fa-circle-check',
+                'İptal':           'fa-ban',
+                'Gecikme':         'fa-triangle-exclamation',
+                'Yeni Müşteri':    'fa-user-plus',
+            };
+
+            // Birden fazla etiket varsa en öncelikli olanı seç
+            const dominantTag = TAG_PRIORITY.find(p => tags.includes(p)) || primaryTag;
+            const cls  = TAG_BADGE[dominantTag] || 'badge-tag-devam';
+            const icon = TAG_ICON[dominantTag]  || 'fa-circle';
+
+            // Tip göstergesi: sevk=kamyon, vade=saat — küçük ek ikon
+            const typeIcon = ev.type === 'shipment' ? '🚢' : '📅';
+            const tagLabel = tags.slice(0, 2).join(' · ');
+            const tooltipText = `${name} | ${ev.order.order_number || '—'} | ${tagLabel}`;
+
             html += `<span class="cal-event-badge ${cls}"
                 data-tooltip="${tooltipText}"
                 data-date="${dateStr}"
                 data-type="${ev.type}"
-                style="font-size:8.5px;"><i class="fa-solid ${icon}" style="font-size:6px;margin-right:2px;"></i>${shortName}</span>`;
+                style="font-size:8.5px;">${typeIcon} <i class="fa-solid ${icon}" style="font-size:6px;margin-right:2px;"></i>${shortName}</span>`;
         });
         if (events.length > 3) {
             html += `<span style="font-size:9px;color:var(--ink-3,#968B7A);font-family:Verdana, Geneva, sans-serif;padding:1px 4px;">+${events.length-3} daha</span>`;
@@ -208,23 +265,54 @@ function renderList() {
         return d.toLocaleDateString('tr-TR', { day:'2-digit', month:'short', year:'numeric' });
     };
 
-    const dueBadge = (dateStr, orderStatus) => {
+    const CLOSED_TAGS_LIST = ['Ödeme Tamamlandı', 'Teslim Edildi', 'İptal'];
+    const dueBadge = (dateStr, o) => {
         if (!dateStr) return '<span style="color:var(--ink-3);">—</span>';
         const d = new Date(dateStr); d.setHours(0,0,0,0);
-        const isDone = orderStatus === 'Tamamlandı';
-        if (isDone) return `<span class="status-badge status-ok"><i class="fa-solid fa-check" style="font-size:8px;"></i> Zamanında</span>`;
+        const tags = (o.status_tags && o.status_tags.length > 0) ? o.status_tags : [o.order_status || ''];
+        const isDone = tags.some(t => CLOSED_TAGS_LIST.includes(t));
+        if (isDone) return `<span class="status-badge status-ok"><i class="fa-solid fa-check" style="font-size:8px;"></i> Kapandı</span>`;
         if (d < today) return `<span class="status-badge status-danger"><i class="fa-solid fa-circle-exclamation" style="font-size:8px;"></i> Gecikiyor</span>`;
         if (d <= in7) return `<span class="status-badge status-warn"><i class="fa-solid fa-clock" style="font-size:8px;"></i> Yaklaşıyor</span>`;
         return `<span class="status-badge status-ok"><i class="fa-solid fa-circle-check" style="font-size:8px;"></i> Zamanında</span>`;
     };
 
-    const orderBadge = (s) => {
+    const getOrderTags = (o) => (o.status_tags && o.status_tags.length > 0)
+        ? o.status_tags : [o.order_status || 'Devam Ediyor'];
+
+    const TAG_PRIORITY_LIST = [
+        'İptal', 'Gecikme',
+        'Teslim Edildi', 'Ödeme Tamamlandı',
+        'Bakiye Bekliyor',
+        'Sevk Edildi', 'Sevke Hazır',
+        'Üretimde', 'Üretime Hazır',
+        'Yeni Müşteri', 'Devam Ediyor',
+    ];
+    const tagBadgeClass = (tag) => {
         const map = {
-            'Devam Ediyor':   'status-info',
-            'Ödeme Bekliyor': 'status-warn',
-            'Tamamlandı':     'status-ok',
+            'Devam Ediyor':    'status-info',
+            'Üretimde':        'status-bronze',
+            'Üretime Hazır':   'status-bronze',
+            'Sevke Hazır':     'status-info',
+            'Sevk Edildi':     'status-info',
+            'Bakiye Bekliyor': 'status-warn',
+            'Ödeme Tamamlandı':'status-ok',
+            'Teslim Edildi':   'status-ok',
+            'İptal':           'status-danger',
+            'Gecikme':         'status-danger',
+            'Yeni Müşteri':    'status-info',
         };
-        return `<span class="status-badge ${map[s]||'status-info'}">${s||'—'}</span>`;
+        return map[tag] || 'status-info';
+    };
+
+    const orderBadge = (o) => {
+        const tags = getOrderTags(o);
+        // Dominant tag önce göster, diğerleri ardından
+        const dominant = TAG_PRIORITY_LIST.find(p => tags.includes(p)) || tags[0];
+        const sorted = [dominant, ...tags.filter(t => t !== dominant)];
+        return sorted.map(t =>
+            `<span class="status-badge ${tagBadgeClass(t)}" style="margin-right:2px;">${t}</span>`
+        ).join('');
     };
 
     body.innerHTML = filtered.map(o => {
@@ -237,8 +325,8 @@ function renderList() {
             <div>${fmt(o.order_date)}</div>
             <div>${fmt(o.shipment_date)}</div>
             <div>${fmt(o.due_date)}</div>
-            <div>${dueBadge(o.due_date, o.order_status)}</div>
-            <div>${orderBadge(o.order_status)}</div>
+            <div>${dueBadge(o.due_date, o)}</div>
+            <div>${orderBadge(o)}</div>
         </div>`;
     }).join('');
 }

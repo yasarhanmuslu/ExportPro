@@ -1,4 +1,4 @@
-// orders.js — V: 1.0.81
+// orders.js — V: 1.0.84
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
@@ -19,6 +19,15 @@ const STATUS_TAGS_LIST = [
 ];
 
 // Sol bar rengi — ilk etikete göre
+const TAG_PRIORITY = [
+    'İptal', 'Gecikme',
+    'Teslim Edildi', 'Ödeme Tamamlandı',
+    'Bakiye Bekliyor',
+    'Sevk Edildi', 'Sevke Hazır',
+    'Üretimde', 'Üretime Hazır',
+    'Yeni Müşteri', 'Devam Ediyor',
+];
+
 const TAG_BAR_COLOR = {
     'Devam Ediyor':    '#94a3b8',
     'Üretimde':        '#a855f7',
@@ -148,7 +157,8 @@ function renderOrdersList(list) {
             ? order.status_tags
             : (order.order_status ? [order.order_status] : ['Devam Ediyor']);
 
-        const barColor = TAG_BAR_COLOR[tags[0]] || '#94a3b8';
+        const dominantTag = TAG_PRIORITY.find(p => tags.includes(p)) || tags[0];
+        const barColor = TAG_BAR_COLOR[dominantTag] || '#94a3b8';
 
         const fmt     = n  => parseFloat(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 });
         const fmtDate = d  => d ? new Date(d + 'T00:00:00').toLocaleDateString('tr-TR') : null;

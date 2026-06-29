@@ -79,6 +79,18 @@
         .badge-due      { background: #FEE2E2; color: #B91C1C; border-left: 2px solid #EF4444; }
         .badge-due-ok   { background: #D1FAE5; color: #065F46; border-left: 2px solid #10B981; }
 
+        /* ── Status Tags bazlı badge renkleri ── */
+        .badge-tag-devam      { background: #F1F5F9; color: #475569; border-left: 2px solid #94A3B8; }
+        .badge-tag-uretim     { background: #F5F3FF; color: #6D28D9; border-left: 2px solid #A855F7; }
+        .badge-tag-sevkhazir  { background: #EFF6FF; color: #1D4ED8; border-left: 2px solid #3B82F6; }
+        .badge-tag-sevkedildi { background: #DBEAFE; color: #1E40AF; border-left: 2px solid #2563EB; }
+        .badge-tag-bakiye     { background: #FEF9C3; color: #A16207; border-left: 2px solid #EAB308; }
+        .badge-tag-odeme      { background: #D1FAE5; color: #065F46; border-left: 2px solid #10B981; }
+        .badge-tag-teslim     { background: #DCFCE7; color: #166534; border-left: 2px solid #22C55E; }
+        .badge-tag-iptal      { background: #FEE2E2; color: #991B1B; border-left: 2px solid #EF4444; }
+        .badge-tag-gecikme    { background: #FEE2E2; color: #B91C1C; border-left: 2px solid #DC2626; }
+        .badge-tag-yenimusteri{ background: #E0F2FE; color: #0369A1; border-left: 2px solid #0EA5E9; }
+
         /* ── Liste görünüm ── */
         .timeline-row {
             display: grid;
@@ -233,12 +245,17 @@
             </div>
 
             <!-- Legend -->
-            <div class="flex items-center gap-4 mb-4">
-    <span style="font-size:10px;font-weight:600;color:var(--ink-3,#968B7A);text-transform:uppercase;letter-spacing:0.08em;font-family:Verdana, Geneva, sans-serif;">Gösterge:</span>
-    <span class="cal-event-badge badge-due-ok" style="display:inline-block;"><i class="fa-solid fa-truck" style="font-size:6px;"></i> Sevk Edildi</span>
-    <span class="cal-event-badge badge-shipment" style="display:inline-block;"><i class="fa-solid fa-clock" style="font-size:7px;"></i> Ödeme Bekliyor</span>
-    <span class="cal-event-badge badge-due" style="display:inline-block;"><i class="fa-solid fa-triangle-exclamation" style="font-size:7px;"></i> Geciken</span>
-</div>
+            <div class="flex items-center gap-4 mb-4" style="flex-wrap:wrap;">
+                <span style="font-size:10px;font-weight:600;color:var(--ink-3,#968B7A);text-transform:uppercase;letter-spacing:0.08em;font-family:Verdana, Geneva, sans-serif;">Gösterge:</span>
+                <span style="font-size:9px;color:var(--ink-3);font-family:Verdana;">🚢 = Sevk Tarihi &nbsp;|&nbsp; 📅 = Vade Tarihi</span>
+                <span class="cal-event-badge badge-tag-devam"      style="display:inline-block;">Devam Ediyor</span>
+                <span class="cal-event-badge badge-tag-uretim"     style="display:inline-block;">Üretimde</span>
+                <span class="cal-event-badge badge-tag-sevkhazir"  style="display:inline-block;">Sevke Hazır</span>
+                <span class="cal-event-badge badge-tag-sevkedildi" style="display:inline-block;">Sevk Edildi</span>
+                <span class="cal-event-badge badge-tag-bakiye"     style="display:inline-block;">Bakiye Bekliyor</span>
+                <span class="cal-event-badge badge-tag-odeme"      style="display:inline-block;">Ödeme Tamamlandı</span>
+                <span class="cal-event-badge badge-tag-iptal"      style="display:inline-block;">İptal / Gecikme</span>
+            </div>
 
             <div id="calendar-container"></div>
         </div>
