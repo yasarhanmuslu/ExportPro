@@ -1,4 +1,4 @@
-// orders.js — V: 1.0.77
+// orders.js — V: 1.0.78
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
@@ -66,11 +66,11 @@ async function fetchCustomersData() {
         const { data, error } = await supabase
             .from('customers')
             .select('id, company_name, country, status')
-            .eq('status', 'Aktif')
             .order('company_name', { ascending: true });
         if (error) throw error;
-        globalCustomers = data || [];
-        initCustomerSearchDropdown(globalCustomers);
+        globalCustomers = data || [];  // Tüm müşteriler — import validasyonu için
+        const aktifCustomers = globalCustomers.filter(c => c.status === 'Aktif');
+        initCustomerSearchDropdown(aktifCustomers);  // Dropdown: yalnızca Aktif
     } catch (err) {
         console.error('Müşteri listesi yüklenemedi:', err.message);
     }
@@ -433,19 +433,57 @@ async function handleOrderSubmit(e) {
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
+        const userId = session.user.id;
         let orderId = currentOrderId;
 
+        // ── MÜKERRER NUMARA KONTROLÜ ─────────────────────────────────────────
+        const orderNumberVal  = payload.order_number;
+        const idevitNumberVal = payload.idevit_order_no;
+        const idealNumberVal  = payload.ideal_order_no;
+
+        // Düzenleme modunda kendi ID'sini hariç tut
+        const excludeId = currentOrderId || null;
+
+        const duplicateErrors = [];
+
+        if (orderNumberVal) {
+            let q = supabase.from('orders').select('id, order_number').eq('user_id', userId).eq('order_number', orderNumberVal);
+            if (excludeId) q = q.neq('id', excludeId);
+            const { data: dup } = await q;
+            if (dup && dup.length > 0) duplicateErrors.push(`• Sipariş No "${orderNumberVal}" zaten kayıtlı.`);
+        }
+
+        if (idevitNumberVal) {
+            let q = supabase.from('orders').select('id, idevit_order_no').eq('user_id', userId).eq('idevit_order_no', idevitNumberVal);
+            if (excludeId) q = q.neq('id', excludeId);
+            const { data: dup } = await q;
+            if (dup && dup.length > 0) duplicateErrors.push(`• İdevit Sipariş No "${idevitNumberVal}" zaten kayıtlı.`);
+        }
+
+        if (idealNumberVal) {
+            let q = supabase.from('orders').select('id, ideal_order_no').eq('user_id', userId).eq('ideal_order_no', idealNumberVal);
+            if (excludeId) q = q.neq('id', excludeId);
+            const { data: dup } = await q;
+            if (dup && dup.length > 0) duplicateErrors.push(`• İdeal Sipariş No "${idealNumberVal}" zaten kayıtlı.`);
+        }
+
+        if (duplicateErrors.length > 0) {
+            alert('⚠ Mükerrer Numara Uyarısı\n\nAşağıdaki numara(lar) sistemde zaten mevcut:\n\n' + duplicateErrors.join('\n') + '\n\nLütfen numara(ları) kontrol edip tekrar deneyin.');
+            return;
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         if (currentOrderId) {
-            const { error } = await supabase.from('orders').update(payload).eq('id', currentOrderId).eq('user_id', session.user.id);
+            const { error } = await supabase.from('orders').update(payload).eq('id', currentOrderId).eq('user_id', userId);
             if (error) throw error;
         } else {
-            payload.user_id = session.user.id;
+            payload.user_id = userId;
             const { data, error } = await supabase.from('orders').insert([payload]).select().single();
             if (error) throw error;
             orderId = data.id;
         }
 
-        await saveOrderItems(orderId, session.user.id);
+        await saveOrderItems(orderId, userId);
         closeOrderModal();
         await fetchOrdersData();
     } catch (err) {
@@ -708,8 +746,151 @@ async function handleImportRun() {
 
         if (rows.length === 0) { logMsg('Excel dosyası boş veya okunamadı.', 'err'); return; }
 
-        // İlk toplu giriş — sıfırla
+        // ── AŞAMA 1: ÖN DOĞRULAMA GEÇIŞI ────────────────────────────────────
+        logMsg('⏳ Validasyon kontrolleri yapılıyor...', 'warn');
+
+        const unknownFirms   = new Set();  // müşteri kartında hiç olmayan firmalar
+        const passiveFirms   = new Set();  // kayıtlı ama pasif firmalar
+        const duplicateNums  = [];         // mükerrer numara uyarıları
+
+        // Mevcut DB numaralarını çek (sadece bu kullanıcıya ait)
+        const { data: existingOrders } = await supabase
+            .from('orders')
+            .select('order_number, idevit_order_no, ideal_order_no, customer_id')
+            .eq('user_id', userId);
+
+        // Sipariş No: müşteri bazlı unique → composite key "customer_id|order_number"
+        const dbOrderNums  = new Set(
+            (existingOrders || [])
+                .filter(o => o.order_number && o.customer_id)
+                .map(o => `${o.customer_id}|${o.order_number}`)
+        );
+        // İdevit & İdeal No: global unique (tüm siparişlerde tekil olmalı)
+        const dbIdevitNums = new Set((existingOrders || []).map(o => o.idevit_order_no).filter(Boolean));
+        const dbIdealNums  = new Set((existingOrders || []).map(o => o.ideal_order_no).filter(Boolean));
+
+        // Import içi mükerrer takibi — sipariş no: "musteriAdi|siparisNo" composite
+        const importOrderNums  = new Set();
+        const importIdevitNums = new Set();
+        const importIdealNums  = new Set();
+
+        // clearFirst modunda DB'deki numaralar geçerli değil — seti boşalt
         const clearFirst = document.getElementById('import-clear-first').checked;
+        if (clearFirst) {
+            dbOrderNums.clear(); dbIdevitNums.clear(); dbIdealNums.clear();
+        }
+
+        for (const row of rows) {
+            if (!row['musteri_adi'] && !row['siparis_no']) continue;
+
+            const musteriAdi = String(row['musteri_adi'] || '').trim();
+            const siparisNo  = String(row['siparis_no']  || '').trim();
+            const idevitNo   = String(row['idevit_sip_no'] || '').trim();
+            const idealNo    = String(row['ideal_sip_no']  || '').trim();
+
+            if (!musteriAdi || !siparisNo) continue;
+
+            // Müşteri kartı kontrolü — kayıtlı mı? Pasif mi?
+            const cust = globalCustomers.find(c =>
+                c.company_name.toLocaleLowerCase('tr-TR') === musteriAdi.toLocaleLowerCase('tr-TR')
+            );
+            if (!cust) {
+                unknownFirms.add(musteriAdi);
+            } else if (cust.status !== 'Aktif') {
+                passiveFirms.add(musteriAdi);
+            }
+
+            // Boş / tire değerlerini numara olarak sayma — "-" girilmişse boş sayılır
+            const isRealNum = val => val && val !== '-' && val !== '—' && val.trim() !== '';
+
+            // Sipariş No mükerrer kontrolü — composite key: müşteri + sipariş no
+            // (2026-01 her müşteri için ayrı sequence, farklı müşterilerde aynı no olabilir)
+            if (isRealNum(siparisNo) && cust) {
+                const orderKey = `${cust.id}|${siparisNo}`;
+                if (dbOrderNums.has(orderKey)) {
+                    duplicateNums.push(`• Sipariş No "${siparisNo}" (${musteriAdi}) — bu müşteri için DB'de zaten mevcut`);
+                } else if (importOrderNums.has(orderKey)) {
+                    duplicateNums.push(`• Sipariş No "${siparisNo}" (${musteriAdi}) — bu müşteri için dosyada mükerrer`);
+                } else {
+                    importOrderNums.add(orderKey);
+                }
+            }
+
+            // İdevit No mükerrer kontrolü
+            if (isRealNum(idevitNo)) {
+                if (dbIdevitNums.has(idevitNo)) {
+                    duplicateNums.push(`• İdevit No "${idevitNo}" (${musteriAdi}) — DB'de zaten mevcut`);
+                } else if (importIdevitNums.has(idevitNo)) {
+                    duplicateNums.push(`• İdevit No "${idevitNo}" (${musteriAdi}) — dosyada mükerrer`);
+                } else {
+                    importIdevitNums.add(idevitNo);
+                }
+            }
+
+            // İdeal No mükerrer kontrolü
+            if (isRealNum(idealNo)) {
+                if (dbIdealNums.has(idealNo)) {
+                    duplicateNums.push(`• İdeal No "${idealNo}" (${musteriAdi}) — DB'de zaten mevcut`);
+                } else if (importIdealNums.has(idealNo)) {
+                    duplicateNums.push(`• İdeal No "${idealNo}" (${musteriAdi}) — dosyada mükerrer`);
+                } else {
+                    importIdealNums.add(idealNo);
+                }
+            }
+        }
+
+        // Validasyon sonuçları — hata varsa durdur
+        let hasValidationError = false;
+
+        if (passiveFirms.size > 0) {
+            hasValidationError = true;
+            logMsg('─────────────────────────────', 'warn');
+            logMsg('⚠ PASİF STATÜDEKI FİRMALAR:', 'warn');
+            for (const firm of passiveFirms) {
+                logMsg(`   ⚠ "${firm}" — müşteri kartında kayıtlı fakat şu an PASİF`, 'warn');
+            }
+            logMsg('➡ Lütfen yukarıdaki firmaları Müşteri Kartları sayfasında önce AKTİF yapın.', 'warn');
+        }
+
+        if (unknownFirms.size > 0) {
+            hasValidationError = true;
+            logMsg('─────────────────────────────', 'err');
+            logMsg('🚫 MÜŞTERI KARTI BULUNAMAYAN FİRMALAR:', 'err');
+            for (const firm of unknownFirms) {
+                logMsg(`   ✗ "${firm}" — müşteri kartında kayıtlı değil`, 'err');
+            }
+            logMsg('➡ Lütfen yukarıdaki firmaları önce Müşteri Kartları sayfasına ekleyin.', 'err');
+        }
+
+        if (duplicateNums.length > 0) {
+            hasValidationError = true;
+            logMsg('─────────────────────────────', 'err');
+            logMsg('🚫 MÜKERRER NUMARA UYARILARI:', 'err');
+            for (const msg of duplicateNums) {
+                logMsg(`   ${msg}`, 'err');
+            }
+            if (!clearFirst) {
+                logMsg('➡ İpucu: Güncelleme yapmak istiyorsanız aynı siparis_no üzerinden upsert gerçekleşir.', 'warn');
+                logMsg('➡ Sıfırdan yüklemek istiyorsanız "Mevcut verileri sil" seçeneğini işaretleyin.', 'warn');
+            }
+        }
+
+        if (hasValidationError) {
+            logMsg('─────────────────────────────', 'err');
+            logMsg('❌ Import durduruldu — lütfen yukarıdaki hataları düzeltin ve tekrar deneyin.', 'err');
+            runBtn.disabled = false;
+            runBtn.style.background = '#9F3D3D';
+            runBtn.style.color = '#fff';
+            runBtn.style.cursor = 'pointer';
+            runBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> Hata — Tekrar Dene';
+            return;
+        }
+
+        logMsg('✓ Validasyon geçti — import başlıyor...', 'ok');
+        logMsg('─────────────────────────────', 'ok');
+        // ─────────────────────────────────────────────────────────────────────
+
+        // İlk toplu giriş — sıfırla
         if (clearFirst) {
             logMsg('Mevcut siparişler siliniyor...', 'warn');
             const { error: delErr } = await supabase.from('orders').delete().eq('user_id', userId);
@@ -732,12 +913,12 @@ async function handleImportRun() {
                 continue;
             }
 
-            // Müşteri bul
+            // Müşteri bul (validasyondan geçti, kesinlikle bulunacak)
             const cust = globalCustomers.find(c =>
                 c.company_name.toLocaleLowerCase('tr-TR') === musteriAdi.toLocaleLowerCase('tr-TR')
             );
             if (!cust) {
-                logMsg(`✗ "${musteriAdi}" müşteri kartında bulunamadı — satır atlandı.`, 'err');
+                logMsg(`✗ "${musteriAdi}" — Müşteri bulunamadı (beklenmedik hata), satır atlandı.`, 'err');
                 errored++;
                 continue;
             }
