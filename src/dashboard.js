@@ -71,7 +71,7 @@ async function loadAllDashboardData(selectedYear) {
         const yearOrders = orders.filter(o => new Date(o.order_date).getFullYear() === selectedYear);
 
         renderFinanceKPIs(yearOrders, orders);
-        renderOperationalCards(yearOrders, quotations, complaints, shipments);
+        renderOperationalCards(yearOrders, quotations, complaints, shipments, orders);
         renderRecentOrders(yearOrders.slice(0, 5));
         renderRecentQuotations(quotations.slice(0, 5));
         renderPaymentStatus(orders);
@@ -98,9 +98,9 @@ function renderFinanceKPIs(yearOrders, allOrders) {
 
     const today = new Date(); today.setHours(0,0,0,0);
 
-    // Vadeli Bakiye: seçili yıl, vade tarihi bugün veya ileride olan açık bakiyeler
+    // Vadeli Bakiye: TÜM yıllar, vade tarihi bugün veya ileride olan açık bakiyeler
     const vadeBakiye = {};
-    yearOrders.forEach(o => {
+    allOrders.forEach(o => {
         const bal = parseFloat(o.remaining_balance) || 0;
         if (bal <= 0) return;
         const due = o.due_date ? new Date(o.due_date + 'T00:00:00') : null;
@@ -152,10 +152,10 @@ function renderFinanceKPIs(yearOrders, allOrders) {
 }
 
 // ── OPERASYONEL KARTLAR ────────────────────────────────────────────────────────
-function renderOperationalCards(yearOrders, quotations, complaints, shipments) {
+function renderOperationalCards(yearOrders, quotations, complaints, shipments, orders) {
     const today = new Date();
 
-    // Aktif siparişler: seçili yıldaki tüm siparişler
+    // Mevcut Sipariş: seçili yıla ait sipariş sayısı
     const activeOrders = yearOrders.length;
 
     // Bekleyen teklifler

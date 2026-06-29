@@ -1,4 +1,4 @@
-// orders.js — V: 1.0.80
+// orders.js — V: 1.0.81
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
@@ -443,28 +443,35 @@ async function handleOrderSubmit(e) {
         const orderNumberVal  = payload.order_number;
         const idevitNumberVal = payload.idevit_order_no;
         const idealNumberVal  = payload.ideal_order_no;
+        const customerIdVal   = payload.customer_id || customerId;
 
         // Düzenleme modunda kendi ID'sini hariç tut
         const excludeId = currentOrderId || null;
+        // Tire / boş değerleri gerçek numara sayma
+        const isRealNum = val => val && val !== '-' && val !== '—' && String(val).trim() !== '';
 
         const duplicateErrors = [];
 
-        if (orderNumberVal) {
-            let q = supabase.from('orders').select('id, order_number').eq('user_id', userId).eq('order_number', orderNumberVal);
+        // Sipariş No: müşteri bazlı unique (composite key)
+        if (isRealNum(orderNumberVal) && customerIdVal) {
+            let q = supabase.from('orders').select('id').eq('user_id', userId)
+                .eq('order_number', orderNumberVal).eq('customer_id', customerIdVal);
             if (excludeId) q = q.neq('id', excludeId);
             const { data: dup } = await q;
-            if (dup && dup.length > 0) duplicateErrors.push(`• Sipariş No "${orderNumberVal}" zaten kayıtlı.`);
+            if (dup && dup.length > 0) duplicateErrors.push(`• Sipariş No "${orderNumberVal}" bu müşteri için zaten kayıtlı.`);
         }
 
-        if (idevitNumberVal) {
-            let q = supabase.from('orders').select('id, idevit_order_no').eq('user_id', userId).eq('idevit_order_no', idevitNumberVal);
+        // İdevit No: global unique, tire/boş hariç
+        if (isRealNum(idevitNumberVal)) {
+            let q = supabase.from('orders').select('id').eq('user_id', userId).eq('idevit_order_no', idevitNumberVal);
             if (excludeId) q = q.neq('id', excludeId);
             const { data: dup } = await q;
             if (dup && dup.length > 0) duplicateErrors.push(`• İdevit Sipariş No "${idevitNumberVal}" zaten kayıtlı.`);
         }
 
-        if (idealNumberVal) {
-            let q = supabase.from('orders').select('id, ideal_order_no').eq('user_id', userId).eq('ideal_order_no', idealNumberVal);
+        // İdeal No: global unique, tire/boş hariç
+        if (isRealNum(idealNumberVal)) {
+            let q = supabase.from('orders').select('id').eq('user_id', userId).eq('ideal_order_no', idealNumberVal);
             if (excludeId) q = q.neq('id', excludeId);
             const { data: dup } = await q;
             if (dup && dup.length > 0) duplicateErrors.push(`• İdeal Sipariş No "${idealNumberVal}" zaten kayıtlı.`);
