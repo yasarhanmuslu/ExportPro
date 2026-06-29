@@ -1,4 +1,4 @@
-// orders.js — V: 1.0.78
+// orders.js — V: 1.0.80
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
@@ -15,6 +15,7 @@ const STATUS_TAGS_LIST = [
     { value: 'Teslim Edildi',   cls: 'stag-teslim'     },
     { value: 'İptal',           cls: 'stag-iptal'      },
     { value: 'Gecikme',         cls: 'stag-gecikme'    },
+    { value: 'Yeni Müşteri',    cls: 'stag-yenimusteri'},
 ];
 
 // Sol bar rengi — ilk etikete göre
@@ -29,6 +30,7 @@ const TAG_BAR_COLOR = {
     'Teslim Edildi':   '#22c55e',
     'İptal':           '#ef4444',
     'Gecikme':         '#ef4444',
+    'Yeni Müşteri':    '#0ea5e9',
 };
 
 const TAG_CLS = {
@@ -42,6 +44,7 @@ const TAG_CLS = {
     'Teslim Edildi':   'stag-teslim',
     'İptal':           'stag-iptal',
     'Gecikme':         'stag-gecikme',
+    'Yeni Müşteri':    'stag-yenimusteri',
 };
 
 let globalOrders   = [];

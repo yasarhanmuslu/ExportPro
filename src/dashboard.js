@@ -96,13 +96,26 @@ function renderFinanceKPIs(yearOrders, allOrders) {
         summary[curr].remaining += parseFloat(order.remaining_balance) || 0;
     });
 
-    // Bekleyen ödemeler (tüm yıllar, remaining > 0)
+    const today = new Date(); today.setHours(0,0,0,0);
+
+    // Vadeli Bakiye: seçili yıl, vade tarihi bugün veya ileride olan açık bakiyeler
+    const vadeBakiye = {};
+    yearOrders.forEach(o => {
+        const bal = parseFloat(o.remaining_balance) || 0;
+        if (bal <= 0) return;
+        const due = o.due_date ? new Date(o.due_date + 'T00:00:00') : null;
+        if (!due || due >= today) {
+            const c = o.currency || 'EUR';
+            vadeBakiye[c] = (vadeBakiye[c] || 0) + bal;
+        }
+    });
+
+    // Gecikmiş Borç: TÜM yıllar, vade tarihi geçmiş ve bakiye > 0
     const pendingPay = {};
-    const today = new Date();
     allOrders.forEach(o => {
         const bal = parseFloat(o.remaining_balance) || 0;
         if (bal <= 0) return;
-        const due = o.due_date ? new Date(o.due_date) : null;
+        const due = o.due_date ? new Date(o.due_date + 'T00:00:00') : null;
         if (due && due < today) {
             const c = o.currency || 'EUR';
             pendingPay[c] = (pendingPay[c] || 0) + bal;
@@ -129,13 +142,12 @@ function renderFinanceKPIs(yearOrders, allOrders) {
         }).join('');
     }
 
-    const ciroData     = Object.fromEntries(Object.entries(summary).map(([k,v]) => [k, v.total]));
-    const avansData    = Object.fromEntries(Object.entries(summary).map(([k,v]) => [k, v.advance]));
-    const bakiyeData   = Object.fromEntries(Object.entries(summary).map(([k,v]) => [k, v.remaining]));
+    const ciroData  = Object.fromEntries(Object.entries(summary).map(([k,v]) => [k, v.total]));
+    const avansData = Object.fromEntries(Object.entries(summary).map(([k,v]) => [k, v.advance]));
 
-    fillKPI('kpi-ciro-container',   ciroData,   'text-purple-500');
-    fillKPI('kpi-avans-container',  avansData,  'text-[#3D6E50]');
-    fillKPI('kpi-bakiye-container', bakiyeData, 'text-[#B26B33]');
+    fillKPI('kpi-ciro-container',    ciroData,   'text-purple-500');
+    fillKPI('kpi-avans-container',   avansData,  'text-[#3D6E50]');
+    fillKPI('kpi-bakiye-container',  vadeBakiye, 'text-[#B26B33]');
     fillKPI('kpi-pending-container', pendingPay, 'text-[#9F3D3D]');
 }
 
@@ -143,10 +155,8 @@ function renderFinanceKPIs(yearOrders, allOrders) {
 function renderOperationalCards(yearOrders, quotations, complaints, shipments) {
     const today = new Date();
 
-    // Aktif siparişler (üretimde veya bekliyor)
-    const activeOrders = yearOrders.filter(o =>
-        o.production_status === 'Üretimde' || o.production_status === 'Bekliyor'
-    ).length;
+    // Aktif siparişler: seçili yıldaki tüm siparişler
+    const activeOrders = yearOrders.length;
 
     // Bekleyen teklifler
     const pendingQuotations = quotations.filter(q => q.status === 'Bekliyor').length;
