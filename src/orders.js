@@ -990,7 +990,10 @@ async function handleImportRun() {
         runBtn.style.background = '#2D4A3E';
         runBtn.style.color = '#fff';
         runBtn.style.cursor = 'pointer';
-        runBtn.innerHTML = '<i class="fa-solid fa-check"></i> Tamamlandı';
+        runBtn.innerHTML = '<i class="fa-solid fa-check"></i> Tamamlandı — Kapat';
+        // Import bitti — butonu yeniden çalıştırma yerine modalı kapat
+        runBtn.replaceWith(runBtn.cloneNode(true)); // eski event listener'ı temizle
+        document.getElementById('btn-import-run').addEventListener('click', closeImportModal);
 
     } catch (err) {
         console.error('Import hatası:', err);
