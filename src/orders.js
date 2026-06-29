@@ -557,9 +557,10 @@ async function handleDeleteOrder() {
 
 // ── FİLTRELEME ───────────────────────────────────────────────────────────────
 function applyFilters() {
-    const search     = document.getElementById('order-search-input').value.toLocaleLowerCase('tr-TR');
-    const currency   = document.getElementById('filter-order-currency').value;
-    const statusFilter = document.getElementById('filter-order-status').value;
+    const search        = document.getElementById('order-search-input').value.toLocaleLowerCase('tr-TR');
+    const currency      = document.getElementById('filter-order-currency').value;
+    const statusFilter  = document.getElementById('filter-order-status').value;
+    const shipMonthFilter = document.getElementById('filter-shipment-month').value;
 
     const filtered = globalOrders.filter(o => {
         const compName = (o.customers?.company_name || '').toLocaleLowerCase('tr-TR');
@@ -568,7 +569,19 @@ function applyFilters() {
         const matchCurrency = !currency || o.currency === currency;
         const tags = (o.status_tags && o.status_tags.length > 0) ? o.status_tags : [o.order_status || ''];
         const matchStatus   = !statusFilter || tags.includes(statusFilter);
-        return matchSearch && matchCurrency && matchStatus;
+
+        // Sevk ayı filtresi: shipment_date'in ayı ile karşılaştır
+        let matchShipMonth = true;
+        if (shipMonthFilter) {
+            if (!o.shipment_date) {
+                matchShipMonth = false;
+            } else {
+                const month = o.shipment_date.slice(5, 7); // YYYY-MM-DD → MM
+                matchShipMonth = month === shipMonthFilter;
+            }
+        }
+
+        return matchSearch && matchCurrency && matchStatus && matchShipMonth;
     });
 
     renderOrdersList(filtered);
@@ -1068,6 +1081,7 @@ function initEventListeners() {
     document.getElementById('filter-order-currency').addEventListener('change', applyFilters);
     document.getElementById('filter-order-status').addEventListener('change', applyFilters);
     document.getElementById('btn-export-orders').addEventListener('click', exportOrdersToCSV);
+    document.getElementById('filter-shipment-month').addEventListener('change', applyFilters);
     document.getElementById('btn-add-item-row').addEventListener('click', addItemRow);
     document.getElementById('tab-general').addEventListener('click', () => switchTab('general'));
     document.getElementById('tab-items').addEventListener('click', () => switchTab('items'));
