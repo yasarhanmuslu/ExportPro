@@ -982,11 +982,13 @@ async function handleImportRun() {
                 order_notes:     String(row['notlar']       || '').trim() || null,
             };
 
-            // Upsert: aynı siparis_no + user_id varsa güncelle
+            // Upsert: aynı siparis_no + customer_id + user_id varsa güncelle
+            // (siparis_no her müşteri için bağımsız sequence — composite key şart)
             const { data: existing } = await supabase
                 .from('orders')
                 .select('id')
                 .eq('order_number', siparisNo)
+                .eq('customer_id', cust.id)
                 .eq('user_id', userId)
                 .maybeSingle();
 
