@@ -740,8 +740,14 @@ async function handleImportRun() {
         const XLSX = window.XLSX;
         if (!XLSX) { logMsg('XLSX kütüphanesi yüklenemedi.', 'err'); return; }
 
-        const wb   = XLSX.read(importFileData, { type: 'array' });
-        const ws   = wb.Sheets[wb.SheetNames[0]];
+        const wb = XLSX.read(importFileData, { type: 'array' });
+
+        // "Siparisler" adlı sheet'i ara, yoksa ilk sheet'i kullan
+        const targetSheetName = wb.SheetNames.find(n => n.trim().toLowerCase() === 'siparisler')
+            || wb.SheetNames[0];
+        logMsg(`📋 Okunan sheet: "${targetSheetName}" (toplam ${wb.SheetNames.length} sheet)`, 'ok');
+
+        const ws   = wb.Sheets[targetSheetName];
         const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
         if (rows.length === 0) { logMsg('Excel dosyası boş veya okunamadı.', 'err'); return; }
