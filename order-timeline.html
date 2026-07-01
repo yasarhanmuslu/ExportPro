@@ -174,16 +174,115 @@
             background: var(--ink-1, #1C1A17); color: #fff;
             padding: 8px 12px; border-radius: 6px;
             font-size: 11px; font-family: Verdana, Geneva, sans-serif;
-            pointer-events: none; white-space: nowrap;
+            pointer-events: none; white-space: normal;
+            max-width: 260px; word-wrap: break-word; line-height: 1.4;
             box-shadow: 0 4px 16px rgba(28,26,23,0.2);
             display: none;
         }
+
+        /* ── Takvim notu (manuel not) ── */
+        .cal-day-number-row {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 3px;
+        }
+        .cal-add-note-btn {
+            width: 16px; height: 16px; border-radius: 4px; border: none;
+            background: transparent; color: var(--ink-3, #968B7A);
+            cursor: pointer; font-size: 9px; opacity: 0;
+            transition: opacity .12s, background .12s, color .12s;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .cal-day-cell:hover .cal-add-note-btn { opacity: 1; }
+        .cal-add-note-btn:hover { background: var(--accent-soft, #E8EEEA); color: var(--accent, #2D4A3E); }
+        .cal-note-badge {
+            display: block;
+            font-size: 9px;
+            font-family: Verdana, Geneva, sans-serif;
+            font-weight: 500;
+            border-radius: 3px;
+            padding: 2px 5px;
+            margin-bottom: 2px;
+            white-space: normal;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            cursor: pointer;
+            line-height: 1.35;
+            background: #FFFBEB; color: #92400E; border-left: 2px solid #F59E0B;
+            transition: opacity .1s;
+        }
+        .cal-note-badge:hover { opacity: 0.8; }
+
+        /* ── Not Popover (küçük şık açılır pencere) ── */
+        .note-popover {
+            position: fixed; z-index: 300;
+            background: var(--surface, #fff);
+            border: 1px solid var(--border, #E4DDCE);
+            border-radius: 10px;
+            box-shadow: 0 14px 36px rgba(28,26,23,0.20);
+            padding: 12px;
+            width: 240px;
+            font-family: Verdana, Geneva, sans-serif;
+            animation: notePopIn .13s ease-out;
+        }
+        .note-popover.hidden { display: none; }
+        @keyframes notePopIn {
+            from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .note-popover-label {
+            font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+            color: var(--ink-3, #968B7A); margin-bottom: 6px; display: flex; align-items: center; gap: 5px;
+        }
+        .note-popover textarea {
+            width: 100%; resize: none; box-sizing: border-box;
+            border: 1px solid var(--border, #E4DDCE); border-radius: 6px;
+            padding: 8px 10px; font-size: 12px; font-family: Verdana, Geneva, sans-serif;
+            color: var(--ink-1, #1C1A17); background: var(--surface, #fff);
+            outline: none; transition: border-color .12s, box-shadow .12s;
+        }
+        .note-popover textarea:focus {
+            border-color: var(--accent, #2D4A3E);
+            box-shadow: 0 0 0 3px rgba(45,74,62,0.10);
+        }
+        .note-popover-actions { display: flex; align-items: center; margin-top: 9px; gap: 6px; }
+        .note-popover-btn {
+            height: 28px; padding: 0 12px; border-radius: 6px; font-size: 11px; font-weight: 700;
+            cursor: pointer; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 5px;
+            font-family: Verdana, Geneva, sans-serif; transition: background .12s, opacity .12s, color .12s;
+        }
+        .note-popover-btn-primary { background: var(--accent, #2D4A3E); color: #fff; }
+        .note-popover-btn-primary:hover { opacity: .88; }
+        .note-popover-btn-ghost { background: transparent; color: var(--ink-2, #6B655B); border-color: var(--border, #E4DDCE); }
+        .note-popover-btn-ghost:hover { background: var(--surface-2, #FBF8F1); }
+        .note-popover-btn-danger {
+            background: transparent; color: #B91C1C; border-color: #F5C6C6;
+            width: 28px; padding: 0; justify-content: center;
+        }
+        .note-popover-btn-danger:hover { background: #FEE2E2; }
     </style>
 </head>
 <body class="min-h-screen">
 
     <div id="navbar-target"></div>
     <div id="event-tooltip" class="event-tooltip"></div>
+
+    <!-- Not Popover -->
+    <div id="note-popover" class="note-popover hidden">
+        <div class="note-popover-label"><i class="fa-solid fa-note-sticky"></i> <span id="note-popover-title">Not Ekle</span></div>
+        <textarea id="note-popover-input" rows="3" maxlength="500" placeholder="Bu tarih için not yazın..."></textarea>
+        <div class="note-popover-actions">
+            <button type="button" id="note-popover-delete" class="note-popover-btn note-popover-btn-danger hidden" title="Notu sil">
+                <i class="fa-solid fa-trash-can"></i>
+            </button>
+            <div style="margin-left:auto;display:flex;gap:6px;">
+                <button type="button" id="note-popover-cancel" class="note-popover-btn note-popover-btn-ghost">İptal</button>
+                <button type="button" id="note-popover-save" class="note-popover-btn note-popover-btn-primary">
+                    <i class="fa-solid fa-check"></i> Kaydet
+                </button>
+            </div>
+        </div>
+    </div>
 
     <main class="min-h-screen" style="margin-left:230px; padding:32px;">
 
@@ -247,7 +346,7 @@
             <!-- Legend -->
             <div class="flex items-center gap-4 mb-4" style="flex-wrap:wrap;">
                 <span style="font-size:10px;font-weight:600;color:var(--ink-3,#968B7A);text-transform:uppercase;letter-spacing:0.08em;font-family:Verdana, Geneva, sans-serif;">Gösterge:</span>
-                <span style="font-size:9px;color:var(--ink-3);font-family:Verdana;">🚢 = Sevk Tarihi &nbsp;|&nbsp; 📅 = Vade Tarihi</span>
+                <span style="font-size:9px;color:var(--ink-3);font-family:Verdana;">🚢 = Sevk Tarihi &nbsp;|&nbsp; 📅 = Vade Tarihi &nbsp;|&nbsp; 📌 = Manuel Not</span>
                 <span class="cal-event-badge badge-tag-devam"      style="display:inline-block;">Devam Ediyor</span>
                 <span class="cal-event-badge badge-tag-uretim"     style="display:inline-block;">Üretimde</span>
                 <span class="cal-event-badge badge-tag-sevkhazir"  style="display:inline-block;">Sevke Hazır</span>

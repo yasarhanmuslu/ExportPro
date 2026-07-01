@@ -1,4 +1,4 @@
-// orders.js — V: 1.0.84
+// orders.js — V: 1.0.85
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
@@ -571,11 +571,15 @@ function applyFilters() {
     const currency      = document.getElementById('filter-order-currency').value;
     const statusFilter  = document.getElementById('filter-order-status').value;
     const shipMonthFilter = document.getElementById('filter-shipment-month').value;
+    const sortShipDate  = document.getElementById('sort-shipment-date').value; // '', 'asc', 'desc'
 
-    const filtered = globalOrders.filter(o => {
-        const compName = (o.customers?.company_name || '').toLocaleLowerCase('tr-TR');
-        const orderNo  = (o.order_number || '').toLocaleLowerCase('tr-TR');
-        const matchSearch   = compName.includes(search) || orderNo.includes(search);
+    let filtered = globalOrders.filter(o => {
+        const compName   = (o.customers?.company_name || '').toLocaleLowerCase('tr-TR');
+        const orderNo    = (o.order_number || '').toLocaleLowerCase('tr-TR');
+        const idevitNo   = (o.idevit_order_no || '').toLocaleLowerCase('tr-TR');
+        const idealNo    = (o.ideal_order_no || '').toLocaleLowerCase('tr-TR');
+        const matchSearch   = compName.includes(search) || orderNo.includes(search)
+            || idevitNo.includes(search) || idealNo.includes(search);
         const matchCurrency = !currency || o.currency === currency;
         const tags = (o.status_tags && o.status_tags.length > 0) ? o.status_tags : [o.order_status || ''];
         const matchStatus   = !statusFilter || tags.includes(statusFilter);
@@ -593,6 +597,18 @@ function applyFilters() {
 
         return matchSearch && matchCurrency && matchStatus && matchShipMonth;
     });
+
+    // Sevk Tarihine göre sıralama (Excel mantığı — tarihi olmayanlar her zaman en sona)
+    if (sortShipDate) {
+        filtered = filtered.slice().sort((a, b) => {
+            if (!a.shipment_date && !b.shipment_date) return 0;
+            if (!a.shipment_date) return 1;
+            if (!b.shipment_date) return -1;
+            return sortShipDate === 'asc'
+                ? a.shipment_date.localeCompare(b.shipment_date)
+                : b.shipment_date.localeCompare(a.shipment_date);
+        });
+    }
 
     renderOrdersList(filtered);
 }
@@ -1092,6 +1108,7 @@ function initEventListeners() {
     document.getElementById('filter-order-status').addEventListener('change', applyFilters);
     document.getElementById('btn-export-orders').addEventListener('click', exportOrdersToCSV);
     document.getElementById('filter-shipment-month').addEventListener('change', applyFilters);
+    document.getElementById('sort-shipment-date').addEventListener('change', applyFilters);
     document.getElementById('btn-add-item-row').addEventListener('click', addItemRow);
     document.getElementById('tab-general').addEventListener('click', () => switchTab('general'));
     document.getElementById('tab-items').addEventListener('click', () => switchTab('items'));

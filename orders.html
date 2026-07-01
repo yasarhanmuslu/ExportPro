@@ -83,18 +83,22 @@
         .type-kdv     { background:#dcfce7; color:#166534; font-size:9px; font-weight:700; padding:1px 6px; border-radius:999px; white-space:nowrap; }
 
         /* ── MODAL ── */
-        .modal-backdrop { position:fixed; inset:0; background:rgba(28,26,23,0.5); backdrop-filter:blur(4px); display:flex; align-items:flex-start; justify-content:center; z-index:100; padding:1rem; overflow-y:auto; }
+        .modal-backdrop { position:fixed; inset:0; background:rgba(28,26,23,0.5); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; z-index:100; padding:1rem; overflow-y:auto; }
         .modal-backdrop.hidden { display:none; }
-        .modal-content { background:#fff; border:1px solid #E4DDCE; border-radius:12px; padding:1.5rem; width:100%; max-width:62rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.15); margin:auto; }
-        .modal-head { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #E4DDCE; padding-bottom:14px; margin-bottom:0; }
+        .modal-content { background:#fff; border:1px solid #E4DDCE; border-radius:12px; padding:1.5rem; width:100%; max-width:62rem; max-height:calc(100vh - 2rem); box-shadow:0 25px 50px -12px rgba(0,0,0,0.15); margin:auto; display:flex; flex-direction:column; overflow:hidden; }
+        .modal-head { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #E4DDCE; padding-bottom:14px; margin-bottom:0; flex-shrink:0; }
         .modal-title { font-size:16px; font-weight:700; color:#1C1A17; display:flex; align-items:center; gap:8px; }
         .modal-close { background:none; border:none; cursor:pointer; color:#968B7A; font-size:18px; }
         .modal-close:hover { color:#1C1A17; }
 
-        .modal-tabs { display:flex; gap:0; border-bottom:1px solid #E4DDCE; margin-bottom:16px; }
+        .modal-tabs { display:flex; gap:0; border-bottom:1px solid #E4DDCE; margin-bottom:16px; flex-shrink:0; }
         .modal-tab { padding:8px 18px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; border-bottom:2px solid transparent; color:#968B7A; cursor:pointer; background:transparent; border-top:none; border-left:none; border-right:none; transition:all .15s; }
         .modal-tab:hover { color:#1C1A17; }
         .modal-tab.tab-active { color:#2D4A3E; border-bottom-color:#2D4A3E; }
+
+        /* Sipariş modalı — içerik kaydırılabilir, başlık/tab/butonlar sabit kalır */
+        #order-form { display:flex; flex-direction:column; flex:1; min-height:0; }
+        .modal-scroll-body { flex:1; min-height:0; overflow-y:auto; padding-right:8px; margin-right:-8px; }
 
         .section-card { background:#F6F3EC; border:1px solid #E4DDCE; border-radius:8px; padding:14px; margin-bottom:0; }
         .section-lbl { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:#B26B33; border-bottom:1px solid #E4DDCE; padding-bottom:8px; margin-bottom:10px; }
@@ -156,10 +160,10 @@
     </header>
 
     <!-- Filtreler -->
-    <section style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:16px;">
+    <section style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:10px;margin-bottom:16px;">
         <div style="position:relative;">
             <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#968B7A;font-size:13px;z-index:1;pointer-events:none;"></i>
-            <input type="text" id="order-search-input" placeholder="Firma veya sipariş no ara...">
+            <input type="text" id="order-search-input" placeholder="Firma, sipariş no, İdevit veya İdeal no ara...">
         </div>
         <select id="filter-order-currency">
             <option value="">Tüm Para Birimleri</option>
@@ -197,6 +201,11 @@
             <option value="11">Kasım</option>
             <option value="12">Aralık</option>
         </select>
+        <select id="sort-shipment-date">
+            <option value="">Sıralama Yok</option>
+            <option value="asc">Sevk Tarihi ↑ (Eskiden Yeniye)</option>
+            <option value="desc">Sevk Tarihi ↓ (Yeniden Eskiye)</option>
+        </select>
     </section>
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -230,6 +239,8 @@
 
         <form id="order-form">
             <input type="hidden" id="order-id">
+
+            <div class="modal-scroll-body">
 
             <!-- PANEL: Genel Bilgiler -->
             <div id="panel-general" style="display:flex;flex-direction:column;gap:14px;">
@@ -390,8 +401,10 @@
                 <div id="items-total-warning" class="hidden" style="margin-top:8px;font-size:12px;font-weight:600;color:#854d0e;background:#fef9c3;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;"></div>
             </div>
 
+            </div><!-- /.modal-scroll-body -->
+
             <!-- Alt Butonlar -->
-            <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid #E4DDCE;padding-top:16px;margin-top:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid #E4DDCE;padding-top:16px;margin-top:16px;flex-shrink:0;">
                 <button type="button" id="btn-delete-order" class="hidden" style="height:36px;padding:0 16px;background:#fff;border:1px solid #fca5a5;border-radius:6px;color:#991b1b;font-size:13px;font-weight:600;cursor:pointer;display:none;align-items:center;gap:6px;">
                     <i class="fa-solid fa-trash-can"></i> Siparişi Sil
                 </button>

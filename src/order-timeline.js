@@ -1,9 +1,11 @@
+// order-timeline.js — V: 1.0.83
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 
 // ── State
 let session = null;
 let allOrders = [];
+let allNotes = [];
 let currentFilter = 'all';
 let currentView = 'calendar';
 let calYear = new Date().getFullYear();
@@ -29,6 +31,21 @@ async function loadOrders() {
     allOrders = data || [];
     updateOverdueAlert();
     render();
+}
+
+// ── Supabase'den takvim notlarını çek
+async function loadNotes() {
+    const { data, error } = await supabase
+        .from('calendar_notes')
+        .select('*')
+        .eq('user_id', session.user.id);
+    if (error) { console.error('Notlar yüklenemedi:', error); return; }
+    allNotes = data || [];
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 }
 
 // ── Geciken sipariş uyarısı
@@ -116,6 +133,14 @@ function renderCalendar() {
         addEvent(o.due_date, 'due', o);
     });
 
+    // Ay içindeki manuel notlar: "YYYY-MM-DD" → [{id, note_text}]
+    const noteMap = {};
+    allNotes.forEach(n => {
+        const d = n.note_date;
+        if (!noteMap[d]) noteMap[d] = [];
+        noteMap[d].push(n);
+    });
+
     // Ayın 1. günü hangi gün?
     const firstDay = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
     const startOffset = (firstDay === 0) ? 6 : firstDay - 1; // Mon-based
@@ -139,9 +164,13 @@ function renderCalendar() {
         const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         const isToday = dateObj.getTime() === today.getTime();
         const events = eventMap[dateStr] || [];
+        const dayNotes = noteMap[dateStr] || [];
 
         html += `<div class="cal-day-cell${isToday?' today':''}">`;
-        html += `<div class="cal-day-number">${d}</div>`;
+        html += `<div class="cal-day-number-row">
+            <div class="cal-day-number">${d}</div>
+            <button type="button" class="cal-add-note-btn" data-note-date="${dateStr}" title="Not ekle"><i class="fa-solid fa-plus"></i></button>
+        </div>`;
 
         const visible = events.slice(0, 3);
         visible.forEach(ev => {
@@ -210,6 +239,10 @@ function renderCalendar() {
             html += `<span style="font-size:9px;color:var(--ink-3,#968B7A);font-family:Verdana, Geneva, sans-serif;padding:1px 4px;">+${events.length-3} daha</span>`;
         }
 
+        dayNotes.forEach(note => {
+            html += `<div class="cal-note-badge" data-note-id="${note.id}" data-note-text="${escapeHtml(note.note_text)}">📌 ${escapeHtml(note.note_text)}</div>`;
+        });
+
         html += `</div>`;
     }
 
@@ -232,14 +265,157 @@ function renderCalendar() {
             tooltip.style.display = 'block';
         });
         el.addEventListener('mousemove', (e) => {
-            tooltip.style.left = (e.clientX + 12) + 'px';
-            tooltip.style.top  = (e.clientY - 28) + 'px';
+            const ttWidth  = tooltip.offsetWidth;
+            const ttHeight = tooltip.offsetHeight;
+            const margin = 8;
+
+            let left = e.clientX + 12;
+            let top  = e.clientY - 28;
+
+            // Sağ kenardan taşıyorsa imlecin soluna al
+            if (left + ttWidth > window.innerWidth - margin) {
+                left = e.clientX - ttWidth - 12;
+            }
+            if (left < margin) left = margin;
+
+            // Üst/alt kenardan taşmasın
+            if (top < margin) top = margin;
+            if (top + ttHeight > window.innerHeight - margin) {
+                top = window.innerHeight - ttHeight - margin;
+            }
+
+            tooltip.style.left = left + 'px';
+            tooltip.style.top  = top + 'px';
         });
         el.addEventListener('mouseleave', () => {
             tooltip.style.display = 'none';
         });
     });
+
+    // Not ekleme butonu → popover aç
+    container.querySelectorAll('.cal-add-note-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openNotePopover({ mode: 'add', dateStr: btn.dataset.noteDate }, btn);
+        });
+    });
+
+    // Mevcut nota tıklayınca düzenleme/silme popover'ı aç
+    container.querySelectorAll('.cal-note-badge').forEach(el => {
+        el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openNotePopover({
+                mode: 'edit',
+                noteId: el.dataset.noteId,
+                text: el.dataset.noteText,
+            }, el);
+        });
+    });
 }
+
+// ══════════════════════════════
+//  NOT POPOVER (Ekle / Düzenle / Sil)
+// ══════════════════════════════
+let notePopoverState = null; // { mode: 'add'|'edit', dateStr?, noteId? }
+
+function openNotePopover({ mode, dateStr, noteId, text }, anchorEl) {
+    notePopoverState = { mode, dateStr, noteId };
+
+    const popover  = document.getElementById('note-popover');
+    const textarea = document.getElementById('note-popover-input');
+    const deleteBtn = document.getElementById('note-popover-delete');
+    const titleEl  = document.getElementById('note-popover-title');
+
+    textarea.value = text || '';
+    titleEl.textContent = mode === 'edit' ? 'Notu Düzenle' : 'Not Ekle';
+    deleteBtn.classList.toggle('hidden', mode !== 'edit');
+
+    popover.classList.remove('hidden');
+    positionNotePopover(popover, anchorEl);
+    textarea.focus();
+}
+
+function closeNotePopover() {
+    document.getElementById('note-popover').classList.add('hidden');
+    notePopoverState = null;
+}
+
+function positionNotePopover(popover, anchorEl) {
+    const rect   = anchorEl.getBoundingClientRect();
+    const margin = 8;
+    const pw = popover.offsetWidth  || 240;
+    const ph = popover.offsetHeight || 140;
+
+    let left = rect.left;
+    let top  = rect.bottom + 6;
+
+    if (left + pw > window.innerWidth - margin) left = window.innerWidth - pw - margin;
+    if (left < margin) left = margin;
+
+    if (top + ph > window.innerHeight - margin) {
+        top = rect.top - ph - 6; // sığmazsa yukarı aç
+        if (top < margin) top = margin;
+    }
+
+    popover.style.left = left + 'px';
+    popover.style.top  = top + 'px';
+}
+
+async function saveNotePopover() {
+    if (!notePopoverState) return;
+    const textarea = document.getElementById('note-popover-input');
+    const value = textarea.value.trim();
+    if (!value) { textarea.focus(); return; }
+
+    if (notePopoverState.mode === 'add') {
+        const { error } = await supabase.from('calendar_notes').insert([{
+            user_id: session.user.id,
+            note_date: notePopoverState.dateStr,
+            note_text: value,
+        }]);
+        if (error) { console.error('Not eklenemedi:', error); alert('Not eklenemedi: ' + error.message); return; }
+    } else {
+        const { error } = await supabase.from('calendar_notes')
+            .update({ note_text: value })
+            .eq('id', notePopoverState.noteId)
+            .eq('user_id', session.user.id);
+        if (error) { console.error('Not güncellenemedi:', error); alert('Not güncellenemedi: ' + error.message); return; }
+    }
+    closeNotePopover();
+    await loadNotes();
+    renderCalendar();
+}
+
+async function deleteNotePopover() {
+    if (!notePopoverState || notePopoverState.mode !== 'edit') return;
+    const { error } = await supabase.from('calendar_notes')
+        .delete().eq('id', notePopoverState.noteId).eq('user_id', session.user.id);
+    if (error) { console.error('Not silinemedi:', error); alert('Not silinemedi: ' + error.message); return; }
+    closeNotePopover();
+    await loadNotes();
+    renderCalendar();
+}
+
+document.getElementById('note-popover-save').addEventListener('click', saveNotePopover);
+document.getElementById('note-popover-delete').addEventListener('click', deleteNotePopover);
+document.getElementById('note-popover-cancel').addEventListener('click', closeNotePopover);
+
+document.getElementById('note-popover-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveNotePopover(); }
+    if (e.key === 'Escape') closeNotePopover();
+});
+
+document.addEventListener('click', (e) => {
+    const popover = document.getElementById('note-popover');
+    if (popover.classList.contains('hidden')) return;
+    if (popover.contains(e.target)) return;
+    if (e.target.closest('.cal-add-note-btn') || e.target.closest('.cal-note-badge')) return;
+    closeNotePopover();
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeNotePopover();
+});
 
 // ══════════════════════════════
 //  LİSTE GÖRÜNÜMÜ
@@ -385,4 +561,7 @@ document.getElementById('btn-show-overdue').addEventListener('click', () => {
 });
 
 // ── Başlat
-init().then(() => loadOrders());
+init().then(async () => {
+    await loadNotes();
+    await loadOrders();
+});
