@@ -260,13 +260,13 @@ function setImagePreview(url) {
     }
 }
 
-// Kenar piksellerinden düz arka plan rengini tahmin eder, o renge bağlı alanı
-// (kenarlardan taşma yöntemiyle) şeffaf yapar ve kalan ürünün sınır kutusunu döner.
-function removeBackgroundAndCrop(ctx, width, height, tolerance = 28) {
-    const imageData = ctx.getImageData(0, 0, width, height);
-    const data = imageData.data;
+// Hiçbir pikseli değiştirmez/silmez — sadece kenarlardan örneklenen asıl arka
+// plan rengine göre ürünün sınır kutusunu bulur ve bolca pay bırakarak kırpma
+// alanı döner. Böylece ürün detayı (gölge, oyuk vb.) asla kaybolmaz; sonuçta
+// kalan boşluk, görselin kendi (beyaz/gri fark etmez) arka plan rengiyle doldurulur.
+function detectContentCrop(ctx, width, height, threshold = 40, paddingRatio = 0.12) {
+    const data = ctx.getImageData(0, 0, width, height).data;
 
-    // Arka plan rengini kenar piksellerinden örnekle
     const samples = [];
     const sampleAt = (x, y) => {
         const i = (y * width + x) * 4;
@@ -279,44 +279,16 @@ function removeBackgroundAndCrop(ctx, width, height, tolerance = 28) {
     const sum = samples.reduce((acc, s) => [acc[0] + s[0], acc[1] + s[1], acc[2] + s[2]], [0, 0, 0]);
     const bgR = sum[0] / samples.length, bgG = sum[1] / samples.length, bgB = sum[2] / samples.length;
 
-    const colorDist = (i) => {
+    const isBg = (i) => {
         const dr = data[i] - bgR, dg = data[i + 1] - bgG, db = data[i + 2] - bgB;
-        return Math.sqrt(dr * dr + dg * dg + db * db);
+        return Math.sqrt(dr * dr + dg * dg + db * db) <= threshold;
     };
 
-    // Kenarlardan başlayarak bağlantılı arka plan alanını şeffaf yap (flood fill)
-    const visited = new Uint8Array(width * height);
-    const stack = [];
-    for (let x = 0; x < width; x++) { stack.push(x, 0, x, height - 1); }
-    for (let y = 0; y < height; y++) { stack.push(0, y, width - 1, y); }
-
-    let transparentCount = 0;
-    while (stack.length) {
-        const y = stack.pop(), x = stack.pop();
-        if (x < 0 || x >= width || y < 0 || y >= height) continue;
-        const idx = y * width + x;
-        if (visited[idx]) continue;
-        visited[idx] = 1;
-        const i = idx * 4;
-        if (data[i + 3] < 10) { transparentCount++; continue; } // zaten şeffaf
-        if (colorDist(i) > tolerance) continue; // ürüne ait piksel, yayılmayı durdur
-        data[i + 3] = 0;
-        transparentCount++;
-        stack.push(x + 1, y, x - 1, y, x, y + 1, x, y - 1);
-    }
-
-    // Neredeyse her şey şeffaf oldu ise (algılama hatalı/gerçekten boş görsel) işlem yapma
-    if (transparentCount > width * height * 0.97) {
-        return { x: 0, y: 0, w: width, h: height };
-    }
-
-    ctx.putImageData(imageData, 0, 0);
-
-    // Kalan (şeffaf olmayan) alanın sınır kutusunu bul
     let top = height, bottom = -1, left = width, right = -1;
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
-            if (data[(y * width + x) * 4 + 3] > 10) {
+            const i = (y * width + x) * 4;
+            if (!isBg(i)) {
                 if (y < top) top = y;
                 if (y > bottom) bottom = y;
                 if (x < left) left = x;
@@ -324,15 +296,16 @@ function removeBackgroundAndCrop(ctx, width, height, tolerance = 28) {
             }
         }
     }
-    if (bottom < top || right < left) return { x: 0, y: 0, w: width, h: height };
+    if (bottom < top || right < left) return { x: 0, y: 0, w: width, h: height, bgR, bgG, bgB };
 
-    const pad = Math.round(Math.max(width, height) * 0.03);
-    top = Math.max(0, top - pad);
-    left = Math.max(0, left - pad);
-    bottom = Math.min(height - 1, bottom + pad);
-    right = Math.min(width - 1, right + pad);
+    const padX = Math.round((right - left + 1) * paddingRatio);
+    const padY = Math.round((bottom - top + 1) * paddingRatio);
+    top = Math.max(0, top - padY);
+    left = Math.max(0, left - padX);
+    bottom = Math.min(height - 1, bottom + padY);
+    right = Math.min(width - 1, right + padX);
 
-    return { x: left, y: top, w: right - left + 1, h: bottom - top + 1 };
+    return { x: left, y: top, w: right - left + 1, h: bottom - top + 1, bgR, bgG, bgB };
 }
 
 function compressImage(file, maxDim = 640) {
@@ -352,20 +325,28 @@ function compressImage(file, maxDim = 640) {
                 const workCtx = workCanvas.getContext('2d');
                 workCtx.drawImage(img, 0, 0, workW, workH);
 
-                // 2) Arka planı (düz renk) şeffaf yap, ürünün sınır kutusunu bul
-                const crop = removeBackgroundAndCrop(workCtx, workW, workH);
+                // 2) Ürünün sınır kutusunu tespit et (piksel değiştirilmez)
+                const crop = detectContentCrop(workCtx, workW, workH);
 
-                // 3) Son boyuta ölçekle, kaldırılan arka planın yerine düz beyaz koy ve JPEG olarak kaydet
+                // 3) Son boyuta ölçekle; olası boşluk görselin KENDİ arka plan rengiyle
+                //    doldurulur (beyazsa beyaz, griyse gri — asla ürün pikseli silinmez).
+                //    Kanvas KARE yapılır: tablo/form kutuları kare olduğu için kısa kenarda
+                //    kutunun kendi (beyaz) zemini görünmesin, hep görselin kendi rengiyle dolsun.
                 const scale = Math.min(1, maxDim / Math.max(crop.w, crop.h));
-                const outW = Math.max(1, Math.round(crop.w * scale));
-                const outH = Math.max(1, Math.round(crop.h * scale));
+                const contentW = Math.max(1, Math.round(crop.w * scale));
+                const contentH = Math.max(1, Math.round(crop.h * scale));
+                const canvasSize = Math.max(contentW, contentH);
+
                 const outCanvas = document.createElement('canvas');
-                outCanvas.width = outW;
-                outCanvas.height = outH;
+                outCanvas.width = canvasSize;
+                outCanvas.height = canvasSize;
                 const outCtx = outCanvas.getContext('2d');
-                outCtx.fillStyle = '#FFFFFF';
-                outCtx.fillRect(0, 0, outW, outH);
-                outCtx.drawImage(workCanvas, crop.x, crop.y, crop.w, crop.h, 0, 0, outW, outH);
+                outCtx.fillStyle = `rgb(${Math.round(crop.bgR)}, ${Math.round(crop.bgG)}, ${Math.round(crop.bgB)})`;
+                outCtx.fillRect(0, 0, canvasSize, canvasSize);
+
+                const offsetX = Math.round((canvasSize - contentW) / 2);
+                const offsetY = Math.round((canvasSize - contentH) / 2);
+                outCtx.drawImage(workCanvas, crop.x, crop.y, crop.w, crop.h, offsetX, offsetY, contentW, contentH);
 
                 outCanvas.toBlob(blob => {
                     URL.revokeObjectURL(objUrl);
