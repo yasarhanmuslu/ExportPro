@@ -2,6 +2,7 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
+import { showAlertDialog, showConfirmDialog } from './utils/dialogs.js';
 
 // ── DURUM ETİKETLERİ ────────────────────────────────────────────────────────
 const STATUS_TAGS_LIST = [
@@ -411,14 +412,14 @@ function switchTab(tab) {
 async function handleOrderSubmit(e) {
     e.preventDefault();
     const customerId = document.getElementById('order-customer-select').value;
-    if (!customerId) { alert('Lütfen bir müşteri / firma seçiniz.'); return; }
+    if (!customerId) { await showAlertDialog('Lütfen bir müşteri / firma seçiniz.', { variant: 'warn', title: 'Eksik Bilgi' }); return; }
 
     const total_amount     = parseTurkishFloat(document.getElementById('total_amount').value);
     const advance_payment  = parseTurkishFloat(document.getElementById('advance_payment').value);
     const remaining_balance = total_amount - advance_payment;
 
     if (isNaN(total_amount) || total_amount <= 0) {
-        alert('Lütfen geçerli bir toplam sipariş tutarı giriniz.');
+        await showAlertDialog('Lütfen geçerli bir toplam sipariş tutarı giriniz.', { variant: 'warn', title: 'Eksik Bilgi' });
         return;
     }
 
@@ -488,7 +489,10 @@ async function handleOrderSubmit(e) {
         }
 
         if (duplicateErrors.length > 0) {
-            alert('⚠ Mükerrer Numara Uyarısı\n\nAşağıdaki numara(lar) sistemde zaten mevcut:\n\n' + duplicateErrors.join('\n') + '\n\nLütfen numara(ları) kontrol edip tekrar deneyin.');
+            await showAlertDialog(
+                'Aşağıdaki numara(lar) sistemde zaten mevcut:\n\n' + duplicateErrors.join('\n') + '\n\nLütfen numara(ları) kontrol edip tekrar deneyin.',
+                { variant: 'warn', title: 'Mükerrer Numara Uyarısı' }
+            );
             return;
         }
         // ─────────────────────────────────────────────────────────────────────
@@ -508,7 +512,7 @@ async function handleOrderSubmit(e) {
         await fetchOrdersData();
     } catch (err) {
         console.error('Sipariş kaydedilemedi:', err.message);
-        alert('Hata: ' + err.message);
+        await showAlertDialog('Hata: ' + err.message, { variant: 'danger', title: 'Hata' });
     }
 }
 
@@ -548,7 +552,11 @@ async function saveOrderItems(orderId, userId) {
 // ── SİLME ─────────────────────────────────────────────────────────────────────
 async function handleDeleteOrder() {
     const id = document.getElementById('order-id').value;
-    if (!id || !confirm('Bu siparişi kalıcı olarak silmek istediğinize emin misiniz?')) return;
+    if (!id) return;
+    const ok = await showConfirmDialog('Bu siparişi kalıcı olarak silmek istediğinize emin misiniz?', {
+        title: 'Siparişi Sil', variant: 'danger', confirmText: 'Sil'
+    });
+    if (!ok) return;
     try {
         const { data: { session } } = await supabase.auth.getSession();
         const { error } = await supabase.from('orders').delete().eq('id', id).eq('user_id', session.user.id);
@@ -558,9 +566,9 @@ async function handleDeleteOrder() {
     } catch (err) {
         console.error('Sipariş silinemedi:', err.message);
         if (err.code === '23503') {
-            alert('Bu sipariş silinemez!\nBağlı credit note veya kalem kaydı var.\nÖnce ilgili kayıtları siliniz.');
+            await showAlertDialog('Bu sipariş silinemez!\nBağlı credit note veya kalem kaydı var.\nÖnce ilgili kayıtları siliniz.', { variant: 'danger', title: 'Silinemedi' });
         } else {
-            alert('Silme başarısız: ' + err.message);
+            await showAlertDialog('Silme başarısız: ' + err.message, { variant: 'danger', title: 'Hata' });
         }
     }
 }
@@ -1078,8 +1086,8 @@ async function handleImportRun() {
 }
 
 // ── CSV EXPORT ────────────────────────────────────────────────────────────────
-function exportOrdersToCSV() {
-    if (globalOrders.length === 0) { alert('Aktarılacak sipariş verisi yok.'); return; }
+async function exportOrdersToCSV() {
+    if (globalOrders.length === 0) { await showAlertDialog('Aktarılacak sipariş verisi yok.', { variant: 'warn', title: 'Uyarı' }); return; }
     let csv = 'data:text/csv;charset=utf-8,\uFEFF';
     csv += 'Siparis Tarihi;Siparis No;Idevit Sip No;Ideal Sip No;Siparis Turu;Musteri;Ulke;Para Birimi;Toplam Tutar;Avans;Kalan Bakiye;Odeme Sekli;Durum Etiketleri;Adet;Notlar\n';
     globalOrders.forEach(o => {

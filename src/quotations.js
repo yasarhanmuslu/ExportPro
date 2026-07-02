@@ -2,6 +2,7 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
+import { showAlertDialog, showConfirmDialog, showPromptDialog } from './utils/dialogs.js';
 
 // ── DURUM LİSTESİ ─────────────────────────────────────────────────────────────
 const STATUS_LIST = [
@@ -46,8 +47,7 @@ async function fetchCustomersData() {
             .order('company_name', { ascending: true });
         if (error) throw error;
         globalCustomers = data || [];
-        const aktifCustomers = globalCustomers.filter(c => c.status === 'Aktif');
-        initCustomerSearchDropdown(aktifCustomers);
+        initCustomerSearchDropdown(globalCustomers);
     } catch (err) {
         console.error('Müşteri listesi yüklenemedi:', err.message);
     }
@@ -210,8 +210,16 @@ function initCustomerSearchDropdown(customers) {
                 item.dataset.label = `${c.company_name} (${c.country})`;
                 item.innerHTML = `<span style="font-weight:600;color:#1C1A17;">${escapeHtml(c.company_name)}</span>
                     <span style="font-size:11px;color:#968B7A;margin-left:6px;text-transform:uppercase;">${escapeHtml(c.country || '')}</span>`;
-                item.addEventListener('mousedown', e => {
+                item.addEventListener('mousedown', async e => {
                     e.preventDefault();
+                    if (c.status === 'Kara Liste') {
+                        dropdown.classList.add('hidden');
+                        const ok = await showConfirmDialog(
+                            'Bu müşteri kara listede, teklif oluşturmak istediğinize emin misiniz?',
+                            { title: 'Kara Liste Uyarısı', variant: 'danger', confirmText: 'Evet, Devam Et' }
+                        );
+                        if (!ok) return;
+                    }
                     hiddenSel.value   = c.id;
                     searchInput.value = item.dataset.label;
                     dropdown.classList.add('hidden');
@@ -231,6 +239,51 @@ function initCustomerSearchDropdown(customers) {
         hiddenSel.value   = id;
         searchInput.value = label;
     };
+}
+
+// ── MÜŞTERİ DURUMU OTOMATİK GEÇİŞLERİ ────────────────────────────────────────
+// Sadece belirtilen fromStatus -> toStatus geçişini tetikler; müşterinin güncel
+// durumu DB'den taze okunur (cache'e güvenilmez), eşleşmezse hiçbir şey yapılmaz.
+// Aktif durumundaki müşteriler fromStatus olarak asla geçmediğinden bu fonksiyon
+// Aktif müşterilere hiç dokunmaz.
+function parseHistoryNotesLocal(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+async function maybeUpdateCustomerStatus(customerId, fromStatus, toStatus, noteText) {
+    try {
+        const { data: cust, error } = await supabase
+            .from('customers')
+            .select('status, history_notes')
+            .eq('id', customerId)
+            .single();
+        if (error || !cust || cust.status !== fromStatus) return;
+
+        const notes = parseHistoryNotesLocal(cust.history_notes);
+        notes.push({ date: new Date().toISOString().slice(0, 10), note: `[Sistem] ${noteText}` });
+
+        const { error: updErr } = await supabase
+            .from('customers')
+            .update({
+                status: toStatus,
+                history_notes: JSON.stringify(notes),
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', customerId);
+        if (updErr) throw updErr;
+
+        const c = globalCustomers.find(gc => gc.id === customerId);
+        if (c) c.status = toStatus;
+    } catch (err) {
+        console.error('Müşteri durumu otomatik güncellenemedi:', err.message);
+    }
 }
 
 // ── MODAL KONTROL ─────────────────────────────────────────────────────────────
@@ -327,11 +380,11 @@ function switchTab(tab) {
 async function handleQuotationSubmit(e) {
     e.preventDefault();
     const customerId = document.getElementById('quotation-customer-select').value;
-    if (!customerId) { alert('Lütfen bir müşteri / firma seçiniz.'); return; }
+    if (!customerId) { await showAlertDialog('Lütfen bir müşteri / firma seçiniz.', { variant: 'warn', title: 'Eksik Bilgi' }); return; }
 
     const total_amount = parseTurkishFloat(document.getElementById('total_amount').value);
     if (isNaN(total_amount) || total_amount <= 0) {
-        alert('Lütfen geçerli bir toplam teklif tutarı giriniz.');
+        await showAlertDialog('Lütfen geçerli bir toplam teklif tutarı giriniz.', { variant: 'warn', title: 'Eksik Bilgi' });
         return;
     }
 
@@ -350,6 +403,7 @@ async function handleQuotationSubmit(e) {
         const { data: { session } } = await supabase.auth.getSession();
         const userId = session.user.id;
         let quotationId = currentQuotationId;
+        const isNewQuotation = !currentQuotationId;
 
         // Not: Teklif No müşteri bazında MÜKERRER OLABİLİR — kasıtlı iş akışı.
         // Bir müşteriye aynı numarayla birden fazla teklif gönderilebilir (ör. "2026-01"
@@ -369,11 +423,19 @@ async function handleQuotationSubmit(e) {
         }
 
         await saveQuotationItems(quotationId, userId);
+
+        if (isNewQuotation) {
+            await maybeUpdateCustomerStatus(
+                customerId, 'Pasif', 'Potansiyel',
+                'Teklif oluşturulduğu için durum Pasif\'ten Potansiyel\'e güncellendi.'
+            );
+        }
+
         closeQuotationModal();
         await fetchQuotationsData();
     } catch (err) {
         console.error('Teklif kaydedilemedi:', err.message);
-        alert('Hata: ' + err.message);
+        await showAlertDialog('Hata: ' + err.message, { variant: 'danger', title: 'Hata' });
     }
 }
 
@@ -413,7 +475,11 @@ async function saveQuotationItems(quotationId, userId) {
 // ── SİLME ─────────────────────────────────────────────────────────────────────
 async function handleDeleteQuotation() {
     const id = document.getElementById('quotation-id').value;
-    if (!id || !confirm('Bu teklifi kalıcı olarak silmek istediğinize emin misiniz?')) return;
+    if (!id) return;
+    const ok = await showConfirmDialog('Bu teklifi kalıcı olarak silmek istediğinize emin misiniz?', {
+        title: 'Teklifi Sil', variant: 'danger', confirmText: 'Sil'
+    });
+    if (!ok) return;
     try {
         const { data: { session } } = await supabase.auth.getSession();
         await supabase.from('quotation_items').delete().eq('quotation_id', id);
@@ -423,7 +489,7 @@ async function handleDeleteQuotation() {
         await fetchQuotationsData();
     } catch (err) {
         console.error('Teklif silinemedi:', err.message);
-        alert('Silme başarısız: ' + err.message);
+        await showAlertDialog('Silme başarısız: ' + err.message, { variant: 'danger', title: 'Hata' });
     }
 }
 
@@ -434,19 +500,23 @@ async function handleSendToOrder() {
     if (!q) return;
 
     if (q.status === 'Sipariş Dönüştü') {
-        alert('Bu teklif zaten siparişe dönüştürülmüş.');
+        await showAlertDialog('Bu teklif zaten siparişe dönüştürülmüş.', { variant: 'warn', title: 'Uyarı' });
         return;
     }
 
     const customerId = document.getElementById('quotation-customer-select').value;
-    if (!customerId) { alert('Lütfen bir müşteri / firma seçiniz.'); return; }
+    if (!customerId) { await showAlertDialog('Lütfen bir müşteri / firma seçiniz.', { variant: 'warn', title: 'Eksik Bilgi' }); return; }
 
     const total_amount = parseTurkishFloat(document.getElementById('total_amount').value);
     const currency     = document.getElementById('currency').value;
     const quotationNumber = document.getElementById('quotation_number').value || null;
     const notes = document.getElementById('quotation_notes').value || '';
 
-    if (!confirm(`"${quotationNumber || q.id}" teklifi SİPARİŞE gönderilecek ve teklif modülünden kalıcı olarak silinecektir.\n\nDevam etmek istiyor musunuz?`)) return;
+    const confirmSend = await showConfirmDialog(
+        `"${quotationNumber || q.id}" teklifi SİPARİŞE gönderilecek ve teklif modülünden kalıcı olarak silinecektir.\n\nDevam etmek istiyor musunuz?`,
+        { title: 'Siparişe Gönder', confirmText: 'Siparişe Gönder' }
+    );
+    if (!confirmSend) return;
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -466,23 +536,26 @@ async function handleSendToOrder() {
             const resolved = await resolveNextAvailableOrderNumber(customerId, orderNumber, userId);
             if (resolved === null) {
                 // Otomatik artırılamadı (numara formatı "...-NN" değil) — kullanıcıdan elle iste
-                const manual = prompt(
+                const manual = await showPromptDialog(
                     `Sipariş No "${orderNumber}" bu müşteri için sipariş modülünde zaten kayıtlı ve otomatik artırılamadı (numara "...-01" formatında değil).\n\nLütfen bu sipariş için yeni bir numara girin:`,
-                    orderNumber
+                    orderNumber,
+                    { title: 'Yeni Sipariş No' }
                 );
-                if (!manual || !manual.trim()) { alert('Sipariş no girilmediği için işlem iptal edildi.'); return; }
+                if (!manual || !manual.trim()) { await showAlertDialog('Sipariş no girilmediği için işlem iptal edildi.', { variant: 'warn', title: 'İşlem İptal Edildi' }); return; }
                 const manualTrimmed = manual.trim();
                 const { data: manualDup } = await supabase.from('orders').select('id')
                     .eq('user_id', userId).eq('order_number', manualTrimmed).eq('customer_id', customerId);
                 if (manualDup && manualDup.length > 0) {
-                    alert(`"${manualTrimmed}" numarası da bu müşteri için zaten kullanımda. İşlem iptal edildi, lütfen sipariş modülünden elle düzenleyin.`);
+                    await showAlertDialog(`"${manualTrimmed}" numarası da bu müşteri için zaten kullanımda. İşlem iptal edildi, lütfen sipariş modülünden elle düzenleyin.`, { variant: 'danger', title: 'Numara Kullanımda' });
                     return;
                 }
                 orderNumber = manualTrimmed;
             } else if (resolved !== orderNumber) {
-                if (!confirm(`Sipariş No "${orderNumber}" bu müşteri için zaten kullanımda (muhtemelen aynı teklif numarasıyla gönderilmiş başka bir teklif zaten siparişe dönüştürülmüş).\n\nBu sipariş "${resolved}" numarasıyla oluşturulacak. Onaylıyor musunuz?`)) {
-                    return;
-                }
+                const okResolved = await showConfirmDialog(
+                    `Sipariş No "${orderNumber}" bu müşteri için zaten kullanımda (muhtemelen aynı teklif numarasıyla gönderilmiş başka bir teklif zaten siparişe dönüştürülmüş).\n\nBu sipariş "${resolved}" numarasıyla oluşturulacak. Onaylıyor musunuz?`,
+                    { title: 'Sipariş No Çakışması' }
+                );
+                if (!okResolved) return;
                 orderNumber = resolved;
             }
         }
@@ -507,6 +580,11 @@ async function handleSendToOrder() {
 
         const { data: orderData, error: oErr } = await supabase.from('orders').insert([orderPayload]).select().single();
         if (oErr) throw oErr;
+
+        await maybeUpdateCustomerStatus(
+            customerId, 'Potansiyel', 'Aktif',
+            'Sipariş oluşturulduğu için durum Potansiyel\'ten Aktif\'e güncellendi.'
+        );
 
         // Teklif kalemlerini sipariş kalemlerine kopyala
         const orderItems = quotationItemsBuffer
@@ -533,12 +611,12 @@ async function handleSendToOrder() {
         const { error: delErr } = await supabase.from('quotations').delete().eq('id', currentQuotationId).eq('user_id', userId);
         if (delErr) throw delErr;
 
-        alert(`Sipariş oluşturuldu: ${orderData.order_number || orderData.id}\nTeklif, teklif listesinden kaldırıldı.`);
+        await showAlertDialog(`Sipariş oluşturuldu: ${orderData.order_number || orderData.id}\nTeklif, teklif listesinden kaldırıldı.`, { variant: 'success', title: 'Başarılı' });
         closeQuotationModal();
         await fetchQuotationsData();
     } catch (err) {
         console.error('Siparişe gönderilemedi:', err.message);
-        alert('Hata: ' + err.message + '\n\nSipariş oluşturulmuş olabilir, lütfen sipariş modülünü kontrol edin.');
+        await showAlertDialog('Hata: ' + err.message + '\n\nSipariş oluşturulmuş olabilir, lütfen sipariş modülünü kontrol edin.', { variant: 'danger', title: 'Hata' });
     }
 }
 

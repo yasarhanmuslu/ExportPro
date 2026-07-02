@@ -319,7 +319,7 @@ function renderHistoryRows() {
         row.className = 'history-row';
         row.innerHTML = `
             <input type="date" data-idx="${idx}" data-field="date" value="${escapeAttr(item.date || '')}">
-            <textarea data-idx="${idx}" data-field="note" rows="1" placeholder="Not">${escapeHtml(item.note || '')}</textarea>
+            <textarea data-idx="${idx}" data-field="note" rows="2" placeholder="Not">${escapeHtml(item.note || '')}</textarea>
             <button type="button" class="btn-remove-note" data-idx="${idx}" title="Satırı sil">
                 <i class="fa-solid fa-trash-can text-xs"></i>
             </button>
@@ -349,7 +349,7 @@ function renderHistoryRows() {
 function autoGrow(el) {
     const MAX = 160;
     el.style.height = 'auto';
-    const target = Math.max(38, el.scrollHeight);
+    const target = Math.max(58, el.scrollHeight);
     el.style.height = Math.min(target, MAX) + 'px';
     el.style.overflowY = target > MAX ? 'auto' : 'hidden';
 }
