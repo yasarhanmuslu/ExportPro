@@ -15,7 +15,9 @@ function escapeHtml(str) {
 
 function buildBackdrop(innerHtml) {
     const backdrop = document.createElement('div');
-    backdrop.className = 'modal-backdrop';
+    // "open" sınıfı da eklenir: bazı sayfalarda (ör. products.html) .modal-backdrop
+    // varsayılan gizlidir ve yalnızca .open ile görünür olur.
+    backdrop.className = 'modal-backdrop open';
     backdrop.style.zIndex = '300';
     backdrop.innerHTML = innerHtml;
     document.body.appendChild(backdrop);

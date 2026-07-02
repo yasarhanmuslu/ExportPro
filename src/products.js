@@ -1,11 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
 // ExportPro — Ürün Kartları (Master Data) — products.js
-// V: 1.0.74  ← FIX: saveProduct mükerrer stok_kodu engeli + arama çubuğu CSS
+// V: 1.0.75  ← YENİ: Ürün görseli yükleme/kaldırma (Supabase Storage, imzalı URL) + tema dialogları
 // ═══════════════════════════════════════════════════════════════
 
 import { supabase } from './utils/supabaseClient.js';
 import { requireAuth } from './auth/auth.js';
 import { renderNavbar } from './components/navbar.js';
+import { showAlertDialog, showConfirmDialog } from './utils/dialogs.js';
 import './theme.js';
 
 // ── State ───────────────────────────────────────────────────────
@@ -17,6 +18,13 @@ const PAGE_SIZE = 50;
 let editingId = null;         // null = add mode, uuid = edit mode
 let deleteTargetId = null;
 let importRows = [];
+
+// ── Ürün Görseli (Supabase Storage) ────────────────────────────
+const BUCKET_URUN_RESIM = 'urun-resimleri';
+let pendingImageFile = null;   // yeni seçilen (henüz yüklenmemiş) görsel
+let currentImagePath = null;   // düzenlenen üründeki mevcut storage path
+let removeImageFlag = false;   // "Kaldır" tıklandıysa
+const imageUrlCache = new Map(); // storage path -> imzalı URL
 
 // Dropdown seçenekleri (veriden türetilir)
 let distinctGruplar = [];
@@ -64,7 +72,7 @@ async function loadProducts() {
         renderKPI();
     } catch (err) {
         console.error('loadProducts:', err);
-        alert('Ürünler yüklenirken hata: ' + err.message);
+        showAlertDialog('Ürünler yüklenirken hata: ' + err.message, { title: 'Hata', variant: 'danger' });
     }
 }
 
@@ -158,7 +166,7 @@ function renderTable() {
     const pageItems = filteredProducts.slice(start, start + PAGE_SIZE);
 
     if (totalFiltered === 0) {
-        tbody.innerHTML = `<tr><td colspan="10">
+        tbody.innerHTML = `<tr><td colspan="11">
             <div class="empty-state"><i class="fa-solid fa-box-open"></i>Sonuç bulunamadı</div>
         </td></tr>`;
         document.getElementById('pager').innerHTML = '';
@@ -169,8 +177,12 @@ function renderTable() {
         const rowNum = start + i + 1;
         const isDup = duplicateCodes[p.stok_kodu];
         const dupHtml = isDup ? `<span class="dup-badge"><i class="fa-solid fa-triangle-exclamation" style="font-size:8px;"></i> ${isDup}x</span>` : '';
+        const thumbHtml = p.resim_path
+            ? `<img class="prod-thumb" data-path="${esc(p.resim_path)}" alt="">`
+            : `<div class="prod-thumb-empty"><i class="fa-solid fa-image"></i></div>`;
 
         return `<tr data-id="${p.id}" onclick="window._ep.openEdit('${p.id}')">
+            <td class="col-thumb">${thumbHtml}</td>
             <td style="color:var(--ink-3);font-size:11px;">${rowNum}</td>
             <td class="col-code">${esc(p.stok_kodu)}${dupHtml}</td>
             <td class="col-name" title="${esc(p.stok_adi_1)}">${esc(p.stok_adi_1)}</td>
@@ -190,6 +202,252 @@ function renderTable() {
     }).join('');
 
     renderPager(totalFiltered, totalPages);
+    resolveThumbnails(pageItems);
+}
+
+// ── Ürün Görseli: imzalı URL çözümleme ─────────────────────────
+async function getSignedUrl(path) {
+    if (!path) return null;
+    const cached = imageUrlCache.get(path);
+    if (cached) return cached;
+    try {
+        const { data, error } = await supabase.storage.from(BUCKET_URUN_RESIM).createSignedUrl(path, 3600);
+        if (error) throw error;
+        imageUrlCache.set(path, data.signedUrl);
+        return data.signedUrl;
+    } catch (err) {
+        console.error('getSignedUrl:', err);
+        return null;
+    }
+}
+
+async function resolveThumbnails(pageItems) {
+    const paths = [...new Set(pageItems.map(p => p.resim_path).filter(Boolean))]
+        .filter(p => !imageUrlCache.has(p));
+
+    if (paths.length > 0) {
+        try {
+            const { data, error } = await supabase.storage.from(BUCKET_URUN_RESIM).createSignedUrls(paths, 3600);
+            if (error) throw error;
+            (data || []).forEach(item => {
+                if (item.signedUrl) imageUrlCache.set(item.path, item.signedUrl);
+            });
+        } catch (err) {
+            console.error('resolveThumbnails:', err);
+        }
+    }
+
+    document.querySelectorAll('#table-body img.prod-thumb[data-path]').forEach(img => {
+        const url = imageUrlCache.get(img.dataset.path);
+        if (url) img.src = url;
+    });
+}
+
+function setImagePreview(url) {
+    const img = document.getElementById('f-resim-preview');
+    const placeholder = document.getElementById('f-resim-placeholder');
+    const btnRemove = document.getElementById('btn-resim-kaldir');
+    if (url) {
+        img.src = url;
+        img.style.display = 'block';
+        placeholder.style.display = 'none';
+        btnRemove.style.display = '';
+    } else {
+        img.removeAttribute('src');
+        img.style.display = 'none';
+        placeholder.style.display = 'flex';
+        btnRemove.style.display = 'none';
+    }
+}
+
+// Kenar piksellerinden düz arka plan rengini tahmin eder, o renge bağlı alanı
+// (kenarlardan taşma yöntemiyle) şeffaf yapar ve kalan ürünün sınır kutusunu döner.
+function removeBackgroundAndCrop(ctx, width, height, tolerance = 28) {
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+
+    // Arka plan rengini kenar piksellerinden örnekle
+    const samples = [];
+    const sampleAt = (x, y) => {
+        const i = (y * width + x) * 4;
+        samples.push([data[i], data[i + 1], data[i + 2]]);
+    };
+    const stepX = Math.max(1, Math.floor(width / 50));
+    const stepY = Math.max(1, Math.floor(height / 50));
+    for (let x = 0; x < width; x += stepX) { sampleAt(x, 0); sampleAt(x, height - 1); }
+    for (let y = 0; y < height; y += stepY) { sampleAt(0, y); sampleAt(width - 1, y); }
+    const sum = samples.reduce((acc, s) => [acc[0] + s[0], acc[1] + s[1], acc[2] + s[2]], [0, 0, 0]);
+    const bgR = sum[0] / samples.length, bgG = sum[1] / samples.length, bgB = sum[2] / samples.length;
+
+    const colorDist = (i) => {
+        const dr = data[i] - bgR, dg = data[i + 1] - bgG, db = data[i + 2] - bgB;
+        return Math.sqrt(dr * dr + dg * dg + db * db);
+    };
+
+    // Kenarlardan başlayarak bağlantılı arka plan alanını şeffaf yap (flood fill)
+    const visited = new Uint8Array(width * height);
+    const stack = [];
+    for (let x = 0; x < width; x++) { stack.push(x, 0, x, height - 1); }
+    for (let y = 0; y < height; y++) { stack.push(0, y, width - 1, y); }
+
+    let transparentCount = 0;
+    while (stack.length) {
+        const y = stack.pop(), x = stack.pop();
+        if (x < 0 || x >= width || y < 0 || y >= height) continue;
+        const idx = y * width + x;
+        if (visited[idx]) continue;
+        visited[idx] = 1;
+        const i = idx * 4;
+        if (data[i + 3] < 10) { transparentCount++; continue; } // zaten şeffaf
+        if (colorDist(i) > tolerance) continue; // ürüne ait piksel, yayılmayı durdur
+        data[i + 3] = 0;
+        transparentCount++;
+        stack.push(x + 1, y, x - 1, y, x, y + 1, x, y - 1);
+    }
+
+    // Neredeyse her şey şeffaf oldu ise (algılama hatalı/gerçekten boş görsel) işlem yapma
+    if (transparentCount > width * height * 0.97) {
+        return { x: 0, y: 0, w: width, h: height };
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+
+    // Kalan (şeffaf olmayan) alanın sınır kutusunu bul
+    let top = height, bottom = -1, left = width, right = -1;
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            if (data[(y * width + x) * 4 + 3] > 10) {
+                if (y < top) top = y;
+                if (y > bottom) bottom = y;
+                if (x < left) left = x;
+                if (x > right) right = x;
+            }
+        }
+    }
+    if (bottom < top || right < left) return { x: 0, y: 0, w: width, h: height };
+
+    const pad = Math.round(Math.max(width, height) * 0.03);
+    top = Math.max(0, top - pad);
+    left = Math.max(0, left - pad);
+    bottom = Math.min(height - 1, bottom + pad);
+    right = Math.min(width - 1, right + pad);
+
+    return { x: left, y: top, w: right - left + 1, h: bottom - top + 1 };
+}
+
+function compressImage(file, maxDim = 640) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const objUrl = URL.createObjectURL(file);
+        img.onload = () => {
+            try {
+                // 1) Analiz/kırpma için makul bir çalışma boyutuna indir
+                const workDim = 1000;
+                const workScale = Math.min(1, workDim / Math.max(img.width, img.height));
+                const workW = Math.max(1, Math.round(img.width * workScale));
+                const workH = Math.max(1, Math.round(img.height * workScale));
+                const workCanvas = document.createElement('canvas');
+                workCanvas.width = workW;
+                workCanvas.height = workH;
+                const workCtx = workCanvas.getContext('2d');
+                workCtx.drawImage(img, 0, 0, workW, workH);
+
+                // 2) Arka planı (düz renk) şeffaf yap, ürünün sınır kutusunu bul
+                const crop = removeBackgroundAndCrop(workCtx, workW, workH);
+
+                // 3) Son boyuta ölçekle, kaldırılan arka planın yerine düz beyaz koy ve JPEG olarak kaydet
+                const scale = Math.min(1, maxDim / Math.max(crop.w, crop.h));
+                const outW = Math.max(1, Math.round(crop.w * scale));
+                const outH = Math.max(1, Math.round(crop.h * scale));
+                const outCanvas = document.createElement('canvas');
+                outCanvas.width = outW;
+                outCanvas.height = outH;
+                const outCtx = outCanvas.getContext('2d');
+                outCtx.fillStyle = '#FFFFFF';
+                outCtx.fillRect(0, 0, outW, outH);
+                outCtx.drawImage(workCanvas, crop.x, crop.y, crop.w, crop.h, 0, 0, outW, outH);
+
+                outCanvas.toBlob(blob => {
+                    URL.revokeObjectURL(objUrl);
+                    if (!blob) return reject(new Error('Görsel işlenemedi.'));
+                    resolve(blob);
+                }, 'image/jpeg', 0.85);
+            } catch (err) {
+                URL.revokeObjectURL(objUrl);
+                reject(err);
+            }
+        };
+        img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error('Görsel okunamadı.')); };
+        img.src = objUrl;
+    });
+}
+
+async function handleImageSelect(file) {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+        showAlertDialog('Lütfen bir görsel dosyası seçin (JPG, PNG vb.).', { title: 'Geçersiz Dosya', variant: 'warn' });
+        return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+        showAlertDialog('Görsel boyutu 8MB\'ı aşamaz.', { title: 'Dosya Çok Büyük', variant: 'warn' });
+        return;
+    }
+    pendingImageFile = file;
+    removeImageFlag = false;
+    setImagePreview(URL.createObjectURL(file));
+    document.getElementById('f-resim-input').value = '';
+}
+
+async function handleImageRemove() {
+    const ok = await showConfirmDialog('Ürün görseli kaldırılacak. Devam edilsin mi?', {
+        title: 'Görseli Kaldır', variant: 'warn', confirmText: 'Kaldır'
+    });
+    if (!ok) return;
+    pendingImageFile = null;
+    removeImageFlag = true;
+    setImagePreview(null);
+}
+
+// Kaydet sırasında bekleyen görsel yükleme/kaldırma işlemini uygula.
+async function persistImageChanges(productId, userId) {
+    if (!pendingImageFile && !removeImageFlag) return;
+
+    const oldPath = currentImagePath;
+
+    if (pendingImageFile) {
+        const blob = await compressImage(pendingImageFile);
+        const newPath = `${userId}/${productId}-${Date.now()}.jpg`;
+
+        const { error: upErr } = await supabase.storage.from(BUCKET_URUN_RESIM).upload(newPath, blob, {
+            contentType: blob.type,
+            upsert: false
+        });
+        if (upErr) throw upErr;
+
+        const { error: dbErr } = await supabase.from('urunler')
+            .update({ resim_path: newPath }).eq('id', productId).eq('user_id', userId);
+        if (dbErr) throw dbErr;
+
+        if (oldPath && oldPath !== newPath) {
+            await supabase.storage.from(BUCKET_URUN_RESIM).remove([oldPath])
+                .catch(err => console.warn('Eski görsel silinemedi:', err));
+        }
+        imageUrlCache.delete(newPath);
+    } else if (removeImageFlag) {
+        const { error: dbErr } = await supabase.from('urunler')
+            .update({ resim_path: null }).eq('id', productId).eq('user_id', userId);
+        if (dbErr) throw dbErr;
+
+        if (oldPath) {
+            await supabase.storage.from(BUCKET_URUN_RESIM).remove([oldPath])
+                .catch(err => console.warn('Görsel silinemedi:', err));
+            imageUrlCache.delete(oldPath);
+        }
+    }
+
+    pendingImageFile = null;
+    removeImageFlag = false;
+    currentImagePath = null;
 }
 
 function renderPager(total, totalPages) {
@@ -240,6 +498,10 @@ function resetForm() {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
+    pendingImageFile = null;
+    currentImagePath = null;
+    removeImageFlag = false;
+    setImagePreview(null);
 }
 
 // ── DB kolon adları: en_cm / boy_cm / yukseklik_cm (information_schema ile doğrulandı) ──
@@ -266,6 +528,14 @@ function fillForm(p) {
     document.getElementById('f-boy').value = p.boy_cm ?? '';
     document.getElementById('f-yukseklik').value = p.yukseklik_cm ?? '';
     document.getElementById('f-palet-cinsi').value = p.palet_cinsi || '';
+
+    currentImagePath = p.resim_path || null;
+    pendingImageFile = null;
+    removeImageFlag = false;
+    setImagePreview(null);
+    if (currentImagePath) {
+        getSignedUrl(currentImagePath).then(url => { if (url) setImagePreview(url); });
+    }
 }
 
 function getFormData() {
@@ -326,8 +596,8 @@ function openEdit(id) {
 async function saveProduct() {
     const fd = getFormData();
 
-    if (!fd.stok_kodu) return alert('Stok Kodu zorunludur.');
-    if (!fd.stok_adi_1) return alert('Stok Adı (Türkçe) zorunludur.');
+    if (!fd.stok_kodu) return showAlertDialog('Stok Kodu zorunludur.', { variant: 'warn' });
+    if (!fd.stok_adi_1) return showAlertDialog('Stok Adı (Türkçe) zorunludur.', { variant: 'warn' });
 
     // ── Mükerrer stok kodu kontrolü ──
     const inputCode = fd.stok_kodu.toString().trim();
@@ -337,14 +607,16 @@ async function saveProduct() {
     if (existing) {
         // Düzenleme modunda kendi kaydıysa sorun yok, başkasına aitse engelle
         if (!editingId || existing.id !== editingId) {
-            alert('Bu stok kodu ile kayıtlı bir ürün zaten mevcut!\n\nStok Kodu: ' + inputCode);
+            showAlertDialog('Bu stok kodu ile kayıtlı bir ürün zaten mevcut!\n\nStok Kodu: ' + inputCode, { title: 'Mükerrer Kod', variant: 'warn' });
             return;
         }
     }
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return alert('Oturum bulunamadı.');
+        if (!session) return showAlertDialog('Oturum bulunamadı.', { variant: 'danger' });
+
+        let productId = editingId;
 
         if (editingId) {
             const { error } = await supabase
@@ -355,17 +627,22 @@ async function saveProduct() {
             if (error) throw error;
         } else {
             fd.user_id = session.user.id;
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('urunler')
-                .insert(fd);
+                .insert(fd)
+                .select('id')
+                .single();
             if (error) throw error;
+            productId = data.id;
         }
+
+        await persistImageChanges(productId, session.user.id);
 
         closeModal('modal-form');
         await loadProducts();
     } catch (err) {
         console.error('saveProduct:', err);
-        alert('Kayıt hatası: ' + err.message);
+        showAlertDialog('Kayıt hatası: ' + err.message, { title: 'Hata', variant: 'danger' });
     }
 }
 
@@ -381,6 +658,7 @@ async function executeDelete() {
     if (!deleteTargetId) return;
     try {
         const { data: { session } } = await supabase.auth.getSession();
+        const product = allProducts.find(p => p.id === deleteTargetId);
         const { error } = await supabase
             .from('urunler')
             .delete()
@@ -388,12 +666,17 @@ async function executeDelete() {
             .eq('user_id', session.user.id);
         if (error) throw error;
 
+        if (product && product.resim_path) {
+            await supabase.storage.from(BUCKET_URUN_RESIM).remove([product.resim_path])
+                .catch(err => console.warn('Görsel silinemedi:', err));
+        }
+
         closeModal('modal-delete');
         deleteTargetId = null;
         await loadProducts();
     } catch (err) {
         console.error('deleteProduct:', err);
-        alert('Silme hatası: ' + err.message);
+        showAlertDialog('Silme hatası: ' + err.message, { title: 'Hata', variant: 'danger' });
     }
 }
 
@@ -489,7 +772,7 @@ function openImportModal() {
 function handleFile(file) {
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
         try {
             const wb = XLSX.read(e.target.result, { type: 'array' });
             const ws = wb.Sheets[wb.SheetNames[0]];
@@ -505,7 +788,7 @@ function handleFile(file) {
 
             const rows = XLSX.utils.sheet_to_json(ws, { defval: '', range: headerRow });
 
-            if (rows.length === 0) return alert('Dosyada veri bulunamadı.');
+            if (rows.length === 0) return showAlertDialog('Dosyada veri bulunamadı.', { variant: 'warn' });
 
             importRows = rows.map(r => mapImportRow(r)).filter(Boolean);
 
@@ -531,7 +814,7 @@ function handleFile(file) {
             document.getElementById('import-count').textContent = `${importRows.length} Ürün Yükle`;
         } catch (err) {
             console.error('handleFile:', err);
-            alert('Dosya okunamadı: ' + err.message);
+            showAlertDialog('Dosya okunamadı: ' + err.message, { title: 'Hata', variant: 'danger' });
         }
     };
     reader.readAsArrayBuffer(file);
@@ -597,7 +880,7 @@ async function executeImport() {
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return alert('Oturum bulunamadı.');
+        if (!session) return showAlertDialog('Oturum bulunamadı.', { variant: 'danger' });
         const uid = session.user.id;
 
         // ── Onay kutusu: mevcut tüm ürünleri silip dosyadan sıfırla ──
@@ -608,9 +891,10 @@ async function executeImport() {
         // MOD 1 — SIFIRLA: tüm ürünleri sil, 646 satırı temiz INSERT et
         // ════════════════════════════════════════════════════════════
         if (clearFirst) {
-            const ok = confirm(
+            const ok = await showConfirmDialog(
                 `DİKKAT: Mevcut tüm ürünleriniz silinecek ve dosyadaki ` +
-                `${importRows.length} ürün sıfırdan yüklenecek.\n\nBu işlem geri alınamaz. Devam edilsin mi?`
+                `${importRows.length} ürün sıfırdan yüklenecek.\n\nBu işlem geri alınamaz. Devam edilsin mi?`,
+                { title: 'Sıfırdan Yükle', variant: 'danger', confirmText: 'Evet, Sıfırla' }
             );
             if (!ok) return;
 
@@ -637,7 +921,7 @@ async function executeImport() {
             }
 
             closeModal('modal-import');
-            alert(`Sıfırdan yükleme tamamlandı.\n• Eklenen ürün: ${rows.length}`);
+            showAlertDialog(`Sıfırdan yükleme tamamlandı.\n• Eklenen ürün: ${rows.length}`, { title: 'İçe Aktarma', variant: 'success' });
             importRows = [];
             await loadProducts();
             return;
@@ -709,18 +993,18 @@ async function executeImport() {
         await flushInserts();
 
         closeModal('modal-import');
-        alert(`İçe aktarma tamamlandı.\n• Yeni eklenen: ${insertedCount}\n• Güncellenen: ${updatedCount}`);
+        showAlertDialog(`İçe aktarma tamamlandı.\n• Yeni eklenen: ${insertedCount}\n• Güncellenen: ${updatedCount}`, { title: 'İçe Aktarma', variant: 'success' });
         importRows = [];
         await loadProducts();
     } catch (err) {
         console.error('executeImport:', err);
-        alert('İçe aktarma hatası: ' + err.message);
+        showAlertDialog('İçe aktarma hatası: ' + err.message, { title: 'Hata', variant: 'danger' });
     }
 }
 
 // ── Export (Excel) ──────────────────────────────────────────────
 function exportToExcel() {
-    if (allProducts.length === 0) return alert('Dışa aktarılacak ürün yok.');
+    if (allProducts.length === 0) return showAlertDialog('Dışa aktarılacak ürün yok.', { variant: 'warn' });
 
     const headers = [
         'Stok Kodu', 'Stok Adı-1 (Türkçe)', 'Stok Adı-2 (İngilizce)', 'Birim', 'Paketleme',
@@ -768,6 +1052,10 @@ function bindEvents() {
     document.getElementById('btn-save').addEventListener('click', saveProduct);
     document.getElementById('btn-del-confirm').addEventListener('click', executeDelete);
     document.getElementById('btn-import-confirm').addEventListener('click', executeImport);
+
+    document.getElementById('btn-resim-sec').addEventListener('click', () => document.getElementById('f-resim-input').click());
+    document.getElementById('f-resim-input').addEventListener('change', (e) => handleImageSelect(e.target.files[0]));
+    document.getElementById('btn-resim-kaldir').addEventListener('click', handleImageRemove);
 
     document.querySelectorAll('[data-close]').forEach(btn => {
         btn.addEventListener('click', () => closeModal(btn.dataset.close));
