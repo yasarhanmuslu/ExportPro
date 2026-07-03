@@ -55,7 +55,10 @@
             border-radius: 1rem; padding: 1.5rem; width: 100%; max-width: 40rem;
             box-shadow: 0 24px 50px -12px rgba(28,26,23,0.18); margin: auto;
             color: var(--porc-ink);
+            max-height: calc(100vh - 3rem); display: flex; flex-direction: column; overflow: hidden;
         }
+        #customer-form { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+        .modal-scroll-body { flex: 1; min-height: 0; overflow-y: auto; padding-right: 8px; margin-right: -8px; }
 
         /* ── Tablo (açık) ── */
         .custom-table-container {
@@ -201,7 +204,7 @@
     <!-- ════════════ MODAL ════════════ -->
     <div id="customer-modal" class="modal-backdrop hidden">
         <div class="modal-content">
-            <div class="flex items-center justify-between border-b pb-4 mb-4" style="border-color:var(--porc-border);">
+            <div class="flex items-center justify-between border-b pb-4 mb-4" style="border-color:var(--porc-border);flex-shrink:0;">
                 <h3 id="modal-title" class="text-lg font-bold flex items-center gap-2">
                     <i class="fa-solid fa-user-plus" style="color:var(--porc-accent);"></i> Yeni Müşteri Kaydı
                 </h3>
@@ -211,7 +214,7 @@
             </div>
 
             <!-- Sekme başlıkları -->
-            <div class="flex items-center gap-1 border-b mb-5" style="border-color:var(--porc-border);">
+            <div class="flex items-center gap-1 border-b mb-5" style="border-color:var(--porc-border);flex-shrink:0;">
                 <div class="tab-btn tab-active" data-tab="tab-general"><i class="fa-solid fa-building mr-1.5"></i>Genel Bilgiler</div>
                 <div class="tab-btn" data-tab="tab-commercial"><i class="fa-solid fa-file-invoice-dollar mr-1.5"></i>Ticari &amp; Risk</div>
                 <div class="tab-btn" data-tab="tab-history"><i class="fa-solid fa-clock-rotate-left mr-1.5"></i>Geçmiş Notlar</div>
@@ -219,6 +222,8 @@
 
             <form id="customer-form" class="space-y-5">
                 <input type="hidden" id="customer-id">
+
+                <div class="modal-scroll-body">
 
                 <!-- ═══ SEKME 1: GENEL BİLGİLER ═══ -->
                 <div id="tab-general" class="tab-panel tab-panel-active space-y-5">
@@ -464,8 +469,10 @@
                     </button>
                 </div>
 
+                </div><!-- /.modal-scroll-body -->
+
                 <!-- Footer Butonlar -->
-                <div class="flex items-center justify-between border-t pt-5 mt-2" style="border-color:var(--porc-border);">
+                <div class="flex items-center justify-between border-t pt-5 mt-2" style="border-color:var(--porc-border);flex-shrink:0;">
                     <button type="button" id="btn-delete-customer" class="hidden px-4 py-2 text-sm font-semibold rounded-lg cursor-pointer" style="background:#FCEAEA;border:1px solid #E8C9C9;color:var(--danger,#9F3D3D);">
                         <i class="fa-solid fa-trash-can"></i> Kaydı Sil
                     </button>
