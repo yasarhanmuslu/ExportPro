@@ -1085,23 +1085,171 @@ async function handleImportRun() {
     }
 }
 
-// ── CSV EXPORT ────────────────────────────────────────────────────────────────
-async function exportOrdersToCSV() {
+// ── EXCEL EXPORT ──────────────────────────────────────────────────────────────
+const EXPORT_STATUS_COLORS = {
+    'İptal':             { bg: 'FECACA', fg: '991B1B' },
+    'Gecikme':           { bg: 'FECACA', fg: '991B1B' },
+    'Bakiye Bekliyor':   { bg: 'FEF08A', fg: '854D0E' },
+    'Sevke Hazır':       { bg: 'BFDBFE', fg: '1E40AF' },
+    'Sevk Edildi':       { bg: 'BFDBFE', fg: '1E40AF' },
+    'Üretimde':          { bg: 'E9D5FF', fg: '6B21A8' },
+    'Üretime Hazır':     { bg: 'DDD6FE', fg: '5B21B6' },
+    'Ödeme Tamamlandı':  { bg: 'BBF7D0', fg: '166534' },
+    'Teslim Edildi':     { bg: 'BBF7D0', fg: '166534' },
+    'Yeni Müşteri':      { bg: 'E0F2FE', fg: '0369A1' },
+    'Devam Ediyor':      { bg: 'E2E8F0', fg: '475569' },
+};
+const EXPORT_STATUS_PRIORITY = ['İptal', 'Gecikme', 'Bakiye Bekliyor', 'Sevke Hazır', 'Sevk Edildi', 'Üretimde', 'Üretime Hazır', 'Ödeme Tamamlandı', 'Teslim Edildi', 'Yeni Müşteri', 'Devam Ediyor'];
+
+function pickExportStatusColor(tags) {
+    for (const key of EXPORT_STATUS_PRIORITY) { if (tags.includes(key)) return EXPORT_STATUS_COLORS[key]; }
+    return EXPORT_STATUS_COLORS['Devam Ediyor'];
+}
+
+async function exportOrdersToExcel() {
     if (globalOrders.length === 0) { await showAlertDialog('Aktarılacak sipariş verisi yok.', { variant: 'warn', title: 'Uyarı' }); return; }
-    let csv = 'data:text/csv;charset=utf-8,\uFEFF';
-    csv += 'Siparis Tarihi;Siparis No;Idevit Sip No;Ideal Sip No;Siparis Turu;Musteri;Ulke;Para Birimi;Toplam Tutar;Avans;Kalan Bakiye;Odeme Sekli;Durum Etiketleri;Adet;Notlar\n';
+    const XLSX = window.XLSX;
+    if (!XLSX) { await showAlertDialog('XLSX kütüphanesi yüklenemedi.', { variant: 'err', title: 'Hata' }); return; }
+    const HEADER_BG  = '2D4A3E';
+    const HEADER_FG  = 'FFFFFF';
+    const SUBHDR_BG  = '5C7A6B';
+    const BORDER_RGB = 'D9D2C2';
+    const ZEBRA_BG   = 'F6F3EC';
+
+    const HEADERS = ['Sipari\u015F Tarihi', 'Sipari\u015F No', '\u0130devit Sip No', '\u0130deal Sip No', 'Sipari\u015F T\u00FCr\u00FC', 'M\u00FC\u015Fteri', '\u00DClke', 'Para Birimi', 'Toplam Tutar', 'Avans', 'Kalan Bakiye', 'Sevk Tarihi', 'Vade Tarihi', '\u00D6deme \u015Eekli', 'Durum', 'Adet', 'Notlar'];
+    const COL_COUNT = HEADERS.length;
+    const toDate = s => s ? new Date(s + 'T00:00:00') : null;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+
+    // Para birimine g\u00F6re \u00F6zet
+    const summary = {};
+    globalOrders.forEach(o => {
+        const cur = o.currency || '\u2014';
+        if (!summary[cur]) summary[cur] = { count: 0, total: 0, remaining: 0 };
+        summary[cur].count++;
+        summary[cur].total     += parseFloat(o.total_amount) || 0;
+        summary[cur].remaining += parseFloat(o.remaining_balance) || 0;
+    });
+    const currencies = Object.keys(summary).sort();
+
+    const aoa = [];
+    aoa.push(['EXPORT SUITE \u2014 S\u0130PAR\u0130\u015E L\u0130STES\u0130']);
+    aoa.push([`Olu\u015Fturma Tarihi: ${new Date().toLocaleDateString('tr-TR')}   \u2022   Toplam Kay\u0131t: ${globalOrders.length}`]);
+    aoa.push([]);
+    aoa.push(['\u00D6ZET (Para Birimine G\u00F6re)']);
+    const summaryHeaderRow = aoa.length;
+    aoa.push(['Para Birimi', 'Sipari\u015F Say\u0131s\u0131', 'Toplam Tutar', 'Kalan Bakiye']);
+    currencies.forEach(cur => aoa.push([cur, summary[cur].count, summary[cur].total, summary[cur].remaining]));
+    aoa.push([]);
+    const tableHeaderRow = aoa.length;
+    aoa.push(HEADERS);
+    const dataStartRow = aoa.length;
+
     globalOrders.forEach(o => {
         const compName = o.customers?.company_name || '';
         const country  = o.customers?.country || '';
-        const tags     = (o.status_tags || [o.order_status || '']).join('|');
-        csv += `"${o.order_date}";"${o.order_number||''}";"${o.idevit_order_no||''}";"${o.ideal_order_no||''}";"${o.order_type||''}";"${compName}";"${country}";"${o.currency}";"${o.total_amount}";"${o.advance_payment}";"${o.remaining_balance}";"${o.payment_method||''}";"${tags}";"${o.order_quantity||''}";"${(o.order_notes||'').replace(/"/g,'""')}"\n`;
+        const tags     = (o.status_tags && o.status_tags.length > 0) ? o.status_tags : [o.order_status || ''];
+        const qty      = parseFloat(o.order_quantity);
+        aoa.push([
+            toDate(o.order_date),
+            o.order_number || '',
+            o.idevit_order_no || '',
+            o.ideal_order_no || '',
+            o.order_type || '',
+            compName,
+            country,
+            o.currency || '',
+            parseFloat(o.total_amount) || 0,
+            parseFloat(o.advance_payment) || 0,
+            parseFloat(o.remaining_balance) || 0,
+            toDate(o.shipment_date),
+            toDate(o.due_date),
+            o.payment_method || '',
+            tags.join(', '),
+            Number.isFinite(qty) ? qty : (o.order_quantity || ''),
+            o.order_notes || '',
+        ]);
     });
-    const link = document.createElement('a');
-    link.setAttribute('href', encodeURI(csv));
-    link.setAttribute('download', `Export_Siparisler_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+    ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: COL_COUNT - 1 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: COL_COUNT - 1 } },
+        { s: { r: 3, c: 0 }, e: { r: 3, c: COL_COUNT - 1 } },
+    ];
+    ws['!cols'] = [
+        { wch: 13 }, { wch: 11 }, { wch: 12 }, { wch: 11 }, { wch: 13 },
+        { wch: 24 }, { wch: 14 }, { wch: 11 }, { wch: 14 }, { wch: 12 },
+        { wch: 14 }, { wch: 13 }, { wch: 13 }, { wch: 15 }, { wch: 28 }, { wch: 9 }, { wch: 36 },
+    ];
+    ws['!rows'] = [];
+    ws['!rows'][0] = { hpt: 26 };
+    ws['!rows'][tableHeaderRow] = { hpt: 22 };
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: tableHeaderRow, c: 0 }, e: { r: dataStartRow + globalOrders.length - 1, c: COL_COUNT - 1 } }) };
+
+    const setStyle = (r, c, style) => {
+        const ref = XLSX.utils.encode_cell({ r, c });
+        if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+        ws[ref].s = style;
+        if (style.numFmt) ws[ref].z = style.numFmt;
+    };
+    const thin = { style: 'thin', color: { rgb: BORDER_RGB } };
+    const fullBorder = { top: thin, bottom: thin, left: thin, right: thin };
+
+    setStyle(0, 0, { font: { bold: true, sz: 16, color: { rgb: HEADER_FG } }, fill: { patternType: 'solid', fgColor: { rgb: HEADER_BG } }, alignment: { horizontal: 'center', vertical: 'center' } });
+    setStyle(1, 0, { font: { italic: true, sz: 10, color: { rgb: '6B6656' } }, alignment: { horizontal: 'center' } });
+    setStyle(3, 0, { font: { bold: true, sz: 11, color: { rgb: HEADER_BG } } });
+
+    for (let c = 0; c < 4; c++) {
+        setStyle(summaryHeaderRow, c, { font: { bold: true, color: { rgb: HEADER_FG } }, fill: { patternType: 'solid', fgColor: { rgb: SUBHDR_BG } }, border: fullBorder, alignment: { horizontal: 'center' } });
+    }
+    currencies.forEach((cur, i) => {
+        const r = summaryHeaderRow + 1 + i;
+        for (let c = 0; c < 4; c++) {
+            const style = { border: fullBorder, alignment: { horizontal: c === 0 ? 'center' : 'right' }, font: { sz: 10 } };
+            if (c >= 2) style.numFmt = '#,##0.00';
+            setStyle(r, c, style);
+        }
+    });
+
+    for (let c = 0; c < COL_COUNT; c++) {
+        setStyle(tableHeaderRow, c, { font: { bold: true, sz: 10, color: { rgb: HEADER_FG } }, fill: { patternType: 'solid', fgColor: { rgb: HEADER_BG } }, border: fullBorder, alignment: { horizontal: 'center', vertical: 'center', wrapText: true } });
+    }
+
+    const dateCols  = [0, 11, 12];
+    const moneyCols = [8, 9, 10];
+    globalOrders.forEach((o, idx) => {
+        const r         = dataStartRow + idx;
+        const tags      = (o.status_tags && o.status_tags.length > 0) ? o.status_tags : [o.order_status || ''];
+        const zebra     = idx % 2 === 1 ? ZEBRA_BG : 'FFFFFF';
+        const stColor   = pickExportStatusColor(tags);
+        const isOverdue = o.due_date && parseFloat(o.remaining_balance || 0) > 0 && new Date(o.due_date + 'T00:00:00') < today;
+
+        for (let c = 0; c < COL_COUNT; c++) {
+            const style = {
+                border: fullBorder,
+                fill: { patternType: 'solid', fgColor: { rgb: zebra } },
+                font: { sz: 10 },
+                alignment: { vertical: 'center', wrapText: c === 16 },
+            };
+            if (dateCols.includes(c))  { style.numFmt = 'dd.mm.yyyy'; style.alignment.horizontal = 'center'; }
+            if (moneyCols.includes(c)) { style.numFmt = '#,##0.00'; style.alignment.horizontal = 'right'; }
+            if (c === 15) { style.numFmt = '#,##0'; style.alignment.horizontal = 'right'; }
+            if (c === 7)  { style.alignment.horizontal = 'center'; }
+            if (c === 12 && isOverdue) { style.font = { sz: 10, bold: true, color: { rgb: '991B1B' } }; }
+            if (c === 14) {
+                style.fill = { patternType: 'solid', fgColor: { rgb: stColor.bg } };
+                style.font = { sz: 10, bold: true, color: { rgb: stColor.fg } };
+                style.alignment.horizontal = 'center';
+            }
+            setStyle(r, c, style);
+        }
+    });
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sipari\u015Fler');
+    XLSX.writeFile(wb, `Export_Siparisler_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 // ── EVENT LISTENERS ───────────────────────────────────────────────────────────
@@ -1114,7 +1262,7 @@ function initEventListeners() {
     document.getElementById('order-search-input').addEventListener('input', applyFilters);
     document.getElementById('filter-order-currency').addEventListener('change', applyFilters);
     document.getElementById('filter-order-status').addEventListener('change', applyFilters);
-    document.getElementById('btn-export-orders').addEventListener('click', exportOrdersToCSV);
+    document.getElementById('btn-export-orders').addEventListener('click', exportOrdersToExcel);
     document.getElementById('filter-shipment-month').addEventListener('change', applyFilters);
     document.getElementById('sort-shipment-date').addEventListener('change', applyFilters);
     document.getElementById('btn-add-item-row').addEventListener('click', addItemRow);
