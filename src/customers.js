@@ -18,6 +18,7 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
+import { showAlertDialog, showConfirmDialog } from './utils/dialogs.js';
 
 // Global Müşteri Hafızası
 let globalCustomers = [];
@@ -57,7 +58,7 @@ async function fetchCustomers() {
 
     } catch (error) {
         console.error("Müşteri listesi çekilemedi:", error.message);
-        alert("Müşteri verileri yüklenirken hata oluştu.");
+        await showAlertDialog("Müşteri verileri yüklenirken hata oluştu.", { variant: 'danger', title: 'Hata' });
     }
 }
 
@@ -402,7 +403,7 @@ async function handleFormSubmit(e) {
         .map(([label]) => label);
 
     if (missing.length > 0) {
-        alert("Lütfen aşağıdaki zorunlu alanları doldurun:\n\n• " + missing.join("\n• "));
+        await showAlertDialog("Lütfen aşağıdaki zorunlu alanları doldurun:\n\n• " + missing.join("\n• "), { variant: 'warn', title: 'Eksik Bilgi' });
         return;
     }
 
@@ -412,7 +413,7 @@ async function handleFormSubmit(e) {
             (c.company_name || '').trim().toLocaleLowerCase('tr-TR') ===
             companyName.trim().toLocaleLowerCase('tr-TR'));
         if (exists) {
-            alert("Bu firma ismiyle daha önce bir kayıt oluşturulmuş!");
+            await showAlertDialog("Bu firma ismiyle daha önce bir kayıt oluşturulmuş!", { variant: 'warn', title: 'Mükerrer Kayıt' });
             return;
         }
     }
@@ -484,7 +485,7 @@ async function handleFormSubmit(e) {
 
     } catch (error) {
         console.error("Müşteri kaydedilemedi:", error.message);
-        alert("Kayıt sırasında bir hata oluştu: " + error.message);
+        await showAlertDialog("Kayıt sırasında bir hata oluştu: " + error.message, { variant: 'danger', title: 'Hata' });
     }
 }
 
@@ -495,7 +496,11 @@ async function handleDeleteCustomer() {
     const id = document.getElementById('customer-id').value;
     if (!id) return;
 
-    if (confirm("Bu müşteriyi silmek istediğinize emin misiniz? Bu işlem müşteriye bağlı tüm sipariş ve fiyat ilişkilerini de etkileyebilir!")) {
+    const ok = await showConfirmDialog(
+        "Bu müşteriyi silmek istediğinize emin misiniz? Bu işlem müşteriye bağlı tüm sipariş ve fiyat ilişkilerini de etkileyebilir!",
+        { variant: 'danger', title: 'Müşteriyi Sil', confirmText: 'Sil' }
+    );
+    if (ok) {
         try {
             const { data: { session } } = await supabase.auth.getSession();
             const { error } = await supabase
@@ -509,9 +514,9 @@ async function handleDeleteCustomer() {
         } catch (error) {
             console.error("Müşteri silinemedi:", error.message);
             if (error.code === '23503') {
-                alert("Bu müşteri silinemez!\nMüşteriye ait sipariş, özel fiyat veya credit note kaydı bulunmaktadır.\nÖnce ilgili kayıtları siliniz.");
+                await showAlertDialog("Bu müşteri silinemez!\nMüşteriye ait sipariş, özel fiyat veya credit note kaydı bulunmaktadır.\nÖnce ilgili kayıtları siliniz.", { variant: 'danger', title: 'Silinemedi' });
             } else {
-                alert("Silme işlemi başarısız oldu: " + error.message);
+                await showAlertDialog("Silme işlemi başarısız oldu: " + error.message, { variant: 'danger', title: 'Hata' });
             }
         }
     }
@@ -532,7 +537,7 @@ async function handleImportFile(e) {
         const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
         if (!rows.length) {
-            alert("Dosyada içe aktarılacak satır bulunamadı.");
+            await showAlertDialog("Dosyada içe aktarılacak satır bulunamadı.", { variant: 'warn', title: 'Uyarı' });
             e.target.value = '';
             return;
         }
@@ -580,12 +585,12 @@ async function handleImportFile(e) {
             }
         }
 
-        alert(`İçe aktarma tamamlandı.\nYeni eklenen: ${inserted}\nGüncellenen: ${updated}\nAtlanan (firma adı boş): ${skipped}`);
+        await showAlertDialog(`İçe aktarma tamamlandı.\nYeni eklenen: ${inserted}\nGüncellenen: ${updated}\nAtlanan (firma adı boş): ${skipped}`, { variant: 'success', title: 'İçe Aktarma Tamamlandı' });
         await fetchCustomers();
 
     } catch (error) {
         console.error("İçe aktarma hatası:", error.message);
-        alert("İçe aktarma sırasında bir hata oluştu: " + error.message);
+        await showAlertDialog("İçe aktarma sırasında bir hata oluştu: " + error.message, { variant: 'danger', title: 'Hata' });
     } finally {
         e.target.value = '';   // aynı dosya tekrar seçilebilsin
     }
@@ -822,9 +827,9 @@ function escapeAttr(str) {
 // ════════════════════════════════════════════════════════════════
 //  CSV DIŞA AKTARMA
 // ════════════════════════════════════════════════════════════════
-function exportToCSV() {
+async function exportToCSV() {
     if (globalCustomers.length === 0) {
-        alert("Dışa aktarılacak veri bulunamadı.");
+        await showAlertDialog("Dışa aktarılacak veri bulunamadı.", { variant: 'warn', title: 'Uyarı' });
         return;
     }
 
