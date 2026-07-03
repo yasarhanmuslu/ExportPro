@@ -324,8 +324,11 @@ async function openModalForEdit(id) {
     document.getElementById('quotation_number').value = q.quotation_number || '';
     document.getElementById('quotation_date').value   = q.quotation_date || '';
     document.getElementById('valid_until').value      = q.valid_until || '';
+    document.getElementById('order_type').value        = q.order_type || '';
     document.getElementById('currency').value          = q.currency || 'EUR';
     document.getElementById('total_amount').value      = parseFloat(q.total_amount || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 });
+    document.getElementById('order_quantity').value    = q.order_quantity || '';
+    document.getElementById('payment_method').value    = q.payment_method || '';
     document.getElementById('q_status').value           = q.status || 'Bekliyor';
     document.getElementById('quotation_notes').value    = q.notes || '';
 
@@ -393,8 +396,11 @@ async function handleQuotationSubmit(e) {
         quotation_number: document.getElementById('quotation_number').value || null,
         quotation_date:   document.getElementById('quotation_date').value || null,
         valid_until:      document.getElementById('valid_until').value || null,
+        order_type:       document.getElementById('order_type').value || null,
         currency:         document.getElementById('currency').value,
         total_amount,
+        order_quantity:   document.getElementById('order_quantity').value || null,
+        payment_method:   document.getElementById('payment_method').value || null,
         status:           document.getElementById('q_status').value || 'Bekliyor',
         notes:            document.getElementById('quotation_notes').value || null,
     };
@@ -511,6 +517,9 @@ async function handleSendToOrder() {
     const currency     = document.getElementById('currency').value;
     const quotationNumber = document.getElementById('quotation_number').value || null;
     const notes = document.getElementById('quotation_notes').value || '';
+    const orderType      = document.getElementById('order_type').value || null;
+    const paymentMethod  = document.getElementById('payment_method').value || null;
+    const manualQuantity = document.getElementById('order_quantity').value || null;
 
     const confirmSend = await showConfirmDialog(
         `"${quotationNumber || q.id}" teklifi SİPARİŞE gönderilecek ve teklif modülünden kalıcı olarak silinecektir.\n\nDevam etmek istiyor musunuz?`,
@@ -568,13 +577,15 @@ async function handleSendToOrder() {
             customer_id:        customerId,
             order_number:       orderNumber,
             order_date:         new Date().toISOString().slice(0, 10),
+            order_type:         orderType,
             currency,
             total_amount,
             advance_payment:    0,
             remaining_balance:  total_amount,
+            payment_method:     paymentMethod,
             order_status:       'Yeni Müşteri',
             status_tags:        ['Yeni Müşteri'],
-            order_quantity:     totalQty > 0 ? String(totalQty) : null,
+            order_quantity:     manualQuantity || (totalQty > 0 ? String(totalQty) : null),
             order_notes:        `Teklif ${quotationNumber || q.id} üzerinden oluşturuldu.${notes ? ' ' + notes : ''}`.trim(),
         };
 

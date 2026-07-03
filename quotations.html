@@ -195,7 +195,7 @@
                             <input type="text" id="quotation_number" placeholder="Örn: 2026-01">
                         </div>
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
                         <div>
                             <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Teklif Tarihi *</label>
                             <input type="date" id="quotation_date" required>
@@ -204,13 +204,22 @@
                             <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Geçerlilik Tarihi</label>
                             <input type="date" id="valid_until">
                         </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Sipariş Türü</label>
+                            <select id="order_type">
+                                <option value="">-- Seçiniz --</option>
+                                <option value="İhracat">İhracat</option>
+                                <option value="İhraç Kayıt">İhraç Kayıt</option>
+                                <option value="KDV">KDV</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
                 <!-- 2. Finansal -->
                 <div class="section-card">
                     <p class="section-lbl"><i class="fa-solid fa-coins" style="margin-right:4px;"></i>2. Finansal Bilgiler</p>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
                         <div>
                             <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Para Birimi *</label>
                             <select id="currency" required>
@@ -223,6 +232,26 @@
                         <div>
                             <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Toplam Tutar *</label>
                             <input type="text" id="total_amount" required placeholder="15.000,00" style="text-align:right;">
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Adet / Miktar</label>
+                            <input type="text" id="order_quantity" placeholder="Örn: 1.010 adet">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Ödeme Şekli</label>
+                            <select id="payment_method">
+                                <option value="">-- Seçiniz --</option>
+                                <option value="Peşin">Peşin</option>
+                                <option value="100% T/T">100% T/T</option>
+                                <option value="Mal Mukabili">Mal Mukabili</option>
+                                <option value="Bedelsiz">Bedelsiz</option>
+                                <option value="30 Gün Vade">30 Gün Vade</option>
+                                <option value="60 Gün Vade">60 Gün Vade</option>
+                                <option value="90 Gün Vade">90 Gün Vade</option>
+                                <option value="120 Gün Vade">120 Gün Vade</option>
+                            </select>
                         </div>
                     </div>
                 </div>
