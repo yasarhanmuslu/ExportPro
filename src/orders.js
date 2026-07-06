@@ -110,12 +110,41 @@ async function fetchOrdersData() {
             .order('order_date', { ascending: false });
         if (error) throw error;
         globalOrders = data || [];
+        await autoApplyGecikmeTags(globalOrders);
         renderOrdersList(globalOrders);
     } catch (err) {
         console.error('Sipariş verileri yüklenemedi:', err.message);
         document.getElementById('orders-card-list').innerHTML =
             `<div style="text-align:center;color:#9F3D3D;padding:32px;">Veriler çekilirken hata oluştu.</div>`;
     }
+}
+
+// Vadesi geçmiş (ve bakiyesi kalan) siparişlere otomatik "Gecikme" etiketi ekler ve DB'ye yazar.
+// Sadece ekleme yapar — mevcut etiketleri veya order_status'u değiştirmez, elle kaldırılan/eklenen etiketlere dokunmaz.
+async function autoApplyGecikmeTags(orders) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const updates = [];
+
+    orders.forEach(o => {
+        const isOverdue = o.due_date
+            && parseFloat(o.remaining_balance || 0) > 0
+            && new Date(o.due_date + 'T00:00:00') < today;
+        if (!isOverdue) return;
+
+        const currentTags = (o.status_tags && o.status_tags.length > 0)
+            ? o.status_tags
+            : (o.order_status ? [o.order_status] : []);
+        if (currentTags.includes('Gecikme')) return;
+
+        const newTags = [...currentTags, 'Gecikme'];
+        o.status_tags = newTags;
+        updates.push({ id: o.id, status_tags: newTags });
+    });
+
+    if (updates.length === 0) return;
+    await Promise.all(updates.map(u =>
+        supabase.from('orders').update({ status_tags: u.status_tags }).eq('id', u.id)
+    ));
 }
 
 async function fetchOrderItems(orderId) {
