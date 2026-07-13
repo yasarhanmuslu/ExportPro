@@ -194,6 +194,112 @@
             gap: 6px;
         }
         .total-badge span { color: var(--accent); font-weight: 700; font-size: 13px; }
+
+        /* ── Toolbar Butonları ── */
+        .btn-action {
+            display: inline-flex; align-items: center; gap: 7px;
+            padding: 0 16px; height: 36px; border-radius: 7px;
+            border: 1px solid var(--border); background: var(--surface);
+            color: var(--ink-2); font-size: 12px; font-weight: 600; cursor: pointer;
+            transition: background 0.15s, opacity .15s;
+        }
+        .btn-action:hover { background: var(--surface-2); }
+        .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .btn-primary:hover { opacity: .88; background: var(--accent); }
+        .btn-danger  { background: var(--danger-soft); color: var(--danger); border-color: transparent; }
+        .btn-danger:hover { opacity: .85; }
+        [data-requires-edit]:disabled { opacity: .5; cursor: not-allowed; }
+
+        /* ── Eşleşme Rozeti ── */
+        .match-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+            margin-left: 6px; vertical-align: middle;
+        }
+        .match-badge.ok   { background: var(--ok-soft); color: var(--ok); }
+        .match-badge.warn { background: var(--danger-soft); color: var(--danger); }
+
+        /* ── Satır İşlem Butonları ── */
+        .row-actions { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+        .row-action-btn {
+            width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--border);
+            background: var(--surface); color: var(--ink-3); font-size: 11px; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center;
+            transition: background .12s, color .12s;
+        }
+        .row-action-btn:hover { background: var(--surface-2); color: var(--ink-1); }
+        .row-action-btn.danger:hover { background: var(--danger-soft); color: var(--danger); }
+
+        /* ── Modal ── */
+        .modal-backdrop {
+            position: fixed; inset: 0; z-index: 200; display: none;
+            align-items: flex-start; justify-content: center;
+            padding: 40px 16px; overflow-y: auto;
+        }
+        .modal-backdrop.open { display: flex; }
+        .modal-content {
+            width: 100%; max-width: 560px; max-height: calc(100vh - 80px);
+            display: flex; flex-direction: column; padding: 0;
+        }
+        .modal-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 18px 24px; border-bottom: 1px solid var(--border-soft); flex-shrink: 0;
+        }
+        .modal-head h3 { font-size: 16px; font-weight: 600; color: var(--ink-1); margin: 0; display: flex; align-items: center; gap: 8px; }
+        .modal-close {
+            width: 30px; height: 30px; border-radius: 6px; border: 1px solid var(--border);
+            background: transparent; color: var(--ink-3); font-size: 14px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: background .12s;
+        }
+        .modal-close:hover { background: var(--surface-2); }
+        .modal-body { padding: 20px 24px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
+        .modal-foot {
+            display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+            padding: 14px 24px; border-top: 1px solid var(--border-soft); flex-shrink: 0;
+        }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
+        .form-grid .full { grid-column: 1 / -1; }
+        .fg-label {
+            display: block; font-size: 10px; font-weight: 600; letter-spacing: .12em;
+            text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px;
+        }
+        .fg-input {
+            width: 100%; padding: 7px 10px; border: 1px solid var(--border);
+            border-radius: 6px; background: var(--surface); color: var(--ink-1);
+            font-size: 13px; outline: none; transition: border-color .18s; box-sizing: border-box;
+        }
+        .fg-input:focus { border-color: var(--accent); }
+        .fg-input[readonly] { background: var(--surface-2); color: var(--ink-2); cursor: not-allowed; }
+        .fg-hint { font-size: 11px; color: var(--ink-3); margin-top: 4px; }
+        .fg-error { font-size: 11px; color: var(--danger); margin-top: 4px; display: none; }
+
+        /* ── İçe Aktarma ── */
+        .drop-zone {
+            border: 2px dashed var(--border); border-radius: 8px; padding: 28px;
+            text-align: center; color: var(--ink-3); font-size: 13px;
+            cursor: pointer; transition: border-color .18s, background .18s;
+        }
+        .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: var(--surface-2); }
+        .drop-zone i { font-size: 26px; margin-bottom: 8px; display: block; opacity: .5; }
+        .import-summary { margin-top: 14px; font-size: 12px; color: var(--ink-2); max-height: 200px; overflow-y: auto; }
+        .import-summary .err-line { color: var(--danger); }
+
+        /* ── Ürün Kodu Autocomplete ── */
+        .ac-wrap { position: relative; }
+        .ac-dropdown {
+            position: absolute; top: 100%; left: 0; right: 0; z-index: 60;
+            max-height: 240px; overflow-y: auto;
+            background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+            margin-top: 4px; box-shadow: 0 8px 24px rgba(0,0,0,.14);
+        }
+        .ac-dropdown.hidden { display: none; }
+        .ac-option { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border-soft); transition: background .1s; }
+        .ac-option:last-child { border-bottom: none; }
+        .ac-option:hover, .ac-option.active { background: var(--surface-2); }
+        .ac-option-name { font-size: 12px; font-weight: 500; color: var(--ink-1); line-height: 1.3; }
+        .ac-option-meta { font-size: 10px; color: var(--ink-3); margin-top: 3px; }
+        .ac-option-meta .code { font-family: 'Courier New', monospace; }
+        .ac-empty { padding: 10px 12px; font-size: 11px; color: var(--ink-3); }
     </style>
 </head>
 <body class="min-h-screen">
@@ -213,16 +319,20 @@
                     2026 TL ve 2022-3 döviz liste fiyatları karşılaştırması. Anlık iskonto hesaplama.
                 </p>
             </div>
-            <button id="btn-export-prices" style="
-                display:flex; align-items:center; gap:7px;
-                padding:0 16px; height:36px; border-radius:7px;
-                border:1px solid var(--border); background:var(--surface);
-                color:var(--ink-2); font-size:12px; font-weight:600; cursor:pointer;
-                transition:background 0.15s;
-            ">
-                <i class="fa-solid fa-file-excel" style="color:var(--ok)"></i>
-                Listeyi Aktar
-            </button>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <button id="btn-import-prices" class="btn-action" data-requires-edit>
+                    <i class="fa-solid fa-file-import" style="color:var(--info)"></i>
+                    Listeyi İçe Aktar
+                </button>
+                <button id="btn-export-prices" class="btn-action">
+                    <i class="fa-solid fa-file-excel" style="color:var(--ok)"></i>
+                    Listeyi Aktar
+                </button>
+                <button id="btn-add-price" class="btn-action btn-primary" data-requires-edit>
+                    <i class="fa-solid fa-plus"></i>
+                    Yeni Ürün Ekle
+                </button>
+            </div>
         </header>
 
         <!-- Sekmeler -->
@@ -331,10 +441,11 @@
                             <th class="text-right" id="th-doviz-liste">2022-3 EUR Liste</th>
                             <th class="text-right" id="th-doviz-net">2022-3 EUR Net</th>
                             <th class="text-right">Fark (TL/EUR)</th>
+                            <th style="text-align:center;">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody id="price-table-body">
-                        <tr class="loading-row"><td colspan="8"><i class="fa-solid fa-circle-notch fa-spin" style="margin-right:8px;"></i>Yükleniyor...</td></tr>
+                        <tr class="loading-row"><td colspan="9"><i class="fa-solid fa-circle-notch fa-spin" style="margin-right:8px;"></i>Yükleniyor...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -342,6 +453,81 @@
 
     </main>
 
+    <!-- ═══ ÜRÜN EKLE / DÜZENLE MODAL ═══ -->
+    <div class="modal-backdrop" id="modal-price-form">
+        <div class="modal-content">
+            <div class="modal-head">
+                <h3><i class="fa-solid fa-tag" style="color:var(--accent)"></i> <span id="price-form-title">Yeni Ürün Ekle</span></h3>
+                <button class="modal-close" data-close="modal-price-form"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="full ac-wrap">
+                        <label class="fg-label">Ürün Kodu / Adı (Ürün Kartları)</label>
+                        <input type="text" class="fg-input" id="pf-code" placeholder="Kod veya ürün adı yazarak arayın..." autocomplete="off">
+                        <div class="ac-dropdown hidden" id="pf-code-dropdown"></div>
+                        <div class="fg-error" id="pf-code-error">Bu kod Ürün Kartları modülünde bulunamadı.</div>
+                    </div>
+                    <div class="full">
+                        <label class="fg-label">Ürün Adı (Ürün Kartları'ndan otomatik)</label>
+                        <input type="text" class="fg-input" id="pf-name" readonly placeholder="Geçerli bir kod seçildiğinde otomatik dolar">
+                    </div>
+                    <div class="full">
+                        <label class="fg-label">Grup</label>
+                        <input type="text" class="fg-input" id="pf-group">
+                    </div>
+                    <div>
+                        <label class="fg-label">2026 TL Liste Fiyatı</label>
+                        <input type="number" class="fg-input" id="pf-tl" step="0.01" min="0">
+                    </div>
+                    <div>
+                        <label class="fg-label">2022-3 EUR Liste Fiyatı</label>
+                        <input type="number" class="fg-input" id="pf-eur" step="0.01" min="0">
+                    </div>
+                    <div>
+                        <label class="fg-label">2022-3 USD Liste Fiyatı</label>
+                        <input type="number" class="fg-input" id="pf-usd" step="0.01" min="0">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn-action" data-close="modal-price-form">İptal</button>
+                <button class="btn-action btn-primary" id="btn-price-save" data-requires-edit><i class="fa-solid fa-check"></i> Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ EXCEL İÇE AKTARMA MODAL ═══ -->
+    <div class="modal-backdrop" id="modal-price-import">
+        <div class="modal-content" style="max-width:560px;">
+            <div class="modal-head">
+                <h3><i class="fa-solid fa-file-import" style="color:var(--info)"></i> Listeyi İçe Aktar</h3>
+                <button class="modal-close" data-close="modal-price-import"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:12px;color:var(--ink-3);margin-bottom:14px;line-height:1.5;">
+                    "Listeyi Aktar" ile indirdiğiniz Excel dosyasında <strong>Ürün Kodu</strong> sütununu düzeltip
+                    buraya geri yükleyin. <strong>Kayıt ID</strong> doluysa o satır güncellenir; <strong>Kayıt ID
+                    boş</strong> bırakılırsa (yeni eklediğiniz satırlar) geçerli bir Ürün Kodu ile yeni ürün olarak
+                    eklenir. Ürün Adı ve Eşleşme Durumu sütunları Ürün Kartları'ndan otomatik geldiği için dikkate alınmaz.
+                </p>
+                <div class="drop-zone" id="price-drop-zone">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <div>Excel (.xlsx) veya CSV dosyanızı sürükleyip bırakın</div>
+                    <div style="font-size:11px;color:var(--ink-3);margin-top:4px;">veya tıklayarak seçin</div>
+                    <input type="file" id="price-file-input" accept=".xlsx,.csv" style="display:none;">
+                </div>
+                <div class="import-summary" id="price-import-summary" style="display:none;"></div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn-action" data-close="modal-price-import">Kapat</button>
+                <button class="btn-action btn-primary" id="btn-price-import-confirm" data-requires-edit disabled><i class="fa-solid fa-upload"></i> <span id="import-count-label">Yükle</span></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <script type="module" src="./src/prices.js"></script>
 </body>
 </html>
