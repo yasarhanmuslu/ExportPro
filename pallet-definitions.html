@@ -24,7 +24,7 @@
         <p class="text-sm text-[var(--text-secondary)] mt-1">Ürünlerden oluşan, taşımaya hazır benzersiz palet tanımları</p>
       </div>
       <div class="flex gap-2">
-        <button id="btn-add-pallet"
+        <button id="btn-add-pallet" data-requires-edit
           class="flex items-center gap-2 bg-[#2D4A3E] hover:bg-[#1a3329] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
           <i class="fa-solid fa-plus"></i> Yeni Palet
         </button>
@@ -217,12 +217,12 @@
       </div>
 
       <div class="flex justify-between items-center gap-3 px-6 py-4 border-t border-[var(--border)] flex-shrink-0">
-        <button id="modal-pallet-delete" class="hidden px-4 py-2 text-sm rounded-lg border border-[#9F3D3D]/40 text-[#9F3D3D] hover:bg-[#9F3D3D]/10 transition-colors">
+        <button id="modal-pallet-delete" data-requires-edit class="hidden px-4 py-2 text-sm rounded-lg border border-[#9F3D3D]/40 text-[#9F3D3D] hover:bg-[#9F3D3D]/10 transition-colors">
           <i class="fa-solid fa-trash-can mr-1.5"></i>Sil
         </button>
         <div class="flex justify-end gap-3 ml-auto">
           <button id="modal-pallet-cancel" class="px-4 py-2 text-sm rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors">İptal</button>
-          <button id="modal-pallet-save" class="px-4 py-2 text-sm rounded-lg bg-[#2D4A3E] hover:bg-[#1a3329] text-white font-medium transition-colors">
+          <button id="modal-pallet-save" data-requires-edit class="px-4 py-2 text-sm rounded-lg bg-[#2D4A3E] hover:bg-[#1a3329] text-white font-medium transition-colors">
             <i class="fa-solid fa-floppy-disk mr-1.5"></i>Kaydet
           </button>
         </div>

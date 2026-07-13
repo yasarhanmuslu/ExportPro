@@ -111,7 +111,7 @@
             <p style="font-size:13px;color:#968B7A;margin-top:4px;">Teklif hazırlama, geçerlilik takibi ve onaylanan tekliflerin siparişe aktarımı.</p>
         </div>
         <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-            <button id="btn-open-quotation-modal" style="height:38px;padding:0 18px;background:#2D4A3E;border:none;border-radius:8px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;display:flex;align-items:center;gap:6px;">
+            <button id="btn-open-quotation-modal" data-requires-edit style="height:38px;padding:0 18px;background:#2D4A3E;border:none;border-radius:8px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;display:flex;align-items:center;gap:6px;">
                 <i class="fa-solid fa-plus"></i> Yeni Teklif
             </button>
         </div>
@@ -318,15 +318,15 @@
 
             <!-- Alt Butonlar -->
             <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid #E4DDCE;padding-top:16px;margin-top:16px;flex-shrink:0;">
-                <button type="button" id="btn-delete-quotation" class="hidden" style="height:36px;padding:0 16px;background:#fff;border:1px solid #fca5a5;border-radius:6px;color:#991b1b;font-size:13px;font-weight:600;cursor:pointer;display:none;align-items:center;gap:6px;">
+                <button type="button" id="btn-delete-quotation" data-requires-edit class="hidden" style="height:36px;padding:0 16px;background:#fff;border:1px solid #fca5a5;border-radius:6px;color:#991b1b;font-size:13px;font-weight:600;cursor:pointer;display:none;align-items:center;gap:6px;">
                     <i class="fa-solid fa-trash-can"></i> Teklifi Sil
                 </button>
                 <div style="display:flex;align-items:center;gap:10px;margin-left:auto;">
-                    <button type="button" id="btn-send-to-order" class="hidden" style="height:36px;padding:0 16px;background:#fff;border:1px solid #2D4A3E;border-radius:6px;color:#2D4A3E;font-size:13px;font-weight:700;cursor:pointer;display:none;align-items:center;gap:6px;">
+                    <button type="button" id="btn-send-to-order" data-requires-edit class="hidden" style="height:36px;padding:0 16px;background:#fff;border:1px solid #2D4A3E;border-radius:6px;color:#2D4A3E;font-size:13px;font-weight:700;cursor:pointer;display:none;align-items:center;gap:6px;">
                         <i class="fa-solid fa-share-from-square"></i> Siparişe Gönder
                     </button>
                     <button type="button" id="btn-quotation-cancel" style="height:36px;padding:0 16px;background:#fff;border:1px solid #E4DDCE;border-radius:6px;color:#6B655B;font-size:13px;font-weight:600;cursor:pointer;">İptal</button>
-                    <button type="submit" style="height:36px;padding:0 18px;background:#2D4A3E;border:none;border-radius:6px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                    <button type="submit" data-requires-edit style="height:36px;padding:0 18px;background:#2D4A3E;border:none;border-radius:6px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
                         <i class="fa-solid fa-floppy-disk"></i> Teklifi Kaydet
                     </button>
                 </div>

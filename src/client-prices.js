@@ -1,19 +1,26 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
+import { showAlertDialog, showConfirmDialog } from './utils/dialogs.js';
+import { getAccessContext, guardModuleAccess, applyEditLock, canEdit } from './utils/permissions.js';
+import { logChange } from './utils/auditLog.js';
 
 // Global veriler
 let globalCustomers = [];
 let globalClientPrices = []; // { customer_id, company_name, products: [{product_name, list_price, discount_rate, net_price, id?}] }
 let tempProducts = []; // Modal içi geçici ürün listesi
 let globalProductOptions = []; // { id, product_name, product_code } - ürün seçimi için
+let ctx = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
-    await renderNavbar('client-prices');
+    ctx = await getAccessContext();
+    if (!(await guardModuleAccess(ctx, 'client-prices'))) return;
+    await renderNavbar('client-prices', ctx);
     await Promise.all([fetchCustomers(), fetchClientPrices(), fetchProductOptions()]);
     initEventListeners();
+    applyEditLock(ctx, 'client-prices');
 });
 
 // ─── VERİ ÇEKME ───────────────────────────────────────────────
@@ -321,9 +328,13 @@ function wireCalculator() {
 
 // ─── KAYDETME ─────────────────────────────────────────────────
 async function saveClientPrices() {
+    if (!canEdit(ctx, 'client-prices')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
     const customerId = document.getElementById('cp-customer-select').value;
-    if (!customerId) { alert("Lütfen bir müşteri seçiniz."); return; }
-    if (tempProducts.length === 0) { alert("Lütfen en az bir ürün fiyatı ekleyiniz."); return; }
+    if (!customerId) { await showAlertDialog("Lütfen bir müşteri seçiniz.", { variant: 'warn' }); return; }
+    if (tempProducts.length === 0) { await showAlertDialog("Lütfen en az bir ürün fiyatı ekleyiniz.", { variant: 'warn' }); return; }
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -346,26 +357,38 @@ async function saveClientPrices() {
         const { error } = await supabase.from('customer_prices').insert(inserts);
         if (error) throw error;
 
+        const customerName = globalCustomers.find(c => c.id === customerId)?.company_name || customerId;
+        logChange({ ctx, moduleId: 'client-prices', action: 'update', summary: `Müşteri fiyat kartı kaydedildi: ${customerName} (${inserts.length} ürün)` });
+
         closeModal();
         await fetchClientPrices();
     } catch (err) {
         console.error("Fiyat kartı kaydedilemedi:", err.message);
-        alert("Hata: " + err.message);
+        await showAlertDialog("Hata: " + err.message, { variant: 'danger' });
     }
 }
 
 // ─── SİLME ───────────────────────────────────────────────────
 async function deleteClientPrices() {
+    if (!canEdit(ctx, 'client-prices')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
     const customerId = document.getElementById('cp-customer-id').value;
-    if (!customerId || !confirm("Bu müşteriye ait tüm fiyat kayıtları silinecektir. Emin misiniz?")) return;
+    if (!customerId) return;
+    const ok = await showConfirmDialog("Bu müşteriye ait tüm fiyat kayıtları silinecektir. Emin misiniz?", { title: 'Fiyat Kartını Sil', variant: 'danger', confirmText: 'Sil' });
+    if (!ok) return;
     try {
         const { data: { session } } = await supabase.auth.getSession();
         const { error } = await supabase.from('customer_prices').delete().eq('customer_id', customerId).eq('user_id', session.user.id);
         if (error) throw error;
+        const customerName = globalCustomers.find(c => c.id === customerId)?.company_name || customerId;
+        logChange({ ctx, moduleId: 'client-prices', action: 'delete', summary: `Müşteri fiyat kartı silindi: ${customerName}` });
         closeModal();
         await fetchClientPrices();
     } catch (err) {
         console.error("Silme işlemi başarısız:", err.message);
+        await showAlertDialog("Silme işlemi başarısız oldu: " + err.message, { variant: 'danger' });
     }
 }
 

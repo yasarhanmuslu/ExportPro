@@ -1,6 +1,8 @@
 import { supabase } from '../utils/supabaseClient.js';
+import { isOwner, canView } from '../utils/permissions.js';
 
-const APP_VERSION = 'V: 1.0.89';
+const APP_VERSION = 'V: 1.0.90';
+const ADMIN_TAB = { id: 'admin', label: 'Yönetici', icon: 'fa-user-shield', href: 'admin.html' };
 
 // MENU MODELI
 //   type: 'link'  -> dogrudan sayfa
@@ -43,7 +45,7 @@ const MENU = [
 
 const HELP_TAB = { id: 'help', label: 'Yardım & Kılavuz', icon: 'fa-circle-question', href: 'help.html' };
 
-export async function renderNavbar(activeTab) {
+export async function renderNavbar(activeTab, ctx = null) {
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
@@ -57,11 +59,33 @@ export async function renderNavbar(activeTab) {
     if (!navbarTarget) return;
 
     const userEmail = session && session.user ? session.user.email : 'Giriş Yapılmadı';
+    const owner = isOwner(ctx);
+
+    // Yetkisiz modülleri menüden gizle (dashboard her zaman görünür)
+    const visibleMenu = MENU
+        .map(node => {
+            if (node.type === 'group') {
+                const children = node.children.filter(c => c.soon || owner || c.id === 'dashboard' || canView(ctx, c.id));
+                return children.length ? { ...node, children } : null;
+            }
+            return (node.href === '#' || owner || node.id === 'dashboard' || canView(ctx, node.id)) ? node : null;
+        })
+        .filter(Boolean);
 
     // Aktif sekmenin hangi gruba ait oldugunu bul (otomatik acik gelsin)
     let activeGroupId = null;
-    for (const node of MENU) {
+    for (const node of visibleMenu) {
         if (node.type === 'group' && node.children.some(c => c.id === activeTab)) { activeGroupId = node.id; break; }
+    }
+
+    let unreadCount = 0;
+    if (owner) {
+        const { count } = await supabase
+            .from('audit_log')
+            .select('id', { count: 'exact', head: true })
+            .is('read_at', null)
+            .neq('user_id', ctx.userId);
+        unreadCount = count || 0;
     }
 
     const linkRow = (tab, isChild) => {
@@ -96,13 +120,23 @@ export async function renderNavbar(activeTab) {
             </div>`;
     };
 
-    const menuHtml = MENU.map(node =>
+    const menuHtml = visibleMenu.map(node =>
         node.type === 'group' ? groupBlock(node) : linkRow(node, false)
     ).join('');
 
+    const adminHtml = owner ? linkRow(ADMIN_TAB, false) : '';
+
     const helpHtml = `
         <div style="height:1px;background:var(--sidebar-border,#EFEAE0);margin:6px 4px;"></div>
+        ${adminHtml}
         ${linkRow(HELP_TAB, false)}`;
+
+    const bellHtml = owner ? `
+        <button id="btn-notif-bell" title="Denetim Kaydı"
+            style="position:relative;width:32px;height:32px;border-radius:6px;border:1px solid var(--border,#E4DDCE);background:var(--surface,#fff);color:var(--ink-2,#6B655B);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fa-solid fa-bell" style="font-size:12px;"></i>
+            ${unreadCount > 0 ? `<span style="position:absolute;top:-4px;right:-4px;min-width:15px;height:15px;padding:0 3px;border-radius:8px;background:var(--danger,#9F3D3D);color:#fff;font-size:9px;line-height:15px;text-align:center;font-family:Verdana, Geneva, sans-serif;">${unreadCount > 99 ? '99+' : unreadCount}</span>` : ''}
+        </button>` : '';
 
     const globeSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10"/>
@@ -139,8 +173,11 @@ export async function renderNavbar(activeTab) {
             </div>
 
             <div style="padding:14px;border-top:1px solid var(--sidebar-border,#EFEAE0);background:var(--surface-2,#FBF8F1);transition:background 0.25s,border-color 0.25s;flex-shrink:0;">
-                <div style="font-size:11px;color:var(--ink-2,#6B655B);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.2s;">
-                    <i class="fa-solid fa-user" style="font-size:9px;margin-right:4px;color:var(--ink-3,#968B7A);"></i>${userEmail}
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;">
+                    <div style="font-size:11px;color:var(--ink-2,#6B655B);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.2s;flex:1;min-width:0;">
+                        <i class="fa-solid fa-user" style="font-size:9px;margin-right:4px;color:var(--ink-3,#968B7A);"></i>${userEmail}
+                    </div>
+                    ${bellHtml}
                 </div>
                 <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-3,#968B7A);font-family:Verdana, Geneva, sans-serif;margin-bottom:10px;transition:color 0.2s;">${APP_VERSION}</div>
 
@@ -178,6 +215,10 @@ export async function renderNavbar(activeTab) {
     });
 
     panels.forEach(p => setOpen(p, p.dataset.panel === activeGroupId));
+
+    document.getElementById('btn-notif-bell')?.addEventListener('click', () => {
+        window.location.href = 'admin.html#audit';
+    });
 
     document.getElementById('btn-logout')?.addEventListener('click', async () => {
         await supabase.auth.signOut();

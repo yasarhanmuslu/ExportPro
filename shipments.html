@@ -145,7 +145,7 @@
                 <button id="btn-refresh" class="btn-secondary">
                     <i class="fa-solid fa-rotate-right" style="font-size:12px;"></i> Yenile
                 </button>
-                <button id="btn-new" class="btn-primary">
+                <button id="btn-new" data-requires-edit class="btn-primary">
                     <i class="fa-solid fa-plus" style="font-size:12px;"></i> Yeni Sevkiyat
                 </button>
             </div>
@@ -334,7 +334,7 @@
                     <button type="button" class="btn-secondary" onclick="document.getElementById('modal-overlay').classList.add('hidden')">
                         İptal
                     </button>
-                    <button type="submit" id="form-submit-btn" class="btn-primary">
+                    <button type="submit" id="form-submit-btn" data-requires-edit class="btn-primary">
                         <i class="fa-solid fa-floppy-disk" style="font-size:12px;"></i> Kaydet
                     </button>
                 </div>
@@ -353,7 +353,7 @@
                 <p style="font-size:13px;color:#6B655B;margin-bottom:24px;">Bu sevkiyat kaydı kalıcı olarak silinecektir. Bu işlem geri alınamaz.</p>
                 <div style="display:flex;gap:10px;justify-content:center;">
                     <button id="delete-cancel" class="btn-secondary">İptal</button>
-                    <button id="delete-confirm" class="btn-danger">Evet, Sil</button>
+                    <button id="delete-confirm" data-requires-edit class="btn-danger">Evet, Sil</button>
                 </div>
             </div>
         </div>

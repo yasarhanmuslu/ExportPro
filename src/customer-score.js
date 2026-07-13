@@ -1,6 +1,7 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
+import { getAccessContext, guardModuleAccess } from './utils/permissions.js';
 
 // ─── Global State ───────────────────────────────────────────────────────────
 let allScores = [];       // Tüm müşteri skorları
@@ -13,7 +14,9 @@ let activeCountry = '';   // Aktif ülke filtresi
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
-    await renderNavbar('customer-score');
+    const ctx = await getAccessContext();
+    if (!(await guardModuleAccess(ctx, 'customer-score'))) return;
+    await renderNavbar('customer-score', ctx);
     await loadAndComputeScores();
     initFilters();
     initModal();

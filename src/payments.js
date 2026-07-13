@@ -1,6 +1,7 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
+import { getAccessContext, guardModuleAccess } from './utils/permissions.js';
 
 // ── Global veri depoları ──────────────────────────────────────────────────────
 let globalOrders = [];        // orders + customers join
@@ -11,8 +12,10 @@ let currentSearch = '';       // arama durumu
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
+    const ctx = await getAccessContext();
+    if (!(await guardModuleAccess(ctx, 'payments'))) return;
 
-    await renderNavbar('payments');
+    await renderNavbar('payments', ctx);
     initEventListeners();
     await loadData(session);
 });

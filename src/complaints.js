@@ -1,6 +1,7 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
+import { getAccessContext, guardModuleAccess } from './utils/permissions.js';
 
 // ── Global veri depoları ──────────────────────────────────────────────────────
 let rawData = [];          // Tüm credit_notes (items + customers dahil)
@@ -12,8 +13,10 @@ let monthlyChart  = null;
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
+    const ctx = await getAccessContext();
+    if (!(await guardModuleAccess(ctx, 'complaints'))) return;
 
-    await renderNavbar('complaints');
+    await renderNavbar('complaints', ctx);
     await loadData(session);
     initEventListeners();
 });

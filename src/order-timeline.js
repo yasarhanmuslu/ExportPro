@@ -1,9 +1,13 @@
 // order-timeline.js — V: 1.0.83
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
+import { getAccessContext, guardModuleAccess, applyEditLock, canEdit } from './utils/permissions.js';
+import { logChange } from './utils/auditLog.js';
+import { showAlertDialog } from './utils/dialogs.js';
 
 // ── State
 let session = null;
+let ctx = null;
 let allOrders = [];
 let allNotes = [];
 let currentFilter = 'all';
@@ -14,9 +18,13 @@ let calMonth = new Date().getMonth(); // 0-based
 // ── Başlat
 async function init() {
     const { data: { session: s } } = await supabase.auth.getSession();
-    if (!s) { window.location.href = 'login.html'; return; }
+    if (!s) { window.location.href = 'login.html'; return false; }
     session = s;
-    await renderNavbar('order-timeline');
+    ctx = await getAccessContext();
+    if (!(await guardModuleAccess(ctx, 'order-timeline'))) return false;
+    await renderNavbar('order-timeline', ctx);
+    applyEditLock(ctx, 'order-timeline');
+    return true;
 }
 
 // ── Supabase'den siparişleri çek
@@ -363,24 +371,30 @@ function positionNotePopover(popover, anchorEl) {
 
 async function saveNotePopover() {
     if (!notePopoverState) return;
+    if (!canEdit(ctx, 'order-timeline')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
     const textarea = document.getElementById('note-popover-input');
     const value = textarea.value.trim();
     if (!value) { textarea.focus(); return; }
 
-    if (notePopoverState.mode === 'add') {
+    const isAdd = notePopoverState.mode === 'add';
+    if (isAdd) {
         const { error } = await supabase.from('calendar_notes').insert([{
             user_id: session.user.id,
             note_date: notePopoverState.dateStr,
             note_text: value,
         }]);
-        if (error) { console.error('Not eklenemedi:', error); alert('Not eklenemedi: ' + error.message); return; }
+        if (error) { console.error('Not eklenemedi:', error); await showAlertDialog('Not eklenemedi: ' + error.message, { variant: 'danger' }); return; }
     } else {
         const { error } = await supabase.from('calendar_notes')
             .update({ note_text: value })
             .eq('id', notePopoverState.noteId)
             .eq('user_id', session.user.id);
-        if (error) { console.error('Not güncellenemedi:', error); alert('Not güncellenemedi: ' + error.message); return; }
+        if (error) { console.error('Not güncellenemedi:', error); await showAlertDialog('Not güncellenemedi: ' + error.message, { variant: 'danger' }); return; }
     }
+    logChange({ ctx, moduleId: 'order-timeline', action: isAdd ? 'create' : 'update', summary: `Takvim notu ${isAdd ? 'eklendi' : 'güncellendi'}: ${value.slice(0, 60)}` });
     closeNotePopover();
     await loadNotes();
     renderCalendar();
@@ -388,9 +402,14 @@ async function saveNotePopover() {
 
 async function deleteNotePopover() {
     if (!notePopoverState || notePopoverState.mode !== 'edit') return;
+    if (!canEdit(ctx, 'order-timeline')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
     const { error } = await supabase.from('calendar_notes')
         .delete().eq('id', notePopoverState.noteId).eq('user_id', session.user.id);
-    if (error) { console.error('Not silinemedi:', error); alert('Not silinemedi: ' + error.message); return; }
+    if (error) { console.error('Not silinemedi:', error); await showAlertDialog('Not silinemedi: ' + error.message, { variant: 'danger' }); return; }
+    logChange({ ctx, moduleId: 'order-timeline', action: 'delete', summary: `Takvim notu silindi` });
     closeNotePopover();
     await loadNotes();
     renderCalendar();
@@ -561,7 +580,8 @@ document.getElementById('btn-show-overdue').addEventListener('click', () => {
 });
 
 // ── Başlat
-init().then(async () => {
+init().then(async (ok) => {
+    if (!ok) return;
     await loadNotes();
     await loadOrders();
 });

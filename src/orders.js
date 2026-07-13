@@ -3,6 +3,8 @@ import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
 import { showAlertDialog, showConfirmDialog } from './utils/dialogs.js';
+import { getAccessContext, guardModuleAccess, applyEditLock, canEdit } from './utils/permissions.js';
+import { logChange } from './utils/auditLog.js';
 
 // ── DURUM ETİKETLERİ ────────────────────────────────────────────────────────
 const STATUS_TAGS_LIST = [
@@ -62,15 +64,19 @@ let globalCustomers = [];
 let globalProducts  = [];
 let currentOrderId  = null;
 let orderItemsBuffer = [];
+let ctx = null;
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
-    await renderNavbar('orders');
+    ctx = await getAccessContext();
+    if (!(await guardModuleAccess(ctx, 'orders'))) return;
+    await renderNavbar('orders', ctx);
     renderStatusTagCheckboxes();
     await Promise.all([fetchCustomersData(), fetchOrdersData(), fetchProductsData()]);
     initEventListeners();
+    applyEditLock(ctx, 'orders');
 });
 
 // ── VERİ ÇEKME ───────────────────────────────────────────────────────────────
@@ -440,6 +446,10 @@ function switchTab(tab) {
 // ── KAYDETME ──────────────────────────────────────────────────────────────────
 async function handleOrderSubmit(e) {
     e.preventDefault();
+    if (!canEdit(ctx, 'orders')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
     const customerId = document.getElementById('order-customer-select').value;
     if (!customerId) { await showAlertDialog('Lütfen bir müşteri / firma seçiniz.', { variant: 'warn', title: 'Eksik Bilgi' }); return; }
 
@@ -529,11 +539,13 @@ async function handleOrderSubmit(e) {
         if (currentOrderId) {
             const { error } = await supabase.from('orders').update(payload).eq('id', currentOrderId).eq('user_id', userId);
             if (error) throw error;
+            logChange({ ctx, moduleId: 'orders', action: 'update', summary: `Sipariş güncellendi: ${payload.order_number || orderId}` });
         } else {
             payload.user_id = userId;
             const { data, error } = await supabase.from('orders').insert([payload]).select().single();
             if (error) throw error;
             orderId = data.id;
+            logChange({ ctx, moduleId: 'orders', action: 'create', summary: `Sipariş oluşturuldu: ${payload.order_number || orderId}` });
         }
 
         await saveOrderItems(orderId, userId);
@@ -580,8 +592,13 @@ async function saveOrderItems(orderId, userId) {
 
 // ── SİLME ─────────────────────────────────────────────────────────────────────
 async function handleDeleteOrder() {
+    if (!canEdit(ctx, 'orders')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
     const id = document.getElementById('order-id').value;
     if (!id) return;
+    const orderNumber = document.getElementById('order_number')?.value || id;
     const ok = await showConfirmDialog('Bu siparişi kalıcı olarak silmek istediğinize emin misiniz?', {
         title: 'Siparişi Sil', variant: 'danger', confirmText: 'Sil'
     });
@@ -590,6 +607,7 @@ async function handleDeleteOrder() {
         const { data: { session } } = await supabase.auth.getSession();
         const { error } = await supabase.from('orders').delete().eq('id', id).eq('user_id', session.user.id);
         if (error) throw error;
+        logChange({ ctx, moduleId: 'orders', action: 'delete', summary: `Sipariş silindi: ${orderNumber}` });
         closeOrderModal();
         await fetchOrdersData();
     } catch (err) {
@@ -811,6 +829,10 @@ function logMsg(msg, type = 'ok') {
 
 async function handleImportRun() {
     if (!importFileData) return;
+    if (!canEdit(ctx, 'orders')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
     const runBtn = document.getElementById('btn-import-run');
     runBtn.disabled = true;
     runBtn.textContent = 'İşleniyor...';
@@ -1091,6 +1113,7 @@ async function handleImportRun() {
 
         logMsg(`─────────────────────────────`, 'ok');
         logMsg(`Tamamlandı: ${inserted} eklendi, ${updated} güncellendi, ${errored} hata.`, inserted > 0 || updated > 0 ? 'ok' : 'warn');
+        logChange({ ctx, moduleId: 'orders', action: 'update', summary: `Toplu içe aktarma${clearFirst ? ' (önce temizlendi)' : ''}: ${inserted} eklendi, ${updated} güncellendi, ${errored} hata` });
 
         await fetchOrdersData();
 
@@ -1298,6 +1321,14 @@ function initEventListeners() {
     document.getElementById('tab-general').addEventListener('click', () => switchTab('general'));
     document.getElementById('tab-items').addEventListener('click', () => switchTab('items'));
 
+    // PDF'den kalem içe aktarma
+    const pdfItemInput = document.getElementById('pdf-item-import-input');
+    document.getElementById('btn-import-pdf-items').addEventListener('click', () => pdfItemInput.click());
+    pdfItemInput.addEventListener('change', () => {
+        if (pdfItemInput.files[0]) handlePdfItemFileSelect(pdfItemInput.files[0]);
+        pdfItemInput.value = '';
+    });
+
     // Canlı kalan bakiye hesabı
     ['total_amount', 'advance_payment'].forEach(id => {
         document.getElementById(id).addEventListener('input', () => {
@@ -1349,6 +1380,227 @@ function handleFileSelect(file) {
         runBtn.innerHTML = '<i class="fa-solid fa-upload"></i> Import Başlat';
     };
     reader.readAsArrayBuffer(file);
+}
+
+// ── PDF'DEN KALEM İÇE AKTARMA ────────────────────────────────────────────────
+// Proforma fatura PDF'inden PI NO, PI DATE, genel toplam ve ürün kalemlerini (kod/adet/net fiyat) okur.
+// Büyük x-boşlukları (aynı satırdaki farklı tablo sütunları) '\t' ile ayrılır; normal kelime
+// boşlukları tek boşluk olarak korunur. '\t' de bir \s karakteri olduğundan mevcut regex'leri bozmaz.
+function reconstructPdfLines(items) {
+    const tolY = 2;
+    const colGapThreshold = 20;
+    const rows = new Map();
+    for (const item of items) {
+        const y = item.transform[5];
+        let key = null;
+        for (const k of rows.keys()) {
+            if (Math.abs(k - y) <= tolY) { key = k; break; }
+        }
+        if (key === null) key = y;
+        if (!rows.has(key)) rows.set(key, []);
+        rows.get(key).push(item);
+    }
+    const sortedKeys = Array.from(rows.keys()).sort((a, b) => b - a);
+    const lines = [];
+    for (const k of sortedKeys) {
+        const rowItems = rows.get(k).slice().sort((a, b) => a.transform[4] - b.transform[4]);
+        let line = '';
+        let lastEndX = null;
+        for (const it of rowItems) {
+            const x = it.transform[4];
+            if (lastEndX !== null) {
+                const gap = x - lastEndX;
+                if (gap > colGapThreshold) line += '\t';
+                else if (gap > 1) line += ' ';
+            }
+            line += it.str;
+            lastEndX = x + (it.width || 0);
+        }
+        lines.push(line.trim());
+    }
+    return lines.join('\n');
+}
+
+// Genel toplam satırını bulur — örn: "EX-WORKS / ISTANBUL : 5.086,80 EUR".
+// Etiket (Incoterm) sabit kodlanmaz: önce "DEELIVERY TERMS :" değeri okunur (örn. "EX-WORKS / ISTANBUL"),
+// sonra aynı metnin ": <tutar> <para birimi>" ile tekrar geçtiği hücre aranır (bu, teslim şekli ne olursa olsun çalışır).
+function extractTotalAmount(fullText) {
+    const termMatch = fullText.match(/DE+LIVERY\s*TERMS\s*:\s*([^\t\n]+?)\s*(?:\t|\n|$)/i);
+    if (!termMatch) return null;
+    const term = termMatch[1].trim();
+    if (!term) return null;
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const totalRe = new RegExp(escaped + '\\s*:\\s*([\\d.,]+)\\s*([A-Z]{3})?', 'i');
+    const totalMatch = fullText.match(totalRe);
+    if (!totalMatch) return null;
+    return { amount: parseTurkishFloat(totalMatch[1]), currency: totalMatch[2] || null };
+}
+
+// Satır formatı: <...> <ÜRÜN KODU> <AÇIKLAMA> <ADET> pcs. <PALET> <NET FİYAT><para birimi> <TUTAR><para birimi>
+const PDF_ITEM_LINE_RE = /((?:[A-Za-z0-9]+\s*-\s*){2,}[A-Za-z0-9]+)\s+(.+?)\s+(\d+(?:[.,]\d+)?)\s*pcs\.?\s+\d+\s+([\d.,]+)\s*\S{0,2}\s+([\d.,]+)\s*\S{0,2}\s*$/gim;
+
+function parsePdfProformaText(fullText) {
+    const piNoMatch   = fullText.match(/PI\s*NO\s*:?\s*([0-9]{2,4}-[0-9]{1,4})/i);
+    const piDateMatch = fullText.match(/PI\s*DATE\s*:?\s*([0-9]{1,2}\.[0-9]{1,2}\.[0-9]{2,4})/i);
+    const total       = extractTotalAmount(fullText);
+
+    const items = [];
+    let m;
+    PDF_ITEM_LINE_RE.lastIndex = 0;
+    while ((m = PDF_ITEM_LINE_RE.exec(fullText)) !== null) {
+        items.push({
+            code: m[1].replace(/\s+/g, ''),
+            description: m[2].trim(),
+            quantity: parseTurkishFloat(m[3]),
+            netPrice: parseTurkishFloat(m[4]),
+            amount: parseTurkishFloat(m[5]),
+        });
+    }
+
+    return {
+        piNo: piNoMatch ? piNoMatch[1] : null,
+        piDate: piDateMatch ? piDateToIso(piDateMatch[1]) : null,
+        totalAmount: total ? total.amount : null,
+        totalCurrency: total ? total.currency : null,
+        items,
+    };
+}
+
+function piDateToIso(str) {
+    const parts = str.split('.');
+    if (parts.length !== 3) return null;
+    let [d, mo, y] = parts;
+    if (y.length === 2) y = '20' + y;
+    d = d.padStart(2, '0');
+    mo = mo.padStart(2, '0');
+    return `${y}-${mo}-${d}`;
+}
+
+async function handlePdfItemFileSelect(file) {
+    if (!window.pdfjsLib) {
+        await showAlertDialog('PDF kütüphanesi yüklenemedi. Sayfayı yenileyip tekrar deneyin.', { variant: 'danger', title: 'Hata' });
+        return;
+    }
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+        let fullText = '';
+        for (let p = 1; p <= pdf.numPages; p++) {
+            const page = await pdf.getPage(p);
+            const content = await page.getTextContent();
+            fullText += reconstructPdfLines(content.items) + '\n';
+        }
+
+        const { piNo, piDate, totalAmount, items } = parsePdfProformaText(fullText);
+
+        if (items.length === 0) {
+            await showAlertDialog('PDF içinde ürün kalemi satırı bulunamadı. Dosya formatını kontrol edin.', { variant: 'warn', title: 'Kalem Bulunamadı' });
+            return;
+        }
+
+        // Ürün kodu eşleştirme — sistemde kayıtlı olmayan kod varsa import tamamen durdurulur.
+        const matched   = [];
+        const unmatched = [];
+        for (const it of items) {
+            const prod = globalProducts.find(p =>
+                (p.stok_kodu || '').trim().toLocaleUpperCase('tr-TR') === it.code.toLocaleUpperCase('tr-TR')
+            );
+            if (prod) matched.push({ ...it, product: prod });
+            else unmatched.push(it);
+        }
+
+        if (unmatched.length > 0) {
+            const list = unmatched.map(u => `• ${u.code} — ${u.description}`).join('\n');
+            await showAlertDialog(
+                `Aşağıdaki ürün kodları sistemde (Ürün Kartları) kayıtlı değil:\n\n${list}\n\nİçe aktarma durduruldu. Lütfen önce "Ürünler" sayfasından bu ürün kartlarını oluşturun, ardından tekrar deneyin.`,
+                { variant: 'danger', title: 'Eşleşmeyen Ürün Kodları' }
+            );
+            return;
+        }
+
+        if (orderItemsBuffer.length > 0) {
+            const ok = await showConfirmDialog(
+                'Kalem tablosunda zaten satırlar var. PDF içe aktarma, mevcut tüm kalem satırlarının yerine PDF\'deki satırları koyacak. Devam edilsin mi?',
+                { title: 'Mevcut Kalemler Değiştirilecek', variant: 'warn', confirmText: 'Değiştir ve Devam Et' }
+            );
+            if (!ok) return;
+        }
+
+        // Sipariş No / Sipariş Tarihi alanlarını doldur (mevcut değer varsa onay iste)
+        const orderNoInput   = document.getElementById('order_number');
+        const orderDateInput = document.getElementById('order_date');
+
+        if (piNo) {
+            if (orderNoInput.value && orderNoInput.value !== piNo) {
+                const ok = await showConfirmDialog(
+                    `Sipariş No alanı zaten "${orderNoInput.value}" olarak dolu. PDF'deki PI NO değeri "${piNo}" ile değiştirilsin mi?`,
+                    { title: 'Sipariş No Çakışması', variant: 'warn', confirmText: 'Değiştir' }
+                );
+                if (ok) orderNoInput.value = piNo;
+            } else {
+                orderNoInput.value = piNo;
+            }
+        }
+        if (piDate) {
+            if (orderDateInput.value && orderDateInput.value !== piDate) {
+                const ok = await showConfirmDialog(
+                    `Sipariş Tarihi alanı zaten dolu. PDF'deki PI DATE değeri ile değiştirilsin mi?`,
+                    { title: 'Sipariş Tarihi Çakışması', variant: 'warn', confirmText: 'Değiştir' }
+                );
+                if (ok) orderDateInput.value = piDate;
+            } else {
+                orderDateInput.value = piDate;
+            }
+        }
+
+        // Toplam Tutar alanını doldur (mevcut değer varsa onay iste)
+        if (totalAmount !== null) {
+            const totalAmountInput = document.getElementById('total_amount');
+            const formattedTotal   = totalAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 });
+            const currentTotal     = parseTurkishFloat(totalAmountInput.value);
+            let applyTotal = true;
+            if (totalAmountInput.value && Math.abs(currentTotal - totalAmount) > 0.01) {
+                applyTotal = await showConfirmDialog(
+                    `Toplam Tutar alanı zaten "${totalAmountInput.value}" olarak dolu. PDF'deki genel toplam "${formattedTotal}" ile değiştirilsin mi?`,
+                    { title: 'Toplam Tutar Çakışması', variant: 'warn', confirmText: 'Değiştir' }
+                );
+            }
+            if (applyTotal) {
+                totalAmountInput.value = formattedTotal;
+                const remaining = totalAmount - parseTurkishFloat(document.getElementById('advance_payment').value);
+                document.getElementById('live-remaining-balance').textContent = remaining.toLocaleString('tr-TR', { minimumFractionDigits: 2 });
+            }
+        }
+
+        // Kalem tablosunu PDF'deki kalemlerle değiştir
+        orderItemsBuffer = matched.map(it => ({
+            id: null,
+            product_id: it.product.id,
+            product_name: it.product.stok_adi_1,
+            product_code: it.product.stok_kodu,
+            quantity: it.quantity,
+            unit_price: it.netPrice,
+            notes: null,
+        }));
+
+        switchTab('items');
+
+        // Adet x Net Fiyat ile PDF'deki AMOUNT tutarı uyuşmuyorsa uyar (parsing kontrolü)
+        const mismatches = matched.filter(it => Math.abs(it.quantity * it.netPrice - it.amount) > 0.05);
+        if (mismatches.length > 0) {
+            const list = mismatches.map(u => `• ${u.code}: ${u.quantity} x ${u.netPrice} ≠ ${u.amount}`).join('\n');
+            await showAlertDialog(
+                `${matched.length} kalem içe aktarıldı, ancak şu satırlarda Adet x Net Fiyat, PDF'deki AMOUNT ile uyuşmuyor — lütfen kontrol edin:\n\n${list}`,
+                { variant: 'warn', title: 'Kontrol Gerekli' }
+            );
+        } else {
+            await showAlertDialog(`${matched.length} ürün kalemi PDF'den başarıyla içe aktarıldı.`, { variant: 'success', title: 'İçe Aktarma Tamamlandı' });
+        }
+    } catch (err) {
+        console.error('PDF kalem import hatası:', err.message);
+        await showAlertDialog('PDF işlenirken hata oluştu: ' + err.message, { variant: 'danger', title: 'Hata' });
+    }
 }
 
 // ── YARDIMCI ──────────────────────────────────────────────────────────────────

@@ -149,11 +149,11 @@
                 <button id="btn-export-excel" class="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer" style="background:var(--porc-surface);border:1px solid var(--porc-border);color:var(--porc-ink-2);">
                     <i class="fa-solid fa-file-excel text-emerald-600"></i> Excel'e Aktar
                 </button>
-                <label id="btn-import-excel" class="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer" style="background:var(--porc-surface);border:1px solid var(--porc-border);color:var(--porc-ink-2);">
+                <label id="btn-import-excel" data-requires-edit class="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer" style="background:var(--porc-surface);border:1px solid var(--porc-border);color:var(--porc-ink-2);">
                     <i class="fa-solid fa-file-import text-blue-600"></i> İçe Aktar
                     <input type="file" id="import-file-input" accept=".csv,.xlsx,.xls" class="hidden" style="height:auto;">
                 </label>
-                <button id="btn-open-modal" class="px-4 py-2 text-white rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer" style="background:var(--porc-accent);">
+                <button id="btn-open-modal" data-requires-edit class="px-4 py-2 text-white rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer" style="background:var(--porc-accent);">
                     <i class="fa-solid fa-plus"></i> Yeni Müşteri Ekle
                 </button>
             </div>
@@ -473,12 +473,12 @@
 
                 <!-- Footer Butonlar -->
                 <div class="flex items-center justify-between border-t pt-5 mt-2" style="border-color:var(--porc-border);flex-shrink:0;">
-                    <button type="button" id="btn-delete-customer" class="hidden px-4 py-2 text-sm font-semibold rounded-lg cursor-pointer" style="background:#FCEAEA;border:1px solid #E8C9C9;color:var(--danger,#9F3D3D);">
+                    <button type="button" id="btn-delete-customer" data-requires-edit class="hidden px-4 py-2 text-sm font-semibold rounded-lg cursor-pointer" style="background:#FCEAEA;border:1px solid #E8C9C9;color:var(--danger,#9F3D3D);">
                         <i class="fa-solid fa-trash-can"></i> Kaydı Sil
                     </button>
                     <div class="flex items-center gap-3 ml-auto">
                         <button type="button" id="btn-cancel" class="px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer" style="background:var(--porc-surface);border:1px solid var(--porc-border);color:var(--porc-ink-2);">Vazgeç</button>
-                        <button type="submit" class="px-5 py-2 text-white rounded-lg text-sm font-semibold cursor-pointer" style="background:var(--porc-accent);">
+                        <button type="submit" data-requires-edit class="px-5 py-2 text-white rounded-lg text-sm font-semibold cursor-pointer" style="background:var(--porc-accent);">
                             <i class="fa-solid fa-floppy-disk mr-1.5"></i>Kaydet
                         </button>
                     </div>

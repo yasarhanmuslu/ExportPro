@@ -7,6 +7,9 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
+import { showAlertDialog, showConfirmDialog } from './utils/dialogs.js';
+import { getAccessContext, guardModuleAccess, applyEditLock, canEdit } from './utils/permissions.js';
+import { logChange } from './utils/auditLog.js';
 
 // ─────────────────────────────────────────────
 // SABİTLER
@@ -23,6 +26,7 @@ let editingId      = null;
 let weightOverride = false;
 let sessionRef     = null;
 let palletTypeTouched = false;  // FIX REV2: kullanıcı palet cinsine elle dokundu mu
+let ctx = null;
 
 // ─────────────────────────────────────────────
 // INIT
@@ -31,9 +35,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
     sessionRef = session;
-    await renderNavbar('pallet-defs');
+    ctx = await getAccessContext();
+    if (!(await guardModuleAccess(ctx, 'pallet-defs'))) return;
+    await renderNavbar('pallet-defs', ctx);
     await Promise.all([fetchProducts(session), fetchPallets(session)]);
     initEvents();
+    applyEditLock(ctx, 'pallet-defs');
 });
 
 // ─────────────────────────────────────────────
@@ -622,8 +629,12 @@ function paintSummary(products, tare) {
 // KAYDET / SİL
 // ─────────────────────────────────────────────
 async function savePallet() {
+    if (!canEdit(ctx, 'pallet-defs')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
     const name = document.getElementById('pallet-name').value.trim();
-    if (!name) { alert('Lütfen palet adı giriniz.'); return; }
+    if (!name) { await showAlertDialog('Lütfen palet adı giriniz.', { variant: 'warn' }); return; }
 
     const stackable = document.getElementById('pallet-stackable').checked;
     const type = document.getElementById('pallet-type').value;
@@ -650,10 +661,12 @@ async function savePallet() {
             const { error } = await supabase.from('pallet_definitions').update(payload).eq('id', editingId);
             if (error) throw error;
             await supabase.from('pallet_items').delete().eq('pallet_id', editingId);
+            logChange({ ctx, moduleId: 'pallet-defs', action: 'update', summary: `Palet tanımı güncellendi: ${name}` });
         } else {
             const { data, error } = await supabase.from('pallet_definitions').insert(payload).select().single();
             if (error) throw error;
             palletId = data.id;
+            logChange({ ctx, moduleId: 'pallet-defs', action: 'create', summary: `Palet tanımı oluşturuldu: ${name}` });
         }
 
         const itemRows = itemsBuffer
@@ -679,27 +692,34 @@ async function savePallet() {
     } catch (err) {
         console.error('Palet kaydedilemedi:', err.message);
         if (err.code === '23505') {
-            alert('Bu isimde bir palet zaten var. Lütfen benzersiz bir ad girin.');
+            await showAlertDialog('Bu isimde bir palet zaten var. Lütfen benzersiz bir ad girin.', { variant: 'warn' });
         } else {
-            alert('Hata: ' + err.message);
+            await showAlertDialog('Hata: ' + err.message, { variant: 'danger' });
         }
     }
 }
 
 async function deletePallet() {
     if (!editingId) return;
-    if (!confirm('Bu palet tanımı silinecek. Emin misiniz?')) return;
+    if (!canEdit(ctx, 'pallet-defs')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
+    const ok = await showConfirmDialog('Bu palet tanımı silinecek. Emin misiniz?', { title: 'Palet Tanımını Sil', variant: 'danger', confirmText: 'Sil' });
+    if (!ok) return;
     try {
+        const palletName = document.getElementById('pallet-name')?.value || editingId;
         const { error } = await supabase.from('pallet_definitions').delete().eq('id', editingId);
         if (error) throw error;
+        logChange({ ctx, moduleId: 'pallet-defs', action: 'delete', summary: `Palet tanımı silindi: ${palletName}` });
         closeModal();
         await fetchPallets(sessionRef);
     } catch (err) {
         console.error('Palet silinemedi:', err.message);
         if (err.code === '23503') {
-            alert('Bu palet silinemez; sipariş veya yükleme planında kullanılıyor olabilir.');
+            await showAlertDialog('Bu palet silinemez; sipariş veya yükleme planında kullanılıyor olabilir.', { variant: 'danger' });
         } else {
-            alert('Silme hatası: ' + err.message);
+            await showAlertDialog('Silme hatası: ' + err.message, { variant: 'danger' });
         }
     }
 }

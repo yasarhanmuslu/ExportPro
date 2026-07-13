@@ -19,19 +19,25 @@ import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
 import { showAlertDialog, showConfirmDialog } from './utils/dialogs.js';
+import { getAccessContext, guardModuleAccess, applyEditLock, canEdit } from './utils/permissions.js';
+import { logChange } from './utils/auditLog.js';
 
 // Global Müşteri Hafızası
 let globalCustomers = [];
 // Dinamik geçmiş notları (array of objects): [{ date, note }]
 let historyNotes = [];
+let ctx = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
-    await renderNavbar('customers');
+    ctx = await getAccessContext();
+    if (!(await guardModuleAccess(ctx, 'customers'))) return;
+    await renderNavbar('customers', ctx);
     await fetchCustomers();
     initEventListeners();
     initTabs();
+    applyEditLock(ctx, 'customers');
 });
 
 // ════════════════════════════════════════════════════════════════
@@ -366,6 +372,11 @@ function addHistoryRow() {
 async function handleFormSubmit(e) {
     e.preventDefault();
 
+    if (!canEdit(ctx, 'customers')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
+
     const id = document.getElementById('customer-id').value;
 
     // Title Case: yalnızca firma adı + 1./2. yetkili adı
@@ -473,11 +484,13 @@ async function handleFormSubmit(e) {
                 .eq('id', id)
                 .eq('user_id', userId);
             if (error) throw error;
+            logChange({ ctx, moduleId: 'customers', action: 'update', summary: `Müşteri güncellendi: ${payload.company_name}` });
         } else {
             const { error } = await supabase
                 .from('customers')
                 .insert([{ ...payload, user_id: userId }]);
             if (error) throw error;
+            logChange({ ctx, moduleId: 'customers', action: 'create', summary: `Müşteri oluşturuldu: ${payload.company_name}` });
         }
 
         closeModal();
@@ -493,8 +506,15 @@ async function handleFormSubmit(e) {
 //  KAYIT SİLME
 // ════════════════════════════════════════════════════════════════
 async function handleDeleteCustomer() {
+    if (!canEdit(ctx, 'customers')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
+
     const id = document.getElementById('customer-id').value;
     if (!id) return;
+
+    const companyName = document.getElementById('company_name')?.value || id;
 
     const ok = await showConfirmDialog(
         "Bu müşteriyi silmek istediğinize emin misiniz? Bu işlem müşteriye bağlı tüm sipariş ve fiyat ilişkilerini de etkileyebilir!",
@@ -509,6 +529,7 @@ async function handleDeleteCustomer() {
                 .eq('id', id)
                 .eq('user_id', session.user.id);
             if (error) throw error;
+            logChange({ ctx, moduleId: 'customers', action: 'delete', summary: `Müşteri silindi: ${companyName}` });
             closeModal();
             await fetchCustomers();
         } catch (error) {
@@ -529,6 +550,12 @@ async function handleDeleteCustomer() {
 async function handleImportFile(e) {
     const file = e.target.files[0];
     if (!file) return;
+
+    if (!canEdit(ctx, 'customers')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        e.target.value = '';
+        return;
+    }
 
     try {
         const data = await file.arrayBuffer();
@@ -585,6 +612,7 @@ async function handleImportFile(e) {
             }
         }
 
+        logChange({ ctx, moduleId: 'customers', action: 'update', summary: `Toplu içe aktarma: ${inserted} yeni, ${updated} güncelleme, ${skipped} atlanan` });
         await showAlertDialog(`İçe aktarma tamamlandı.\nYeni eklenen: ${inserted}\nGüncellenen: ${updated}\nAtlanan (firma adı boş): ${skipped}`, { variant: 'success', title: 'İçe Aktarma Tamamlandı' });
         await fetchCustomers();
 

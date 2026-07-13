@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <script>/* Flash önle */ (function(){var t=localStorage.getItem('ep-theme')||'light';document.documentElement.classList.add(t==='dark'?'dark':'light');})();</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yönetici — Export Suite</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
+    <link rel="stylesheet" href="./src/assets/css/theme.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: var(--bg, #F6F3EC) !important; color: var(--ink-1, #1C1A17) !important; }
+
+        #admin-container::-webkit-scrollbar { width: 6px; }
+        #admin-container::-webkit-scrollbar-thumb { background: var(--border, #E4DDCE); border-radius: 4px; }
+
+        .admin-tab-btn { border: none; border-bottom: 2px solid transparent; background: transparent; cursor: pointer; font-family: Verdana, Geneva, sans-serif; color: var(--ink-2, #6B655B); }
+        .admin-tab-btn.active { color: var(--accent, #2D4A3E); border-bottom: 2px solid var(--accent, #2D4A3E); font-weight: 600; }
+
+        .perm-table-wrap { overflow-x: auto; }
+        .perm-table { border-collapse: collapse; width: 100%; font-size: 12px; }
+        .perm-table th, .perm-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-soft, #EFEAE0); white-space: nowrap; }
+        .perm-table th { text-align: left; color: var(--ink-2, #6B655B); font-weight: 600; position: sticky; top: 0; background: var(--surface, #fff); }
+        .perm-table td:first-child, .perm-table th:first-child { position: sticky; left: 0; background: var(--surface, #fff); z-index: 1; }
+
+        .audit-row.unread { background: rgba(181,136,88,0.08); }
+        .audit-row td { padding: 8px 10px; border-bottom: 1px solid var(--border-soft, #EFEAE0); font-size: 12.5px; vertical-align: top; }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div id="navbar-target"></div>
+
+    <main style="margin-left:230px;min-height:100vh;display:flex;flex-direction:column;">
+        <div id="admin-container" style="flex:1;display:flex;flex-direction:column;overflow-y:auto;"></div>
+    </main>
+
+    <script type="module" src="./src/admin.js"></script>
+</body>
+</html>

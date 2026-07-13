@@ -272,12 +272,12 @@
         <div class="note-popover-label"><i class="fa-solid fa-note-sticky"></i> <span id="note-popover-title">Not Ekle</span></div>
         <textarea id="note-popover-input" rows="3" maxlength="500" placeholder="Bu tarih için not yazın..."></textarea>
         <div class="note-popover-actions">
-            <button type="button" id="note-popover-delete" class="note-popover-btn note-popover-btn-danger hidden" title="Notu sil">
+            <button type="button" id="note-popover-delete" data-requires-edit class="note-popover-btn note-popover-btn-danger hidden" title="Notu sil">
                 <i class="fa-solid fa-trash-can"></i>
             </button>
             <div style="margin-left:auto;display:flex;gap:6px;">
                 <button type="button" id="note-popover-cancel" class="note-popover-btn note-popover-btn-ghost">İptal</button>
-                <button type="button" id="note-popover-save" class="note-popover-btn note-popover-btn-primary">
+                <button type="button" id="note-popover-save" data-requires-edit class="note-popover-btn note-popover-btn-primary">
                     <i class="fa-solid fa-check"></i> Kaydet
                 </button>
             </div>

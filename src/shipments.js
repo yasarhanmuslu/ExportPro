@@ -1,20 +1,27 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
+import { showAlertDialog, showConfirmDialog } from './utils/dialogs.js';
+import { getAccessContext, guardModuleAccess, applyEditLock, canEdit } from './utils/permissions.js';
+import { logChange } from './utils/auditLog.js';
 
 // ── Global veri depoları ──────────────────────────────────────────────────────
 let globalShipments = [];
 let globalOrders    = [];
 let editingId       = null;
+let ctx = null;
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
+    ctx = await getAccessContext();
+    if (!(await guardModuleAccess(ctx, 'shipments'))) return;
 
-    await renderNavbar('shipments');
+    await renderNavbar('shipments', ctx);
     initEventListeners();
     await loadData(session);
+    applyEditLock(ctx, 'shipments');
 });
 
 // ── Olay Dinleyicileri ────────────────────────────────────────────────────────
@@ -344,20 +351,29 @@ function closeDeleteModal() {
 }
 async function confirmDelete() {
     if (!deletingId) return;
+    if (!canEdit(ctx, 'shipments')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
     try {
         const { error } = await supabase.from('shipments').delete().eq('id', deletingId);
         if (error) throw error;
+        logChange({ ctx, moduleId: 'shipments', action: 'delete', summary: `Sevkiyat kaydı silindi (${deletingId})` });
         closeDeleteModal();
         const { data: { session } } = await supabase.auth.getSession();
         await loadData(session);
     } catch (err) {
-        alert('Silme hatası: ' + err.message);
+        await showAlertDialog('Silme hatası: ' + err.message, { variant: 'danger' });
     }
 }
 
 // ── Form Submit ───────────────────────────────────────────────────────────────
 async function handleFormSubmit(e) {
     e.preventDefault();
+    if (!canEdit(ctx, 'shipments')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
     const btn = document.getElementById('form-submit-btn');
     btn.disabled = true;
     btn.textContent = 'Kaydediliyor...';
@@ -380,22 +396,24 @@ async function handleFormSubmit(e) {
         };
 
         if (!payload.order_id) {
-            alert('Lütfen sipariş seçiniz.');
+            await showAlertDialog('Lütfen sipariş seçiniz.', { variant: 'warn' });
             return;
         }
 
         let error;
         if (editingId) {
             ({ error } = await supabase.from('shipments').update(payload).eq('id', editingId));
+            if (!error) logChange({ ctx, moduleId: 'shipments', action: 'update', summary: `Sevkiyat güncellendi: ${payload.bl_number || editingId}` });
         } else {
             ({ error } = await supabase.from('shipments').insert([payload]));
+            if (!error) logChange({ ctx, moduleId: 'shipments', action: 'create', summary: `Sevkiyat oluşturuldu: ${payload.bl_number || payload.order_id}` });
         }
 
         if (error) throw error;
         closeModal();
         await loadData(session);
     } catch (err) {
-        alert('Kayıt hatası: ' + err.message);
+        await showAlertDialog('Kayıt hatası: ' + err.message, { variant: 'danger' });
     } finally {
         btn.disabled = false;
         btn.textContent = 'Kaydet';

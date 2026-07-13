@@ -7,6 +7,8 @@ import { supabase } from './utils/supabaseClient.js';
 import { requireAuth } from './auth/auth.js';
 import { renderNavbar } from './components/navbar.js';
 import { showAlertDialog, showConfirmDialog } from './utils/dialogs.js';
+import { getAccessContext, guardModuleAccess, applyEditLock, canEdit } from './utils/permissions.js';
+import { logChange } from './utils/auditLog.js';
 import './theme.js';
 
 // ── State ───────────────────────────────────────────────────────
@@ -32,11 +34,17 @@ let distinctSeriler = [];
 let distinctRenkler = [];
 
 // ── Init ────────────────────────────────────────────────────────
+let ctx = null;
+
 async function init() {
-    await requireAuth();
-    renderNavbar('products');
+    const session = await requireAuth();
+    if (!session) return;
+    ctx = await getAccessContext();
+    if (!(await guardModuleAccess(ctx, 'products'))) return;
+    await renderNavbar('products', ctx);
     await loadProducts();
     bindEvents();
+    applyEditLock(ctx, 'products');
 }
 init();
 
@@ -575,6 +583,10 @@ function openEdit(id) {
 
 // ── CRUD: Save ──────────────────────────────────────────────────
 async function saveProduct() {
+    if (!canEdit(ctx, 'products')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
     const fd = getFormData();
 
     if (!fd.stok_kodu) return showAlertDialog('Stok Kodu zorunludur.', { variant: 'warn' });
@@ -606,6 +618,7 @@ async function saveProduct() {
                 .eq('id', editingId)
                 .eq('user_id', session.user.id);
             if (error) throw error;
+            logChange({ ctx, moduleId: 'products', action: 'update', summary: `Ürün güncellendi: ${fd.stok_kodu}` });
         } else {
             fd.user_id = session.user.id;
             const { data, error } = await supabase
@@ -615,6 +628,7 @@ async function saveProduct() {
                 .single();
             if (error) throw error;
             productId = data.id;
+            logChange({ ctx, moduleId: 'products', action: 'create', summary: `Ürün oluşturuldu: ${fd.stok_kodu}` });
         }
 
         await persistImageChanges(productId, session.user.id);
@@ -637,6 +651,10 @@ function confirmDelete(id, code) {
 
 async function executeDelete() {
     if (!deleteTargetId) return;
+    if (!canEdit(ctx, 'products')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
     try {
         const { data: { session } } = await supabase.auth.getSession();
         const product = allProducts.find(p => p.id === deleteTargetId);
@@ -646,6 +664,7 @@ async function executeDelete() {
             .eq('id', deleteTargetId)
             .eq('user_id', session.user.id);
         if (error) throw error;
+        logChange({ ctx, moduleId: 'products', action: 'delete', summary: `Ürün silindi: ${product ? product.stok_kodu : deleteTargetId}` });
 
         if (product && product.resim_path) {
             await supabase.storage.from(BUCKET_URUN_RESIM).remove([product.resim_path])
@@ -858,6 +877,10 @@ function normCode(v) {
 
 async function executeImport() {
     if (importRows.length === 0) return;
+    if (!canEdit(ctx, 'products')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -901,6 +924,7 @@ async function executeImport() {
                 if (error) throw error;
             }
 
+            logChange({ ctx, moduleId: 'products', action: 'update', summary: `Sıfırdan içe aktarma: ${rows.length} ürün` });
             closeModal('modal-import');
             showAlertDialog(`Sıfırdan yükleme tamamlandı.\n• Eklenen ürün: ${rows.length}`, { title: 'İçe Aktarma', variant: 'success' });
             importRows = [];
@@ -973,6 +997,7 @@ async function executeImport() {
         }
         await flushInserts();
 
+        logChange({ ctx, moduleId: 'products', action: 'update', summary: `Akıllı içe aktarma: ${insertedCount} yeni, ${updatedCount} güncelleme` });
         closeModal('modal-import');
         showAlertDialog(`İçe aktarma tamamlandı.\n• Yeni eklenen: ${insertedCount}\n• Güncellenen: ${updatedCount}`, { title: 'İçe Aktarma', variant: 'success' });
         importRows = [];

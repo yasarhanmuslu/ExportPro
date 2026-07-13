@@ -7,6 +7,7 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
+import { getAccessContext, guardModuleAccess } from './utils/permissions.js';
 
 // ─────────────────────────────────────────────
 // SABİTLER
@@ -31,7 +32,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
     sessionRef = session;
-    await renderNavbar('pallet-defs');
+    const ctx = await getAccessContext();
+    if (!(await guardModuleAccess(ctx, 'product-analysis'))) return;
+    await renderNavbar('product-analysis', ctx);
     await Promise.all([fetchProducts(session), fetchPallets(session)]);
     initEvents();
 });

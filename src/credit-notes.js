@@ -1,23 +1,30 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
+import { showAlertDialog, showConfirmDialog } from './utils/dialogs.js';
+import { getAccessContext, guardModuleAccess, applyEditLock, canEdit } from './utils/permissions.js';
+import { logChange } from './utils/auditLog.js';
 
 // Global Hafıza Yapıları
 let globalCreditNotes = [];
 let globalCustomers = [];
 let globalProducts = [];
+let ctx = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
+    ctx = await getAccessContext();
+    if (!(await guardModuleAccess(ctx, 'credit-notes'))) return;
     // 1. Ortak Navbar'ı Çalıştır ('credit-notes' aktif)
-    await renderNavbar('credit-notes');
+    await renderNavbar('credit-notes', ctx);
 
     // 2. Müşteri Bilgilerini ve Credit Note Dosyalarını Çek
     await Promise.all([fetchCustomersForCN(), fetchProductsForCN(), fetchCreditNotesData()]);
 
     // 3. Etkinlik Dinleyicilerini Başlat
     initCNEventListeners();
+    applyEditLock(ctx, 'credit-notes');
 });
 
 // --- VERİ ÇEKME METOTLARI ---
@@ -280,6 +287,11 @@ function closeCNModal() {
 async function handleCNSubmit(e) {
     e.preventDefault();
 
+    if (!canEdit(ctx, 'credit-notes')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
+
     const id = document.getElementById('cn-id').value;
     const customer_id = document.getElementById('cn-customer-select').value;
     const cn_date = document.getElementById('cn_date').value;
@@ -346,19 +358,26 @@ async function handleCNSubmit(e) {
 
         if (bulkInsertErr) throw bulkInsertErr;
 
+        logChange({ ctx, moduleId: 'credit-notes', action: id ? 'update' : 'create', summary: `Credit Note ${id ? 'güncellendi' : 'oluşturuldu'} (${targetCnId})` });
         closeCNModal();
         await fetchCreditNotesData();
 
     } catch (err) {
         console.error("Master-Detail kayıt hatası:", err.message);
-        alert("Dosya kaydedilirken hata meydana geldi: " + err.message);
+        await showAlertDialog("Dosya kaydedilirken hata meydana geldi: " + err.message, { variant: 'danger' });
     }
 }
 
 // --- CREDIT NOTE SİLME (MASTER SİLİNİNCE DETAYLAR CASCADE SİLİNİR) ---
 async function handleDeleteCN() {
+    if (!canEdit(ctx, 'credit-notes')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
     const id = document.getElementById('cn-id').value;
-    if (!id || !confirm("Bu Credit Note dosyasını sildiğinizde altındaki tüm ürün şikayet detayları da kalıcı olarak silinecektir! Emin misiniz?")) return;
+    if (!id) return;
+    const ok = await showConfirmDialog("Bu Credit Note dosyasını sildiğinizde altındaki tüm ürün şikayet detayları da kalıcı olarak silinecektir! Emin misiniz?", { title: 'Credit Note Sil', variant: 'danger', confirmText: 'Sil' });
+    if (!ok) return;
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -369,14 +388,15 @@ async function handleDeleteCN() {
             .eq('user_id', session.user.id);
 
         if (error) throw error;
+        logChange({ ctx, moduleId: 'credit-notes', action: 'delete', summary: `Credit Note silindi (${id})` });
         closeCNModal();
         await fetchCreditNotesData();
     } catch (err) {
         console.error(err.message);
         if (err.code === '23503') {
-            alert("Bu Credit Note silinemez!\nBağlı ürün detay kayıtları bulunmaktadır.");
+            await showAlertDialog("Bu Credit Note silinemez!\nBağlı ürün detay kayıtları bulunmaktadır.", { variant: 'danger' });
         } else {
-            alert("Silme işlemi başarısız oldu: " + err.message);
+            await showAlertDialog("Silme işlemi başarısız oldu: " + err.message, { variant: 'danger' });
         }
     }
 }

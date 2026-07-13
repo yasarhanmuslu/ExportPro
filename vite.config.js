@@ -7,6 +7,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         login: resolve(__dirname, 'login.html'),
+        admin: resolve(__dirname, 'admin.html'),
         customers: resolve(__dirname, 'customers.html'),
         orders: resolve(__dirname, 'orders.html'),
         quotations: resolve(__dirname, 'quotations.html'),

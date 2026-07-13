@@ -1,6 +1,7 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
+import { getAccessContext, guardModuleAccess } from './utils/permissions.js';
 
 // ── Global veri depoları ──────────────────────────────────────────────────────
 let globalPrices = [];       // customer_prices + customers join
@@ -12,8 +13,10 @@ let discountChart = null;
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
+    const ctx = await getAccessContext();
+    if (!(await guardModuleAccess(ctx, 'profitability'))) return;
 
-    await renderNavbar('profitability');
+    await renderNavbar('profitability', ctx);
 
     // Yenile butonu
     document.getElementById('btn-refresh')?.addEventListener('click', async () => {

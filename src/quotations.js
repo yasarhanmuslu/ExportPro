@@ -3,6 +3,8 @@ import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
 import { showAlertDialog, showConfirmDialog, showPromptDialog } from './utils/dialogs.js';
+import { getAccessContext, guardModuleAccess, applyEditLock, canEdit } from './utils/permissions.js';
+import { logChange } from './utils/auditLog.js';
 
 // ── DURUM LİSTESİ ─────────────────────────────────────────────────────────────
 const STATUS_LIST = [
@@ -28,14 +30,18 @@ let globalCustomers   = [];
 let globalProducts    = [];
 let currentQuotationId = null;
 let quotationItemsBuffer = [];
+let ctx = null;
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
-    await renderNavbar('quotations');
+    ctx = await getAccessContext();
+    if (!(await guardModuleAccess(ctx, 'quotations'))) return;
+    await renderNavbar('quotations', ctx);
     await Promise.all([fetchCustomersData(), fetchQuotationsData(), fetchProductsData()]);
     initEventListeners();
+    applyEditLock(ctx, 'quotations');
 });
 
 // ── VERİ ÇEKME ───────────────────────────────────────────────────────────────
@@ -261,7 +267,7 @@ async function maybeUpdateCustomerStatus(customerId, fromStatus, toStatus, noteT
     try {
         const { data: cust, error } = await supabase
             .from('customers')
-            .select('status, history_notes')
+            .select('status, history_notes, company_name')
             .eq('id', customerId)
             .single();
         if (error || !cust || cust.status !== fromStatus) return;
@@ -278,6 +284,8 @@ async function maybeUpdateCustomerStatus(customerId, fromStatus, toStatus, noteT
             })
             .eq('id', customerId);
         if (updErr) throw updErr;
+
+        logChange({ ctx, moduleId: 'customers', action: 'update', summary: `[Sistem] ${cust.company_name}: ${fromStatus} → ${toStatus} (${noteText})` });
 
         const c = globalCustomers.find(gc => gc.id === customerId);
         if (c) c.status = toStatus;
@@ -382,6 +390,10 @@ function switchTab(tab) {
 // ── KAYDETME ──────────────────────────────────────────────────────────────────
 async function handleQuotationSubmit(e) {
     e.preventDefault();
+    if (!canEdit(ctx, 'quotations')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
     const customerId = document.getElementById('quotation-customer-select').value;
     if (!customerId) { await showAlertDialog('Lütfen bir müşteri / firma seçiniz.', { variant: 'warn', title: 'Eksik Bilgi' }); return; }
 
@@ -421,11 +433,13 @@ async function handleQuotationSubmit(e) {
         if (currentQuotationId) {
             const { error } = await supabase.from('quotations').update(payload).eq('id', currentQuotationId).eq('user_id', userId);
             if (error) throw error;
+            logChange({ ctx, moduleId: 'quotations', action: 'update', summary: `Teklif güncellendi: ${payload.quotation_number || quotationId}` });
         } else {
             payload.user_id = userId;
             const { data, error } = await supabase.from('quotations').insert([payload]).select().single();
             if (error) throw error;
             quotationId = data.id;
+            logChange({ ctx, moduleId: 'quotations', action: 'create', summary: `Teklif oluşturuldu: ${payload.quotation_number || quotationId}` });
         }
 
         await saveQuotationItems(quotationId, userId);
@@ -480,8 +494,13 @@ async function saveQuotationItems(quotationId, userId) {
 
 // ── SİLME ─────────────────────────────────────────────────────────────────────
 async function handleDeleteQuotation() {
+    if (!canEdit(ctx, 'quotations')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
     const id = document.getElementById('quotation-id').value;
     if (!id) return;
+    const quotationNumber = document.getElementById('quotation_number')?.value || id;
     const ok = await showConfirmDialog('Bu teklifi kalıcı olarak silmek istediğinize emin misiniz?', {
         title: 'Teklifi Sil', variant: 'danger', confirmText: 'Sil'
     });
@@ -491,6 +510,7 @@ async function handleDeleteQuotation() {
         await supabase.from('quotation_items').delete().eq('quotation_id', id);
         const { error } = await supabase.from('quotations').delete().eq('id', id).eq('user_id', session.user.id);
         if (error) throw error;
+        logChange({ ctx, moduleId: 'quotations', action: 'delete', summary: `Teklif silindi: ${quotationNumber}` });
         closeQuotationModal();
         await fetchQuotationsData();
     } catch (err) {
@@ -502,6 +522,10 @@ async function handleDeleteQuotation() {
 // ── SİPARİŞE GÖNDER ───────────────────────────────────────────────────────────
 async function handleSendToOrder() {
     if (!currentQuotationId) return;
+    if (!canEdit(ctx, 'quotations')) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
     const q = globalQuotations.find(x => x.id === currentQuotationId);
     if (!q) return;
 
@@ -621,6 +645,9 @@ async function handleSendToOrder() {
         await supabase.from('quotation_items').delete().eq('quotation_id', currentQuotationId);
         const { error: delErr } = await supabase.from('quotations').delete().eq('id', currentQuotationId).eq('user_id', userId);
         if (delErr) throw delErr;
+
+        logChange({ ctx, moduleId: 'orders', action: 'create', summary: `Teklif ${quotationNumber || q.id} siparişe dönüştürüldü: ${orderData.order_number || orderData.id}` });
+        logChange({ ctx, moduleId: 'quotations', action: 'delete', summary: `Teklif siparişe dönüştürülüp silindi: ${quotationNumber || q.id}` });
 
         await showAlertDialog(`Sipariş oluşturuldu: ${orderData.order_number || orderData.id}\nTeklif, teklif listesinden kaldırıldı.`, { variant: 'success', title: 'Başarılı' });
         closeQuotationModal();

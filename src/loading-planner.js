@@ -1,5 +1,6 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
+import { getAccessContext, guardModuleAccess } from './utils/permissions.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
@@ -43,7 +44,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const { data: { session: s } } = await supabase.auth.getSession();
   if (!s) { window.location.href = 'login.html'; return; }
   session = s;
-  await renderNavbar('loading-planner');
+  const ctx = await getAccessContext();
+  if (!(await guardModuleAccess(ctx, 'loading-planner'))) return;
+  await renderNavbar('loading-planner', ctx);
   buildUI();
   await fetchPallets();
 });

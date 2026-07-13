@@ -1,6 +1,7 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
+import { getAccessContext, guardModuleAccess } from './utils/permissions.js';
 
 // ── Flag emoji haritası ──────────────────────────────────────────────────────
 const countryFlags = {
@@ -50,7 +51,9 @@ let globalOrdersByCountry = {};
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
-    await renderNavbar('market-analysis');
+    const ctx = await getAccessContext();
+    if (!(await guardModuleAccess(ctx, 'market-analysis'))) return;
+    await renderNavbar('market-analysis', ctx);
 
     const thisYear = new Date().getFullYear();
     document.getElementById('data-year').textContent = `${thisYear - 2} – ${thisYear} Yılları`;

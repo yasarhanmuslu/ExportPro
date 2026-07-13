@@ -229,9 +229,9 @@
                 <option value="">Tüm Seriler</option>
             </select>
             <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
-                <button class="btn-action btn-outline" id="btn-import"><i class="fa-solid fa-file-import"></i> İçe Aktar</button>
+                <button class="btn-action btn-outline" id="btn-import" data-requires-edit><i class="fa-solid fa-file-import"></i> İçe Aktar</button>
                 <button class="btn-action btn-outline" id="btn-export"><i class="fa-solid fa-file-export"></i> Dışa Aktar</button>
-                <button class="btn-action btn-primary" id="btn-add"><i class="fa-solid fa-plus"></i> Yeni Ürün</button>
+                <button class="btn-action btn-primary" id="btn-add" data-requires-edit><i class="fa-solid fa-plus"></i> Yeni Ürün</button>
             </div>
         </div>
 
@@ -431,7 +431,7 @@
             </div>
             <div class="modal-foot">
                 <button class="btn-action btn-outline" data-close="modal-form">İptal</button>
-                <button class="btn-action btn-primary" id="btn-save"><i class="fa-solid fa-check"></i> Kaydet</button>
+                <button class="btn-action btn-primary" id="btn-save" data-requires-edit><i class="fa-solid fa-check"></i> Kaydet</button>
             </div>
         </div>
     </div>
@@ -445,7 +445,7 @@
                 <p id="del-msg">Bu ürün kalıcı olarak silinecektir.</p>
                 <div style="display:flex;gap:8px;justify-content:center;">
                     <button class="btn-action btn-outline" data-close="modal-delete">Vazgeç</button>
-                    <button class="btn-action btn-danger" id="btn-del-confirm"><i class="fa-solid fa-trash"></i> Evet, Sil</button>
+                    <button class="btn-action btn-danger" id="btn-del-confirm" data-requires-edit><i class="fa-solid fa-trash"></i> Evet, Sil</button>
                 </div>
             </div>
         </div>
@@ -476,7 +476,7 @@
             </div>
             <div class="modal-foot">
                 <button class="btn-action btn-outline" data-close="modal-import">İptal</button>
-                <button class="btn-action btn-primary" id="btn-import-confirm" disabled><i class="fa-solid fa-upload"></i> <span id="import-count">Yükle</span></button>
+                <button class="btn-action btn-primary" id="btn-import-confirm" data-requires-edit disabled><i class="fa-solid fa-upload"></i> <span id="import-count">Yükle</span></button>
             </div>
         </div>
     </div>

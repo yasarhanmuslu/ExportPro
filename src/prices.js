@@ -1,6 +1,7 @@
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
+import { getAccessContext, guardModuleAccess } from './utils/permissions.js';
 
 // ── Global State ──────────────────────────────────────────────
 let globalProducts = [];   // DB'den gelen ham veri
@@ -12,8 +13,10 @@ let usdRate = null;
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
+    const ctx = await getAccessContext();
+    if (!(await guardModuleAccess(ctx, 'prices'))) return;
 
-    await renderNavbar('prices');
+    await renderNavbar('prices', ctx);
     await Promise.all([fetchRates(), fetchProducts()]);
     initEventListeners();
     renderTable();
