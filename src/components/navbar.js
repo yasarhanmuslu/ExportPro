@@ -1,7 +1,7 @@
 import { supabase } from '../utils/supabaseClient.js';
 import { isOwner, canView } from '../utils/permissions.js';
 
-const APP_VERSION = 'V: 1.0.90';
+const APP_VERSION = 'V: 1.0.92';
 const ADMIN_TAB = { id: 'admin', label: 'Yönetici', icon: 'fa-user-shield', href: 'admin.html' };
 
 // MENU MODELI

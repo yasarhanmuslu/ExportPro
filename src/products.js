@@ -1,12 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
 // ExportPro — Ürün Kartları (Master Data) — products.js
-// V: 1.0.75  ← YENİ: Ürün görseli yükleme/kaldırma (Supabase Storage, imzalı URL) + tema dialogları
+// V: 1.0.92  ← YENİ: Ürün listesinde kod↔öznitelik çelişkisi olan satırlar için kırmızı "Kod" uyarı rozeti
 // ═══════════════════════════════════════════════════════════════
 
 import { supabase } from './utils/supabaseClient.js';
 import { requireAuth } from './auth/auth.js';
 import { renderNavbar } from './components/navbar.js';
 import { showAlertDialog, showConfirmDialog } from './utils/dialogs.js';
+import { IdevitCode } from './utils/idevitCodeRules.js';
 import { getAccessContext, guardModuleAccess, applyEditLock, canEdit } from './utils/permissions.js';
 import { logChange } from './utils/auditLog.js';
 import './theme.js';
@@ -185,6 +186,10 @@ function renderTable() {
         const rowNum = start + i + 1;
         const isDup = duplicateCodes[p.stok_kodu];
         const dupHtml = isDup ? `<span class="dup-badge"><i class="fa-solid fa-triangle-exclamation" style="font-size:8px;"></i> ${isDup}x</span>` : '';
+        const codeCheck = IdevitCode.validate(p.stok_kodu, p.stok_adi_1, { turu: p.urun_turu, renk: p.renk, kalite: p.kalite });
+        const codeWarnHtml = codeCheck.hasError
+            ? `<span class="code-warn-badge" title="${esc(codeCheck.issues.filter(i => i.level === 'ERROR').map(i => i.message).join(' | '))}"><i class="fa-solid fa-triangle-exclamation" style="font-size:8px;"></i> Kod</span>`
+            : '';
         const thumbHtml = p.resim_path
             ? `<img class="prod-thumb" data-path="${esc(p.resim_path)}" alt="">`
             : `<div class="prod-thumb-empty"><i class="fa-solid fa-image"></i></div>`;
@@ -192,7 +197,7 @@ function renderTable() {
         return `<tr data-id="${p.id}" onclick="window._ep.openEdit('${p.id}')">
             <td class="col-thumb">${thumbHtml}</td>
             <td style="color:var(--ink-3);font-size:11px;">${rowNum}</td>
-            <td class="col-code">${esc(p.stok_kodu)}${dupHtml}</td>
+            <td class="col-code">${esc(p.stok_kodu)}${dupHtml}${codeWarnHtml}</td>
             <td class="col-name" title="${esc(p.stok_adi_1)}">${esc(p.stok_adi_1)}</td>
             <td title="${esc(p.stok_adi_2 || '')}">${esc(p.stok_adi_2 || '-')}</td>
             <td>${esc(p.birim || '-')}</td>
@@ -591,6 +596,25 @@ async function saveProduct() {
 
     if (!fd.stok_kodu) return showAlertDialog('Stok Kodu zorunludur.', { variant: 'warn' });
     if (!fd.stok_adi_1) return showAlertDialog('Stok Adı (Türkçe) zorunludur.', { variant: 'warn' });
+
+    // ── İdevit "Konuşan Kod" doğrulaması: kod ile tür/renk/kalite tutarlı mı ──
+    const codeCheck = IdevitCode.validate(fd.stok_kodu, fd.stok_adi_1, {
+        turu: fd.urun_turu, renk: fd.renk, kalite: fd.kalite,
+    });
+    if (codeCheck.hasError) {
+        const msg = codeCheck.issues.filter(i => i.level === 'ERROR').map(i => '• ' + i.message).join('\n');
+        await showAlertDialog('Stok kodu ile ürün öznitelikleri çelişiyor:\n\n' + msg, { title: 'Kod Uyuşmazlığı', variant: 'danger' });
+        return;
+    }
+    const codeWarnings = codeCheck.issues.filter(i => i.level === 'WARNING');
+    if (codeWarnings.length) {
+        const msg = codeWarnings.map(i => '• ' + i.message).join('\n');
+        const proceed = await showConfirmDialog(
+            'Stok kodu kontrolünde uyarılar var:\n\n' + msg + '\n\nYine de kaydetmek istiyor musunuz?',
+            { title: 'Kod Uyarısı', variant: 'warn', confirmText: 'Yine de Kaydet' }
+        );
+        if (!proceed) return;
+    }
 
     // ── Mükerrer stok kodu kontrolü ──
     const inputCode = fd.stok_kodu.toString().trim();
