@@ -126,9 +126,20 @@ function renderCustomersList(customersList) {
                 </tr>
             </thead>
             <tbody>
-                ${customersList.map(cust => `
+                ${customersList.map(cust => {
+                    const noteRaw = cust.short_info || '';
+                    const noteTxt = noteRaw.length > 40 ? noteRaw.slice(0, 40) + '…' : noteRaw;
+                    const noteHtml = noteRaw
+                        ? `<div class="firm-note" data-note="${escapeHtml(noteRaw)}" title="${escapeHtml(noteRaw)}">
+                               <i class="fa-solid fa-note-sticky"></i><span>${escapeHtml(noteTxt)}</span>
+                           </div>`
+                        : '';
+                    return `
                     <tr>
-                        <td class="cell-strong">${escapeHtml(cust.company_name)}</td>
+                        <td class="cell-strong">
+                            ${escapeHtml(cust.company_name)}
+                            ${noteHtml}
+                        </td>
                         <td>${escapeHtml(getCanonicalCountry(cust.country))}</td>
                         <td>${escapeHtml(cust.contact_name || '—')}</td>
                         <td>
@@ -157,7 +168,8 @@ function renderCustomersList(customersList) {
                             </button>
                         </td>
                     </tr>
-                `).join('')}
+                `;
+                }).join('')}
             </tbody>
         </table>
     `;
@@ -166,6 +178,13 @@ function renderCustomersList(customersList) {
     container.querySelectorAll('.btn-edit-trigger').forEach(btn => {
         btn.addEventListener('click', (e) => {
             openModalForEdit(e.currentTarget.getAttribute('data-id'));
+        });
+    });
+
+    container.querySelectorAll('.firm-note').forEach(el => {
+        el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showAlertDialog(el.getAttribute('data-note'), { title: 'Kısa Bilgi', variant: 'info' });
         });
     });
 }
