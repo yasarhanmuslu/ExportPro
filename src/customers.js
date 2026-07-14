@@ -51,7 +51,7 @@ async function fetchCustomers() {
         const { data: customers, error } = await supabase
             .from('customers')
             .select('*')
-            .eq('user_id', session.user.id)
+            .eq('user_id', ctx.ownerId)
             .order('country', { ascending: true })
             .order('company_name', { ascending: true });   // Ülke → Firma A→Z
 
@@ -494,7 +494,7 @@ async function handleFormSubmit(e) {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error("Oturum bulunamadı.");
-        const userId = session.user.id;
+        const userId = ctx.ownerId;
 
         if (id) {
             const { error } = await supabase
@@ -546,7 +546,7 @@ async function handleDeleteCustomer() {
                 .from('customers')
                 .delete()
                 .eq('id', id)
-                .eq('user_id', session.user.id);
+                .eq('user_id', ctx.ownerId);
             if (error) throw error;
             logChange({ ctx, moduleId: 'customers', action: 'delete', summary: `Müşteri silindi: ${companyName}` });
             closeModal();
@@ -590,7 +590,7 @@ async function handleImportFile(e) {
 
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error("Oturum bulunamadı.");
-        const userId = session.user.id;
+        const userId = ctx.ownerId;
 
         // Mevcut firmaları isimle eşle (TR küçük harf normalizasyon)
         const byName = {};

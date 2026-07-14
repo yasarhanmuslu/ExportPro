@@ -55,15 +55,24 @@ export async function getAccessContext() {
     }
 
     const permissions = new Map();
+    let ownerId = role === 'owner' ? user.id : null;
     if (role !== 'owner') {
         const { data: perms } = await supabase
             .from('module_permissions')
             .select('module_id, access_level')
             .eq('user_id', user.id);
         (perms || []).forEach(p => permissions.set(p.module_id, p.access_level));
+
+        const { data: owner } = await supabase
+            .from('app_users')
+            .select('id')
+            .eq('role', 'owner')
+            .limit(1)
+            .maybeSingle();
+        ownerId = owner ? owner.id : user.id;
     }
 
-    cachedCtx = { userId: user.id, email: user.email, role, permissions };
+    cachedCtx = { userId: user.id, ownerId, email: user.email, role, permissions };
     return cachedCtx;
 }
 

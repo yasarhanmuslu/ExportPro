@@ -493,7 +493,7 @@ async function handleOrderSubmit(e) {
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
-        const userId = session.user.id;
+        const userId = ctx.ownerId;
         let orderId = currentOrderId;
 
         // ── MÜKERRER NUMARA KONTROLÜ ─────────────────────────────────────────
@@ -612,7 +612,7 @@ async function handleDeleteOrder() {
     if (!ok) return;
     try {
         const { data: { session } } = await supabase.auth.getSession();
-        const { error } = await supabase.from('orders').delete().eq('id', id).eq('user_id', session.user.id);
+        const { error } = await supabase.from('orders').delete().eq('id', id).eq('user_id', ctx.ownerId);
         if (error) throw error;
         logChange({ ctx, moduleId: 'orders', action: 'delete', summary: `Sipariş silindi: ${orderNumber}` });
         closeOrderModal();
@@ -849,7 +849,7 @@ async function handleImportRun() {
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
-        const userId = session.user.id;
+        const userId = ctx.ownerId;
 
         // XLSX parse
         const XLSX = window.XLSX;

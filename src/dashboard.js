@@ -6,13 +6,14 @@ import { getAccessContext } from './utils/permissions.js';
 let monthlyChartInstance = null;
 let currencyChartInstance = null;
 let currentSession = null;
+let accessCtx = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
     currentSession = session;
-    const ctx = await getAccessContext();
-    await renderNavbar('dashboard', ctx);
+    accessCtx = await getAccessContext();
+    await renderNavbar('dashboard', accessCtx);
     initYearSelector();
 });
 
@@ -31,7 +32,7 @@ function initYearSelector() {
 
 // ── ANA YÜKLEME ────────────────────────────────────────────────────────────────
 async function loadAllDashboardData(selectedYear) {
-    const uid = currentSession.user.id;
+    const uid = accessCtx.ownerId;
     try {
         const [
             ordersRes,

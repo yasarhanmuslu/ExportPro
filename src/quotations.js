@@ -419,7 +419,7 @@ async function handleQuotationSubmit(e) {
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
-        const userId = session.user.id;
+        const userId = ctx.ownerId;
         let quotationId = currentQuotationId;
         const isNewQuotation = !currentQuotationId;
 
@@ -508,7 +508,7 @@ async function handleDeleteQuotation() {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         await supabase.from('quotation_items').delete().eq('quotation_id', id);
-        const { error } = await supabase.from('quotations').delete().eq('id', id).eq('user_id', session.user.id);
+        const { error } = await supabase.from('quotations').delete().eq('id', id).eq('user_id', ctx.ownerId);
         if (error) throw error;
         logChange({ ctx, moduleId: 'quotations', action: 'delete', summary: `Teklif silindi: ${quotationNumber}` });
         closeQuotationModal();
@@ -553,7 +553,7 @@ async function handleSendToOrder() {
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
-        const userId = session.user.id;
+        const userId = ctx.ownerId;
 
         // ── SİPARİŞ NO ÇÖZÜMLEME (müşteri bazlı) ────────────────────────────
         // Teklif no müşteri bazında mükerrer olabilir (ör. aynı müşteriye 3 farklı

@@ -29,6 +29,7 @@ const PAL_PALETTE = [
 
 // ── Durum ───────────────────────────────────────────────────
 let session = null;
+let ctx = null;
 let allPallets = [];          // pallet_definitions
 let selection = {};           // { palletId: qty }
 let curVehicle = { ...VEHICLES[0] };
@@ -44,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const { data: { session: s } } = await supabase.auth.getSession();
   if (!s) { window.location.href = 'login.html'; return; }
   session = s;
-  const ctx = await getAccessContext();
+  ctx = await getAccessContext();
   if (!(await guardModuleAccess(ctx, 'loading-planner'))) return;
   await renderNavbar('loading-planner', ctx);
   buildUI();
@@ -55,7 +56,7 @@ async function fetchPallets() {
   const { data, error } = await supabase
     .from('pallet_definitions')
     .select('*')
-    .eq('user_id', session.user.id)
+    .eq('user_id', ctx.ownerId)
     .order('name', { ascending: true });
   if (error) { console.error('Paletler yüklenemedi:', error.message); }
   allPallets = (data || []).map((p, i) => ({

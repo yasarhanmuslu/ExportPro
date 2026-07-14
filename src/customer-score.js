@@ -9,12 +9,13 @@ let filteredScores = [];  // Filtreli liste
 let abcChart = null;      // Chart.js instance
 let activeClass = 'all';  // Aktif sınıf filtresi
 let activeCountry = '';   // Aktif ülke filtresi
+let ctx = null;
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
-    const ctx = await getAccessContext();
+    ctx = await getAccessContext();
     if (!(await guardModuleAccess(ctx, 'customer-score'))) return;
     await renderNavbar('customer-score', ctx);
     await loadAndComputeScores();
@@ -26,9 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ─── Veri Yükleme & Skor Hesaplama ───────────────────────────────────────────
 async function loadAndComputeScores() {
     try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-        const uid = session.user.id;
+        const uid = ctx.ownerId;
 
         // 1. Müşteriler
         const { data: customers, error: cErr } = await supabase

@@ -8,27 +8,28 @@ let rawData = [];          // Tüm credit_notes (items + customers dahil)
 let filteredItems = [];    // Aktif filtreye göre credit_note_items (düzleştirilmiş)
 let decisionChart = null;
 let monthlyChart  = null;
+let ctx = null;
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
-    const ctx = await getAccessContext();
+    ctx = await getAccessContext();
     if (!(await guardModuleAccess(ctx, 'complaints'))) return;
 
     await renderNavbar('complaints', ctx);
-    await loadData(session);
+    await loadData();
     initEventListeners();
 });
 
 // ── Veri yükleme ─────────────────────────────────────────────────────────────
-async function loadData(session) {
+async function loadData() {
     try {
         // 1) credit_notes — SADECE kendi alanları, join YOK (FK belirsizliğini önler)
         const { data: notes, error: notesErr } = await supabase
             .from('credit_notes')
             .select('id, customer_id, cn_date, process_status, user_id')
-            .eq('user_id', session.user.id)
+            .eq('user_id', ctx.ownerId)
             .order('cn_date', { ascending: false });
         if (notesErr) throw notesErr;
 
@@ -493,7 +494,7 @@ function initEventListeners() {
         const icon = document.querySelector('#btn-refresh i');
         icon?.classList.add('fa-spin');
         const session = await requireAuth();
-        if (session) await loadData(session);
+        if (session) await loadData();
         icon?.classList.remove('fa-spin');
     });
 

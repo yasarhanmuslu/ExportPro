@@ -75,17 +75,17 @@ async function loadData(session) {
             supabase
                 .from('shipments')
                 .select('*')
-                .eq('user_id', session.user.id)
+                .eq('user_id', ctx.ownerId)
                 .order('created_at', { ascending: false }),
             supabase
                 .from('orders')
                 .select('id, order_number, customer_id')
-                .eq('user_id', session.user.id)
+                .eq('user_id', ctx.ownerId)
                 .order('order_number', { ascending: false }),
             supabase
                 .from('customers')
                 .select('id, company_name, country')
-                .eq('user_id', session.user.id)
+                .eq('user_id', ctx.ownerId)
         ]);
 
         if (shipErr) throw shipErr;
@@ -381,7 +381,7 @@ async function handleFormSubmit(e) {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         const payload = {
-            user_id:           session.user.id,
+            user_id:           ctx.ownerId,
             order_id:          document.getElementById('form-order-id').value,
             bl_number:         document.getElementById('form-bl-number').value.trim()    || null,
             carrier:           document.getElementById('form-carrier').value.trim()       || null,

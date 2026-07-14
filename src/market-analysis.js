@@ -46,26 +46,27 @@ let chartTrend = null;
 
 // Global data store for trend chart
 let globalOrdersByCountry = {};
+let ctx = null;
 
 // ── Entry point ──────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
-    const ctx = await getAccessContext();
+    ctx = await getAccessContext();
     if (!(await guardModuleAccess(ctx, 'market-analysis'))) return;
     await renderNavbar('market-analysis', ctx);
 
     const thisYear = new Date().getFullYear();
     document.getElementById('data-year').textContent = `${thisYear - 2} – ${thisYear} Yılları`;
 
-    await loadMarketData(session);
+    await loadMarketData();
 
     document.getElementById('loading-overlay').style.display = 'none';
 });
 
 // ── Ana veri yükleme ─────────────────────────────────────────────────────────
-async function loadMarketData(session) {
-    const uid = session.user.id;
+async function loadMarketData() {
+    const uid = ctx.ownerId;
     const thisYear = new Date().getFullYear();
     const thisMonth = new Date().getMonth() + 1; // 1-12
 

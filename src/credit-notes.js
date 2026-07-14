@@ -299,7 +299,7 @@ async function handleCNSubmit(e) {
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
-        const userId = session.user.id;
+        const userId = ctx.ownerId;
 
         let targetCnId = id;
 
@@ -385,7 +385,7 @@ async function handleDeleteCN() {
             .from('credit_notes')
             .delete()
             .eq('id', id)
-            .eq('user_id', session.user.id);
+            .eq('user_id', ctx.ownerId);
 
         if (error) throw error;
         logChange({ ctx, moduleId: 'credit-notes', action: 'delete', summary: `Credit Note silindi (${id})` });

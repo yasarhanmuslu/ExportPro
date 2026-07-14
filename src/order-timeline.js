@@ -32,7 +32,7 @@ async function loadOrders() {
     const { data, error } = await supabase
         .from('orders')
         .select('*, customers!fk_orders_customer(company_name)')
-        .eq('user_id', session.user.id)
+        .eq('user_id', ctx.ownerId)
         .order('shipment_date', { ascending: true });
 
     if (error) { console.error('Orders load error:', error); return; }
@@ -46,7 +46,7 @@ async function loadNotes() {
     const { data, error } = await supabase
         .from('calendar_notes')
         .select('*')
-        .eq('user_id', session.user.id);
+        .eq('user_id', ctx.ownerId);
     if (error) { console.error('Notlar yüklenemedi:', error); return; }
     allNotes = data || [];
 }
@@ -382,7 +382,7 @@ async function saveNotePopover() {
     const isAdd = notePopoverState.mode === 'add';
     if (isAdd) {
         const { error } = await supabase.from('calendar_notes').insert([{
-            user_id: session.user.id,
+            user_id: ctx.ownerId,
             note_date: notePopoverState.dateStr,
             note_text: value,
         }]);
@@ -391,7 +391,7 @@ async function saveNotePopover() {
         const { error } = await supabase.from('calendar_notes')
             .update({ note_text: value })
             .eq('id', notePopoverState.noteId)
-            .eq('user_id', session.user.id);
+            .eq('user_id', ctx.ownerId);
         if (error) { console.error('Not güncellenemedi:', error); await showAlertDialog('Not güncellenemedi: ' + error.message, { variant: 'danger' }); return; }
     }
     logChange({ ctx, moduleId: 'order-timeline', action: isAdd ? 'create' : 'update', summary: `Takvim notu ${isAdd ? 'eklendi' : 'güncellendi'}: ${value.slice(0, 60)}` });
@@ -407,7 +407,7 @@ async function deleteNotePopover() {
         return;
     }
     const { error } = await supabase.from('calendar_notes')
-        .delete().eq('id', notePopoverState.noteId).eq('user_id', session.user.id);
+        .delete().eq('id', notePopoverState.noteId).eq('user_id', ctx.ownerId);
     if (error) { console.error('Not silinemedi:', error); await showAlertDialog('Not silinemedi: ' + error.message, { variant: 'danger' }); return; }
     logChange({ ctx, moduleId: 'order-timeline', action: 'delete', summary: `Takvim notu silindi` });
     closeNotePopover();

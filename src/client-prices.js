@@ -54,7 +54,7 @@ async function fetchProductOptions() {
         const { data, error } = await supabase
             .from('products')
             .select('id, product_name, product_code')
-            .eq('user_id', session.user.id)
+            .eq('user_id', ctx.ownerId)
             .order('product_name', { ascending: true });
         if (error) throw error;
         globalProductOptions = data || [];
@@ -92,7 +92,7 @@ async function fetchClientPrices() {
         const { data, error } = await supabase
             .from('customer_prices')
             .select(`*, customers!fk_customer_prices_customer ( company_name, country )`)
-            .eq('user_id', session.user.id)
+            .eq('user_id', ctx.ownerId)
             .order('product_name', { ascending: true });
         if (error) throw error;
 
@@ -338,7 +338,7 @@ async function saveClientPrices() {
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
-        const userId = session.user.id;
+        const userId = ctx.ownerId;
 
         // Önce bu müşteriye ait mevcut fiyatları sil
         await supabase.from('customer_prices').delete().eq('customer_id', customerId).eq('user_id', userId);
@@ -380,7 +380,7 @@ async function deleteClientPrices() {
     if (!ok) return;
     try {
         const { data: { session } } = await supabase.auth.getSession();
-        const { error } = await supabase.from('customer_prices').delete().eq('customer_id', customerId).eq('user_id', session.user.id);
+        const { error } = await supabase.from('customer_prices').delete().eq('customer_id', customerId).eq('user_id', ctx.ownerId);
         if (error) throw error;
         const customerName = globalCustomers.find(c => c.id === customerId)?.company_name || customerId;
         logChange({ ctx, moduleId: 'client-prices', action: 'delete', summary: `Müşteri fiyat kartı silindi: ${customerName}` });

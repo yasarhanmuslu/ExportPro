@@ -69,7 +69,7 @@ async function fetchUrunlerMap() {
         const { data, error } = await supabase
             .from('urunler')
             .select('id, stok_kodu, stok_adi_1, urun_grubu')
-            .eq('user_id', session.user.id);
+            .eq('user_id', ctx.ownerId);
         if (error) throw error;
 
         urunlerMap = new Map();
@@ -101,7 +101,7 @@ async function fetchProducts() {
         const { data, error } = await supabase
             .from('price_list')
             .select('*')
-            .eq('user_id', session.user.id)
+            .eq('user_id', ctx.ownerId)
             .order('group_name', { ascending: true })
             .order('product_name', { ascending: true });
 
@@ -427,10 +427,10 @@ async function savePriceRow() {
                 .from('price_list')
                 .update(payload)
                 .eq('id', editingId)
-                .eq('user_id', session.user.id);
+                .eq('user_id', ctx.ownerId);
             if (error) throw error;
         } else {
-            payload.user_id = session.user.id;
+            payload.user_id = ctx.ownerId;
             const { error } = await supabase.from('price_list').insert(payload);
             if (error) throw error;
         }
@@ -466,7 +466,7 @@ async function confirmDeleteRow(id) {
             .from('price_list')
             .delete()
             .eq('id', id)
-            .eq('user_id', session.user.id);
+            .eq('user_id', ctx.ownerId);
         if (error) throw error;
 
         await fetchProducts();
@@ -700,7 +700,7 @@ async function executeImportConfirm() {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return showAlertDialog('Oturum bulunamadı.', { variant: 'danger' });
-        const uid = session.user.id;
+        const uid = ctx.ownerId;
 
         let updated = 0;
         let inserted = 0;

@@ -24,6 +24,7 @@ let editingId      = null;
 let weightOverride = false;
 let sessionRef     = null;
 let palletTypeTouched = false;  // FIX REV2: kullanıcı palet cinsine elle dokundu mu
+let ctx = null;
 
 // ─────────────────────────────────────────────
 // INIT
@@ -32,7 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
     sessionRef = session;
-    const ctx = await getAccessContext();
+    ctx = await getAccessContext();
     if (!(await guardModuleAccess(ctx, 'product-analysis'))) return;
     await renderNavbar('product-analysis', ctx);
     await Promise.all([fetchProducts(session), fetchPallets(session)]);
@@ -48,7 +49,7 @@ async function fetchProducts(session) {
     const { data, error } = await supabase
         .from('urunler')
         .select('id, stok_kodu, stok_adi_1, stok_adi_2, agirlik_net, agirlik_brut, en_cm, boy_cm, yukseklik_cm, palet_cinsi, palet_adedi')
-        .eq('user_id', session.user.id)
+        .eq('user_id', ctx.ownerId)
         .order('stok_adi_1', { ascending: true });
     if (error) { console.error('Ürünler yüklenemedi:', error.message); return; }
     globalProducts = data || [];
@@ -58,7 +59,7 @@ async function fetchPallets(session) {
     const { data, error } = await supabase
         .from('pallet_definitions')
         .select('*, pallet_items(*)')
-        .eq('user_id', session.user.id)
+        .eq('user_id', ctx.ownerId)
         .order('name', { ascending: true });
     if (error) { console.error('Paletler yüklenemedi:', error.message); return; }
     globalPallets = data || [];
@@ -573,7 +574,7 @@ async function savePallet() {
     const totalRaw = document.getElementById('pallet-total-weight').value;
 
     const payload = {
-        user_id: sessionRef.user.id,
+        user_id: ctx.ownerId,
         name,
         width_cm:  parseFloat(document.getElementById('pallet-w').value) || null,
         length_cm: parseFloat(document.getElementById('pallet-l').value) || null,
@@ -602,7 +603,7 @@ async function savePallet() {
         const itemRows = itemsBuffer
             .filter(it => it.product_name && it.product_name.trim())
             .map(it => ({
-                user_id: sessionRef.user.id,
+                user_id: ctx.ownerId,
                 pallet_id: palletId,
                 product_id: it.product_id || null,
                 product_name: it.product_name.trim(),

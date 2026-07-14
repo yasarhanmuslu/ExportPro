@@ -7,17 +7,18 @@ import { getAccessContext, guardModuleAccess } from './utils/permissions.js';
 let globalOrders = [];        // orders + customers join
 let currentFilter = 'all';    // filtre durumu
 let currentSearch = '';       // arama durumu
+let ctx = null;
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
     if (!session) return;
-    const ctx = await getAccessContext();
+    ctx = await getAccessContext();
     if (!(await guardModuleAccess(ctx, 'payments'))) return;
 
     await renderNavbar('payments', ctx);
     initEventListeners();
-    await loadData(session);
+    await loadData();
 });
 
 // ── Olay Dinleyicileri ────────────────────────────────────────────────────────
@@ -26,8 +27,7 @@ function initEventListeners() {
     document.getElementById('btn-refresh')?.addEventListener('click', async () => {
         const icon = document.querySelector('#btn-refresh i');
         icon?.classList.add('fa-spin');
-        const { data: { session } } = await supabase.auth.getSession();
-        await loadData(session);
+        await loadData();
         icon?.classList.remove('fa-spin');
     });
 
@@ -55,7 +55,7 @@ function initEventListeners() {
 }
 
 // ── Veri Yükleme ─────────────────────────────────────────────────────────────
-async function loadData(session) {
+async function loadData() {
     try {
         // Siparişler ve müşteriler ayrı ayrı çekiliyor
         // (orders↔customers arasında birden fazla FK olduğunda embed belirsizliği çözümü)
@@ -68,12 +68,12 @@ async function loadData(session) {
                     currency, payment_status, production_status,
                     order_quantity, order_notes, customer_id
                 `)
-                .eq('user_id', session.user.id)
+                .eq('user_id', ctx.ownerId)
                 .order('due_date', { ascending: true }),
             supabase
                 .from('customers')
                 .select('id, company_name, country, client_group')
-                .eq('user_id', session.user.id)
+                .eq('user_id', ctx.ownerId)
         ]);
 
         if (ordErr) throw ordErr;

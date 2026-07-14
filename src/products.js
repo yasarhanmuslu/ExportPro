@@ -640,11 +640,11 @@ async function saveProduct() {
                 .from('urunler')
                 .update(fd)
                 .eq('id', editingId)
-                .eq('user_id', session.user.id);
+                .eq('user_id', ctx.ownerId);
             if (error) throw error;
             logChange({ ctx, moduleId: 'products', action: 'update', summary: `Ürün güncellendi: ${fd.stok_kodu}` });
         } else {
-            fd.user_id = session.user.id;
+            fd.user_id = ctx.ownerId;
             const { data, error } = await supabase
                 .from('urunler')
                 .insert(fd)
@@ -655,7 +655,7 @@ async function saveProduct() {
             logChange({ ctx, moduleId: 'products', action: 'create', summary: `Ürün oluşturuldu: ${fd.stok_kodu}` });
         }
 
-        await persistImageChanges(productId, session.user.id);
+        await persistImageChanges(productId, ctx.ownerId);
 
         closeModal('modal-form');
         await loadProducts();
@@ -686,7 +686,7 @@ async function executeDelete() {
             .from('urunler')
             .delete()
             .eq('id', deleteTargetId)
-            .eq('user_id', session.user.id);
+            .eq('user_id', ctx.ownerId);
         if (error) throw error;
         logChange({ ctx, moduleId: 'products', action: 'delete', summary: `Ürün silindi: ${product ? product.stok_kodu : deleteTargetId}` });
 
@@ -909,7 +909,7 @@ async function executeImport() {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return showAlertDialog('Oturum bulunamadı.', { variant: 'danger' });
-        const uid = session.user.id;
+        const uid = ctx.ownerId;
 
         // ── Onay kutusu: mevcut tüm ürünleri silip dosyadan sıfırla ──
         const clearBox = document.getElementById('chk-clear-before-import');
