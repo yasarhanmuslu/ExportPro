@@ -228,7 +228,7 @@ function renderOrdersList(list) {
         const noteRaw  = order.order_notes || '';
         const noteTxt  = noteRaw.length > 60 ? noteRaw.slice(0, 60) + '\u2026' : noteRaw;
         const noteHtml = noteRaw
-            ? `<div class="row-note"><i class="fa-solid fa-note-sticky" style="font-size:10px;margin-right:4px;opacity:0.6;"></i>${escapeHtml(noteTxt)}</div>`
+            ? `<div class="row-note" data-note="${escapeHtml(noteRaw)}" title="${escapeHtml(noteRaw)}" style="cursor:pointer;"><i class="fa-solid fa-note-sticky" style="font-size:10px;margin-right:4px;opacity:0.6;"></i>${escapeHtml(noteTxt)}</div>`
             : '';
 
         const row = document.createElement('div');
@@ -275,6 +275,13 @@ function renderOrdersList(list) {
 
     container.querySelectorAll('.btn-edit-order-trigger').forEach(btn => {
         btn.addEventListener('click', e => openModalForEdit(e.currentTarget.dataset.id));
+    });
+
+    container.querySelectorAll('.row-note').forEach(el => {
+        el.addEventListener('click', e => {
+            e.stopPropagation();
+            showAlertDialog(el.getAttribute('data-note'), { title: 'Sipariş Notu', variant: 'info' });
+        });
     });
 }
 
