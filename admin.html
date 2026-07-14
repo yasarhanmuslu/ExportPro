@@ -26,6 +26,22 @@
 
         .audit-row.unread { background: rgba(181,136,88,0.08); }
         .audit-row td { padding: 8px 10px; border-bottom: 1px solid var(--border-soft, #EFEAE0); font-size: 12.5px; vertical-align: top; }
+
+        /* ── Modal (açık yüzey) ── */
+        .modal-backdrop {
+            position: fixed; inset: 0;
+            background: rgba(28,26,23,0.45) !important; backdrop-filter: blur(4px);
+            display: flex; align-items: flex-start; justify-content: center;
+            z-index: 100; padding: 1.5rem; overflow-y: auto;
+        }
+        .modal-backdrop.hidden { display: none; }
+        .modal-content {
+            background: var(--porc-surface, var(--surface)); border: 1px solid var(--porc-border, var(--border));
+            border-radius: 1rem; padding: 1.5rem; width: 100%; max-width: 40rem;
+            box-shadow: 0 24px 50px -12px rgba(28,26,23,0.18); margin: auto;
+            color: var(--porc-ink, var(--ink-1));
+            max-height: calc(100vh - 3rem); display: flex; flex-direction: column; overflow: hidden;
+        }
     </style>
 </head>
 <body class="min-h-screen">
