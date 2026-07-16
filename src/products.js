@@ -34,6 +34,9 @@ let distinctGruplar = [];
 let distinctSeriler = [];
 let distinctRenkler = [];
 
+// Her zaman sunulacak renk seçenekleri (üründe henüz kullanılmamış olsa da)
+const BASE_RENKLER = ['Altın Dekor', 'Platin Dekor'];
+
 // ── Init ────────────────────────────────────────────────────────
 let ctx = null;
 
@@ -102,8 +105,9 @@ function populateFormDropdowns() {
         distinctGruplar.map(g => `<option>${g}</option>`).join('');
 
     const renkSel = document.getElementById('f-renk');
+    const renkSecenekleri = [...new Set([...distinctRenkler, ...BASE_RENKLER])].sort();
     renkSel.innerHTML = '<option value="">Seçiniz</option>' +
-        distinctRenkler.map(r => `<option>${r}</option>`).join('');
+        renkSecenekleri.map(r => `<option>${r}</option>`).join('');
 }
 
 // ── KPI ─────────────────────────────────────────────────────────
