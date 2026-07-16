@@ -38,6 +38,8 @@ const F_TO_KALITE = { '1': '1.Kalite', '2': '2.Kalite' };
 const RENK2_TO_RENK = {
     '00': ['Beyaz', 'Dekorlu'],
     '07': ['Siyah'],
+    '11': ['Altın'],
+    '12': ['Platin'],
     '14': ['Mat Siyah'],
     '15': ['Mat Beyaz'],
     '16': ['Mat Gri'],
@@ -181,7 +183,7 @@ function validate(codeRaw, name = '', attrs = {}) {
     const renkList = RENK2_TO_RENK[p.renk2];
     if (!renkList) {
         issues.push(issue('WARNING', 'RENK_UNKNOWN',
-            `Renk hanesi "${p.renk2}" bilinen renklere eşlenmiyor (00,07,14,15,16).`));
+            `Renk hanesi "${p.renk2}" bilinen renklere eşlenmiyor (${Object.keys(RENK2_TO_RENK).join(',')}).`));
     } else if (attrs.renk != null && norm(attrs.renk) !== '') {
         if (isDecor) {
             if (!eq(attrs.renk, 'Dekorlu')) {
