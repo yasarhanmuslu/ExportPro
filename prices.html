@@ -164,17 +164,20 @@
             border-top: 1px solid var(--border-soft);
         }
 
-        .td-code { font-family: 'Courier New', monospace; font-size: 11px; color: var(--ink-3); white-space: nowrap; }
-        .td-name { font-weight: 500; color: var(--ink-1); min-width: 260px; }
-        .td-renk { color: var(--ink-2); white-space: nowrap; }
+        /* NOT: ".price-table td" (tür+sınıf) taban kuralı, tek sınıflı ".td-xxx" kurallarından
+           daha yüksek özgüllüğe (specificity) sahip olduğu için renkleri eziyordu.
+           Aşağıdaki kurallar "td.td-xxx" şeklinde yazılarak tabandan daha özgül hale getirildi. */
+        .price-table td.td-code { font-family: 'Courier New', monospace; font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+        .price-table td.td-name { font-weight: 500; color: var(--ink-1); min-width: 260px; }
+        .price-table td.td-renk { color: var(--ink-2); white-space: nowrap; }
         .td-num { text-align: right; font-variant-numeric: tabular-nums; }
         /* Liste fiyatları: kalın, nötr — referans değer */
-        .td-tl { color: var(--ink-1); font-weight: 700; }
-        .td-eur-liste { color: var(--ink-1); font-weight: 700; }
+        .price-table td.td-tl { color: var(--ink-1); font-weight: 700; }
+        .price-table td.td-eur-liste { color: var(--ink-1); font-weight: 700; }
         /* Net fiyatlar: birbirinden ayırt edilebilir, farklı renk tonları */
-        .td-net { color: var(--accent); font-weight: 700; }
-        .td-net-fx { color: var(--info); font-weight: 600; }
-        .td-eur-net { color: var(--warn); font-weight: 700; }
+        .price-table td.td-net { color: var(--accent); font-weight: 700; }
+        .price-table td.td-net-fx { color: var(--info); font-weight: 600; }
+        .price-table td.td-eur-net { color: var(--warn); font-weight: 700; }
 
         .diff-pos { color: var(--ok); font-weight: 600; }
         .diff-neg { color: var(--danger); font-weight: 600; }
