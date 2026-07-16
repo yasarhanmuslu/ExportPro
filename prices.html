@@ -174,10 +174,13 @@
         /* Liste fiyatları: kalın, nötr — referans değer */
         .price-table td.td-tl { color: var(--ink-1); font-weight: 700; }
         .price-table td.td-eur-liste { color: var(--ink-1); font-weight: 700; }
-        /* Net fiyatlar: birbirinden ayırt edilebilir, farklı renk tonları */
-        .price-table td.td-net { color: var(--accent); font-weight: 700; }
-        .price-table td.td-net-fx { color: var(--info); font-weight: 600; }
-        .price-table td.td-eur-net { color: var(--warn); font-weight: 700; }
+        /* Net fiyatlar: birbirinden ayırt edilebilir, canlı/belirgin renkler (tema tonlarından bağımsız) */
+        .price-table td.td-net { color: #1E8E3E; font-weight: 700; }
+        .price-table td.td-net-fx { color: #1D63ED; font-weight: 700; }
+        .price-table td.td-eur-net { color: #B0299C; font-weight: 700; }
+        html.dark .price-table td.td-net { color: #4ADE80; }
+        html.dark .price-table td.td-net-fx { color: #60A5FA; }
+        html.dark .price-table td.td-eur-net { color: #E879F9; }
 
         .diff-pos { color: var(--ok); font-weight: 600; }
         .diff-neg { color: var(--danger); font-weight: 600; }
