@@ -35,7 +35,7 @@ let distinctSeriler = [];
 let distinctRenkler = [];
 
 // Her zaman sunulacak renk seçenekleri (üründe henüz kullanılmamış olsa da)
-const BASE_RENKLER = ['Altın Dekor', 'Platin Dekor'];
+const BASE_RENKLER = ['Altın Kaplama', 'Altın Dekor', 'Platin Kaplama', 'Platin Dekor'];
 
 // ── Init ────────────────────────────────────────────────────────
 let ctx = null;

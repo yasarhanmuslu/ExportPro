@@ -35,14 +35,21 @@ const BB_TO_TURU = {
 const F_TO_KALITE = { '1': '1.Kalite', '2': '2.Kalite' };
 
 // EEE[0:2] (renk hanesi) -> renk.  00 hem Beyaz hem Dekorlu taşır; dekor GGGG'de ayrışır.
+// 11/12 hem Kaplama hem Dekor taşır; ayrım decorTail (son2) değil, GGGG'nin TAMAMI ile yapılır (bkz. PLATING_GGGG).
 const RENK2_TO_RENK = {
     '00': ['Beyaz', 'Dekorlu'],
     '07': ['Siyah'],
-    '11': ['Altın'],
-    '12': ['Platin'],
+    '11': ['Altın Kaplama', 'Altın Dekor'],
+    '12': ['Platin Kaplama', 'Platin Dekor'],
     '14': ['Mat Siyah'],
     '15': ['Mat Beyaz'],
     '16': ['Mat Gri'],
+};
+
+// renk2 '11'/'12' için GGGG'nin TAMAMI -> renk (0000=Kaplama, {renk2}01=Dekor)
+const PLATING_GGGG = {
+    '11': { '0000': 'Altın Kaplama', '1101': 'Altın Dekor' },
+    '12': { '0000': 'Platin Kaplama', '1201': 'Platin Dekor' },
 };
 
 // İsimde aranacak tür anahtar kelimeleri (küçük harf).  Set için özel: "+" işareti.
@@ -181,9 +188,19 @@ function validate(codeRaw, name = '', attrs = {}) {
     /* --- 4.4 RENK + DEKOR (hard, GARANTİLİ) --- */
     const isDecor = p.decorTail === '71';           // GGGG son2 = 71 -> Dekorlu
     const renkList = RENK2_TO_RENK[p.renk2];
+    const platingMap = PLATING_GGGG[p.renk2];        // 11/12: ayrım GGGG'nin TAMAMINDA
     if (!renkList) {
         issues.push(issue('WARNING', 'RENK_UNKNOWN',
             `Renk hanesi "${p.renk2}" bilinen renklere eşlenmiyor (${Object.keys(RENK2_TO_RENK).join(',')}).`));
+    } else if (platingMap) {
+        const expectedRenk = platingMap[p.GGGG];
+        if (!expectedRenk) {
+            issues.push(issue('WARNING', 'RENK_GGGG_UNKNOWN',
+                `GGGG "${p.GGGG}" renk hanesi "${p.renk2}" için bilinen kaplama/dekor kodlarına eşlenmiyor (${Object.keys(platingMap).join(', ')}).`));
+        } else if (attrs.renk != null && norm(attrs.renk) !== '' && !eq(attrs.renk, expectedRenk)) {
+            issues.push(issue('ERROR', 'RENK',
+                `Kod renk "${expectedRenk}" diyor; öznitelik "${attrs.renk}".`));
+        }
     } else if (attrs.renk != null && norm(attrs.renk) !== '') {
         if (isDecor) {
             if (!eq(attrs.renk, 'Dekorlu')) {
@@ -255,12 +272,19 @@ function describe(codeRaw) {
         return { ok: true, format: 'accessory', grup: ACC_GROUP[p.a1] || '(bilinmiyor)' };
     }
     const isDecor = p.decorTail === '71';
+    const platingMap = PLATING_GGGG[p.renk2];
+    let renkDesc;
+    if (platingMap) {
+        renkDesc = platingMap[p.GGGG] || '(bilinmiyor)';
+    } else {
+        renkDesc = isDecor ? 'Dekorlu' : ((RENK2_TO_RENK[p.renk2] || ['(bilinmiyor)'])[0]);
+    }
     return {
         ok: true, format: 'main',
         onEk: p.prefix || '(yok)',
         seri: AA_TO_SERI[p.AA] || '(bilinmiyor)',
         turu: (BB_TO_TURU[p.BB] || ['(bilinmiyor)']).join(' / '),
-        renk: isDecor ? 'Dekorlu' : ((RENK2_TO_RENK[p.renk2] || ['(bilinmiyor)'])[0]),
+        renk: renkDesc,
         yuzey: p.yuzey === '5' ? 'Mat' : (p.yuzey === '1' ? 'Parlak' : p.yuzey),
         kalite: F_TO_KALITE[p.F] || '(bilinmiyor)',
         set: (p.prefix === 'SET' || p.prefix === 'SETK') || p.gggg2 !== '00',
@@ -292,5 +316,5 @@ function buildCode(parts = {}) {
 
 export const IdevitCode = {
     parse, validate, describe, buildCode,
-    DICT: { PREFIXES, BB_TO_TURU, F_TO_KALITE, RENK2_TO_RENK, AA_TO_SERI, ACC_GROUP },
+    DICT: { PREFIXES, BB_TO_TURU, F_TO_KALITE, RENK2_TO_RENK, PLATING_GGGG, AA_TO_SERI, ACC_GROUP },
 };
