@@ -125,6 +125,11 @@
             width: 100%;
             border-collapse: collapse;
         }
+        .price-table-scroll {
+            max-height: calc(100vh - 380px);
+            min-height: 240px;
+            overflow: auto;
+        }
         .price-table th {
             font-size: 10px;
             font-weight: 600;
@@ -135,6 +140,9 @@
             padding: 10px 12px;
             border-bottom: 1px solid var(--border-soft);
             white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 5;
         }
         .price-table td {
             font-size: 12px;
@@ -156,13 +164,17 @@
             border-top: 1px solid var(--border-soft);
         }
 
-        .td-code { font-family: 'Courier New', monospace; font-size: 11px; color: var(--ink-3); }
+        .td-code { font-family: 'Courier New', monospace; font-size: 11px; color: var(--ink-3); white-space: nowrap; }
         .td-name { font-weight: 500; color: var(--ink-1); min-width: 260px; }
+        .td-renk { color: var(--ink-2); white-space: nowrap; }
         .td-num { text-align: right; font-variant-numeric: tabular-nums; }
-        .td-tl { color: var(--ink-1); font-weight: 500; }
-        .td-net { color: var(--accent); font-weight: 600; }
-        .td-eur-liste { color: var(--ink-2); }
-        .td-eur-net { color: var(--ok); font-weight: 600; }
+        /* Liste fiyatları: kalın, nötr — referans değer */
+        .td-tl { color: var(--ink-1); font-weight: 700; }
+        .td-eur-liste { color: var(--ink-1); font-weight: 700; }
+        /* Net fiyatlar: birbirinden ayırt edilebilir, farklı renk tonları */
+        .td-net { color: var(--accent); font-weight: 700; }
+        .td-net-fx { color: var(--info); font-weight: 600; }
+        .td-eur-net { color: var(--warn); font-weight: 700; }
 
         .diff-pos { color: var(--ok); font-weight: 600; }
         .diff-neg { color: var(--danger); font-weight: 600; }
@@ -429,12 +441,13 @@
 
         <!-- Tablo -->
         <div class="price-table-wrap">
-            <div style="overflow-x:auto;">
+            <div class="price-table-scroll">
                 <table class="price-table" id="price-table">
                     <thead id="price-table-head">
                         <tr>
                             <th>Ürün Kodu</th>
                             <th>Ürün Adı</th>
+                            <th>Renk</th>
                             <th class="text-right">2026 TL Liste</th>
                             <th class="text-right">2026 TL Net</th>
 			    <th class="text-right" id="th-tl-net-doviz">2026 TL Net (EUR)</th>
@@ -445,7 +458,7 @@
                         </tr>
                     </thead>
                     <tbody id="price-table-body">
-                        <tr class="loading-row"><td colspan="9"><i class="fa-solid fa-circle-notch fa-spin" style="margin-right:8px;"></i>Yükleniyor...</td></tr>
+                        <tr class="loading-row"><td colspan="10"><i class="fa-solid fa-circle-notch fa-spin" style="margin-right:8px;"></i>Yükleniyor...</td></tr>
                     </tbody>
                 </table>
             </div>

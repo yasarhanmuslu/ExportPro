@@ -68,7 +68,7 @@ async function fetchUrunlerMap() {
         if (!session) return;
         const { data, error } = await supabase
             .from('urunler')
-            .select('id, stok_kodu, stok_adi_1, urun_grubu')
+            .select('id, stok_kodu, stok_adi_1, urun_grubu, renk')
             .eq('user_id', ctx.ownerId);
         if (error) throw error;
 
@@ -76,7 +76,7 @@ async function fetchUrunlerMap() {
         (data || []).forEach(u => {
             const key = normCode(u.stok_kodu);
             if (key && !urunlerMap.has(key)) {
-                urunlerMap.set(key, { id: u.id, code: u.stok_kodu, name: u.stok_adi_1, grup: u.urun_grubu });
+                urunlerMap.set(key, { id: u.id, code: u.stok_kodu, name: u.stok_adi_1, grup: u.urun_grubu, renk: u.renk });
             }
         });
     } catch (err) {
@@ -91,6 +91,7 @@ function enrichProducts() {
         const match = urunlerMap.get(normCode(p.product_code));
         p._matched = !!match;
         p._displayName = match ? match.name : (p.product_name || '');
+        p._renk = match ? (match.renk || '') : '';
     });
 }
 
@@ -115,7 +116,7 @@ async function fetchProducts() {
     } catch (err) {
         console.error('Ürün listesi çekilemedi:', err.message);
         document.getElementById('price-table-body').innerHTML =
-            `<tr class="loading-row"><td colspan="9" style="color:var(--danger)"><i class="fa-solid fa-triangle-exclamation" style="margin-right:8px;"></i>Veri çekilirken hata oluştu.</td></tr>`;
+            `<tr class="loading-row"><td colspan="10" style="color:var(--danger)"><i class="fa-solid fa-triangle-exclamation" style="margin-right:8px;"></i>Veri çekilirken hata oluştu.</td></tr>`;
     }
 }
 
@@ -215,7 +216,7 @@ function renderTable() {
     tbody.innerHTML = '';
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr class="loading-row"><td colspan="9" style="color:var(--ink-3);">Sonuç bulunamadı.</td></tr>`;
+        tbody.innerHTML = `<tr class="loading-row"><td colspan="10" style="color:var(--ink-3);">Sonuç bulunamadı.</td></tr>`;
         return;
     }
 
@@ -228,7 +229,7 @@ function renderTable() {
             lastGroup = p.group_name;
             const gtr = document.createElement('tr');
             gtr.className = 'group-row';
-            gtr.innerHTML = `<td colspan="9">${escapeHtml(p.group_name || 'Diğer')}</td>`;
+            gtr.innerHTML = `<td colspan="10">${escapeHtml(p.group_name || 'Diğer')}</td>`;
             tbody.appendChild(gtr);
         }
 
@@ -247,9 +248,10 @@ function renderTable() {
         tr.innerHTML = `
             <td class="td-code">${escapeHtml(p.product_code || '—')}</td>
             <td class="td-name">${escapeHtml(p._displayName || '')}${badgeHtml}</td>
+            <td class="td-renk">${escapeHtml(p._renk || '-')}</td>
             <td class="td-num td-tl">${fmtTL(tlListe)}</td>
             <td class="td-num td-net">${fmtTL(tlNet)}</td>
-            <td class="td-num" style="color:var(--ink-2);font-weight:500;">${fmtDoviz(tlNetToDoviz(tlNet))}</td>
+            <td class="td-num td-net-fx">${fmtDoviz(tlNetToDoviz(tlNet))}</td>
             <td class="td-num td-eur-liste">${fmtDoviz(dovizListe)}</td>
             <td class="td-num td-eur-net">${fmtDoviz(dovizNet)}</td>
             <td class="td-num">${fmtFark(fark)}</td>
