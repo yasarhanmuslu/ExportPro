@@ -63,7 +63,7 @@ async function fetchProductsData() {
     try {
         const { data, error } = await supabase
             .from('urunler')
-            .select('id, stok_kodu, stok_adi_1')
+            .select('id, stok_kodu, stok_adi_1, stok_adi_2, renk, fonksiyon_1, fonksiyon_2, fonksiyon_3')
             .order('stok_adi_1', { ascending: true });
         if (error) throw error;
         globalProducts = data || [];
@@ -708,70 +708,170 @@ function applyFilters() {
 }
 
 // ── KALEM TABLOSU ─────────────────────────────────────────────────────────────
+
+// Ürünün fonksiyon_1/2/3 alanlarından, müşteriye gönderilen proformalarda kullanılan
+// sadeleştirilmiş Türkçe "Fonksiyon" etiketini bulur (hangi fonksiyon slotunda olduğuna bakmaksızın).
+const FONKSIYON_LABEL_RULES = [
+    { values: ['kanalsız delikli', 'kanallı delikli'], label: 'Taharet Delikli' },
+    { values: ['kanalsız deliksiz', 'kanallı deliksiz'], label: 'Taharet Deliksiz' },
+    { values: ['delikli', 'sağdan delikli', 'soldan delikli'], label: 'Armatür Delikli' },
+    { values: ['deliksiz'], label: 'Armatür Deliksiz' },
+];
+
+function resolveFonksiyonLabel(product) {
+    if (!product) return '';
+    const fields = [product.fonksiyon_1, product.fonksiyon_2, product.fonksiyon_3];
+    for (const raw of fields) {
+        if (!raw) continue;
+        const norm = raw.trim().toLocaleLowerCase('tr-TR');
+        const rule = FONKSIYON_LABEL_RULES.find(r => r.values.includes(norm));
+        if (rule) return rule.label;
+    }
+    return '';
+}
+
+function currentQuotationCurrencySymbol() {
+    const sym = { EUR: '€', USD: '$', TRY: '₺', GBP: '£' };
+    const code = document.getElementById('currency')?.value || 'EUR';
+    return sym[code] || code;
+}
+
+function updateItemsColumnHeaders() {
+    const s = currentQuotationCurrencySymbol();
+    const priceTh  = document.getElementById('th-unit-price');
+    const amountTh = document.getElementById('th-amount');
+    if (priceTh)  priceTh.textContent  = `Birim Fiyat (${s})`;
+    if (amountTh) amountTh.textContent = `Tutar (${s})`;
+}
+
 function renderItemsTable() {
     const tbody = document.getElementById('items-table-body');
     tbody.innerHTML = '';
+    updateItemsColumnHeaders();
 
     if (quotationItemsBuffer.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#968B7A;padding:24px;font-size:13px;">Henüz teklif kalemi eklenmedi. "Satır Ekle" butonunu kullanın.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#968B7A;padding:24px;font-size:13px;">Henüz teklif kalemi eklenmedi. "Satır Ekle" butonunu kullanın.</td></tr>`;
         updateItemsTotal();
         return;
     }
 
     quotationItemsBuffer.forEach((item, idx) => {
-        const productOptions = globalProducts.map(p =>
-            `<option value="${p.id}" data-code="${escapeHtml(p.stok_kodu || '')}" data-name="${escapeHtml(p.stok_adi_1)}" ${item.product_id === p.id ? 'selected' : ''}>${escapeHtml(p.stok_adi_1)}</option>`
-        ).join('');
+        const product   = item.product_id ? globalProducts.find(p => p.id === item.product_id) : null;
+        const isSelected = !!item.product_id;
+        const renk      = product?.renk || '';
+        const fonksiyon = resolveFonksiyonLabel(product);
+
+        const productCell = isSelected
+            ? `<div style="display:flex;align-items:flex-start;gap:6px;border:1px solid #E4DDCE;border-radius:6px;padding:6px 8px;background:#F6F3EC;min-height:34px;">
+                   <div style="flex:1;font-size:12px;line-height:1.35;color:#1C1A17;">${escapeHtml(item.product_name || '')}</div>
+                   <button type="button" class="item-clear-btn" data-idx="${idx}" title="Ürünü kaldır / değiştir" style="flex-shrink:0;background:none;border:none;cursor:pointer;color:#968B7A;font-size:11px;padding:2px;">
+                       <i class="fa-solid fa-xmark"></i>
+                   </button>
+               </div>
+               <input type="text" class="item-search hidden" data-idx="${idx}" autocomplete="off" value="">`
+            : `<input type="text" class="item-search" data-idx="${idx}" autocomplete="off" placeholder="Ürün ara (kod / TR / EN) veya serbest metin" value="${escapeHtml(item.product_name || '')}" style="height:34px;font-size:12px;">`;
 
         const tr = document.createElement('tr');
         tr.dataset.idx = idx;
         tr.innerHTML = `
-            <td style="min-width:200px;">
-                <select class="item-product-select" data-idx="${idx}" style="height:34px;font-size:12px;">
-                    <option value="">-- Ürün Seç --</option>${productOptions}
-                </select>
-                <input type="text" class="item-product-name mt-1" data-idx="${idx}" value="${escapeHtml(item.product_name || '')}" placeholder="veya serbest metin" style="height:30px;font-size:11px;margin-top:4px;">
+            <td style="position:relative;">
+                ${productCell}
+                <div class="ac-dropdown hidden" data-idx="${idx}"
+                    style="position:absolute;top:100%;left:0;right:0;z-index:60;max-height:220px;overflow-y:auto;
+                           background:#fff;border:1px solid #E4DDCE;border-radius:6px;margin-top:2px;box-shadow:0 4px 16px rgba(0,0,0,.12);"></div>
             </td>
-            <td style="min-width:110px;">
-                <input type="text" class="item-product-code" data-idx="${idx}" value="${escapeHtml(item.product_code || '')}" placeholder="Ürün kodu" style="height:34px;font-size:12px;">
+            <td style="width:230px;">
+                <input type="text" class="item-product-code" data-idx="${idx}" value="${escapeHtml(item.product_code || '')}" placeholder="Ürün kodu" style="height:34px;font-size:11.5px;white-space:nowrap;">
             </td>
-            <td style="min-width:90px;">
-                <input type="number" class="item-quantity" data-idx="${idx}" value="${item.quantity || ''}" placeholder="0" step="any" style="height:34px;font-size:12px;text-align:right;">
+            <td style="width:70px;">
+                <div style="height:34px;display:flex;align-items:center;font-size:12px;color:#6B655B;">${escapeHtml(renk) || '&mdash;'}</div>
             </td>
-            <td style="min-width:120px;">
-                <input type="number" class="item-unit-price" data-idx="${idx}" value="${item.unit_price || ''}" placeholder="0.00" step="any" style="height:34px;font-size:12px;text-align:right;">
+            <td style="width:135px;">
+                <div style="height:34px;display:flex;align-items:center;font-size:12px;color:#6B655B;">${escapeHtml(fonksiyon) || '&mdash;'}</div>
             </td>
-            <td style="text-align:right;font-weight:600;font-size:13px;color:#2D4A3E;" class="item-amount" data-idx="${idx}">
+            <td style="width:100px;">
+                <input type="number" class="item-quantity" data-idx="${idx}" value="${item.quantity || ''}" placeholder="0" step="any" style="height:34px;font-size:12px;text-align:right;padding:0 6px;">
+            </td>
+            <td style="width:100px;">
+                <input type="number" class="item-unit-price" data-idx="${idx}" value="${item.unit_price || ''}" placeholder="0.00" step="any" style="height:34px;font-size:12px;text-align:right;padding:0 6px;">
+            </td>
+            <td style="text-align:right;font-weight:600;font-size:13px;color:#2D4A3E;width:95px;" class="item-amount" data-idx="${idx}">
                 ${calcAmount(item.quantity, item.unit_price)}
             </td>
-            <td style="text-align:center;">
+            <td style="text-align:center;width:40px;">
                 <button class="btn-remove-item" data-idx="${idx}" style="background:none;border:none;cursor:pointer;color:#9F3D3D;font-size:13px;padding:4px 8px;">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
-                <input type="text" class="item-notes" data-idx="${idx}" value="${escapeHtml(item.notes || '')}" placeholder="Not" style="height:28px;font-size:11px;margin-top:4px;display:block;">
             </td>
         `;
         tbody.appendChild(tr);
     });
 
-    tbody.querySelectorAll('.item-product-select').forEach(sel => {
-        sel.addEventListener('change', e => {
-            const idx = parseInt(e.target.dataset.idx);
-            const opt = e.target.selectedOptions[0];
-            if (opt?.value) {
-                quotationItemsBuffer[idx].product_id   = opt.value;
-                quotationItemsBuffer[idx].product_name = opt.dataset.name || '';
-                quotationItemsBuffer[idx].product_code = opt.dataset.code || '';
-                const nameInp = tbody.querySelector(`.item-product-name[data-idx="${idx}"]`);
-                const codeInp = tbody.querySelector(`.item-product-code[data-idx="${idx}"]`);
-                if (nameInp) nameInp.value = opt.dataset.name || '';
-                if (codeInp) codeInp.value = opt.dataset.code || '';
-            }
+    // ── Ürün autocomplete — sadece görünür arama input'larına bağla ──
+    tbody.querySelectorAll('.item-search').forEach(inp => {
+        if (inp.classList.contains('hidden')) return;
+
+        const idx = parseInt(inp.dataset.idx);
+        const dd  = tbody.querySelector(`.ac-dropdown[data-idx="${idx}"]`);
+        let debounce = null;
+
+        inp.addEventListener('input', () => {
+            clearTimeout(debounce);
+            debounce = setTimeout(() => {
+                const q = inp.value.toLocaleLowerCase('tr-TR').trim();
+                if (q.length < 1) { dd.classList.add('hidden'); return; }
+
+                const matches = globalProducts.filter(p => {
+                    const hay = [p.stok_kodu || '', p.stok_adi_1 || '', p.stok_adi_2 || '']
+                        .join(' ').toLocaleLowerCase('tr-TR');
+                    return q.split(/\s+/).every(w => hay.includes(w));
+                }).slice(0, 30);
+
+                dd.innerHTML = matches.length === 0
+                    ? `<div style="padding:8px 10px;font-size:11px;color:#968B7A;">Sonuç yok</div>`
+                    : matches.map(p => `
+                        <div class="ac-option" data-pid="${p.id}" style="padding:7px 10px;cursor:pointer;border-bottom:1px solid #F0EDE4;">
+                            <div style="font-size:11px;font-weight:600;color:#1C1A17;">${escapeHtml(p.stok_adi_1)}</div>
+                            ${p.stok_adi_2 ? `<div style="font-size:10px;color:#6B655B;">${escapeHtml(p.stok_adi_2)}</div>` : ''}
+                            <div style="font-size:10px;color:#968B7A;margin-top:2px;">${escapeHtml(p.stok_kodu || '')}${p.renk ? ' &middot; ' + escapeHtml(p.renk) : ''}</div>
+                        </div>`).join('');
+                dd.classList.remove('hidden');
+
+                dd.querySelectorAll('.ac-option').forEach(opt => {
+                    opt.addEventListener('mouseenter', () => opt.style.background = '#F6F3EC');
+                    opt.addEventListener('mouseleave', () => opt.style.background = '');
+                    opt.addEventListener('mousedown', e => {
+                        e.preventDefault();
+                        const prod = globalProducts.find(p => p.id === opt.dataset.pid);
+                        if (!prod) return;
+                        quotationItemsBuffer[idx].product_id   = prod.id;
+                        quotationItemsBuffer[idx].product_name = prod.stok_adi_1;
+                        quotationItemsBuffer[idx].product_code = prod.stok_kodu || '';
+                        renderItemsTable();
+                    });
+                });
+            }, 120);
+        });
+
+        inp.addEventListener('blur', () => setTimeout(() => dd.classList.add('hidden'), 150));
+        inp.addEventListener('focus', () => { if (inp.value.length >= 1) inp.dispatchEvent(new Event('input')); });
+        inp.addEventListener('change', () => {
+            if (!quotationItemsBuffer[idx].product_id) quotationItemsBuffer[idx].product_name = inp.value.trim();
         });
     });
-    tbody.querySelectorAll('.item-product-name').forEach(inp => {
-        inp.addEventListener('input', e => { quotationItemsBuffer[parseInt(e.target.dataset.idx)].product_name = e.target.value; });
+
+    tbody.querySelectorAll('.item-clear-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const idx = parseInt(btn.dataset.idx);
+            quotationItemsBuffer[idx].product_id   = null;
+            quotationItemsBuffer[idx].product_name = '';
+            quotationItemsBuffer[idx].product_code = '';
+            renderItemsTable();
+            const inp = tbody.querySelector(`.item-search[data-idx="${idx}"]:not(.hidden)`);
+            if (inp) inp.focus();
+        });
     });
+
     tbody.querySelectorAll('.item-product-code').forEach(inp => {
         inp.addEventListener('input', e => { quotationItemsBuffer[parseInt(e.target.dataset.idx)].product_code = e.target.value; });
     });
@@ -788,9 +888,6 @@ function renderItemsTable() {
             quotationItemsBuffer[idx].unit_price = parseFloat(e.target.value) || null;
             updateItemAmount(tbody, idx); updateItemsTotal();
         });
-    });
-    tbody.querySelectorAll('.item-notes').forEach(inp => {
-        inp.addEventListener('input', e => { quotationItemsBuffer[parseInt(e.target.dataset.idx)].notes = e.target.value; });
     });
     tbody.querySelectorAll('.btn-remove-item').forEach(btn => {
         btn.addEventListener('click', e => {
@@ -832,6 +929,229 @@ function addItemRow() {
     switchTab('items');
 }
 
+// ── PDF'DEN KALEM İÇE AKTARMA ────────────────────────────────────────────────
+// Proforma fatura PDF'inden PI NO, PI DATE, genel toplam ve ürün kalemlerini (kod/adet/net fiyat) okur.
+// Büyük x-boşlukları (aynı satırdaki farklı tablo sütunları) '\t' ile ayrılır; normal kelime
+// boşlukları tek boşluk olarak korunur. '\t' de bir \s karakteri olduğundan mevcut regex'leri bozmaz.
+function reconstructPdfLines(items) {
+    const tolY = 2;
+    const colGapThreshold = 20;
+    const rows = new Map();
+    for (const item of items) {
+        const y = item.transform[5];
+        let key = null;
+        for (const k of rows.keys()) {
+            if (Math.abs(k - y) <= tolY) { key = k; break; }
+        }
+        if (key === null) key = y;
+        if (!rows.has(key)) rows.set(key, []);
+        rows.get(key).push(item);
+    }
+    const sortedKeys = Array.from(rows.keys()).sort((a, b) => b - a);
+    const lines = [];
+    for (const k of sortedKeys) {
+        const rowItems = rows.get(k).slice().sort((a, b) => a.transform[4] - b.transform[4]);
+        let line = '';
+        let lastEndX = null;
+        for (const it of rowItems) {
+            const x = it.transform[4];
+            if (lastEndX !== null) {
+                const gap = x - lastEndX;
+                if (gap > colGapThreshold) line += '\t';
+                else if (gap > 1) line += ' ';
+            }
+            line += it.str;
+            lastEndX = x + (it.width || 0);
+        }
+        lines.push(line.trim());
+    }
+    return lines.join('\n');
+}
+
+// Genel toplam satırını bulur — örn: "EX-WORKS / ISTANBUL : 5.086,80 EUR".
+// Etiket (Incoterm) sabit kodlanmaz: önce "DELIVERY TERMS :" (İngilizce) veya "TESLİM ŞEKLİ :" (Türkçe)
+// değeri okunur (örn. "EX-WORKS / ISTANBUL"), sonra aynı metnin ": <tutar> <para birimi>" ile tekrar
+// geçtiği hücre aranır (bu, teslim şekli ne olursa olsun çalışır).
+function extractTotalAmount(fullText) {
+    const termMatch =
+        fullText.match(/DE+LIVERY\s*TERMS\s*:\s*([^\t\n]+?)\s*(?:\t|\n|$)/i) ||
+        fullText.match(/TESL[İIiı]M\s*ŞEKL[İIiı]\s*:\s*([^\t\n]+?)\s*(?:\t|\n|$)/i);
+    if (!termMatch) return null;
+    const term = termMatch[1].trim();
+    if (!term) return null;
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const totalRe = new RegExp(escaped + '\\s*:\\s*([\\d.,]+)\\s*([A-Z]{2,3})?', 'i');
+    const totalMatch = fullText.match(totalRe);
+    if (!totalMatch) return null;
+    return { amount: parseTurkishFloat(totalMatch[1]), currency: totalMatch[2] || null };
+}
+
+// Satır formatı: <...> <ÜRÜN KODU> <AÇIKLAMA> <ADET> pcs./ad./adet <PALET (opsiyonel)> <NET FİYAT><para birimi> <TUTAR><para birimi>
+// Palet sütunu her proforma şablonunda yok (bazı siparişler paletsiz) — bu yüzden opsiyonel.
+const PDF_ITEM_LINE_RE = /((?:[A-Za-z0-9]+\s*-\s*){2,}[A-Za-z0-9]+)\s+(.+?)\s+(\d+(?:[.,]\d+)?)\s*(?:pcs|ad|adet)\.?\s+(?:\d+\s+)?([\d.,]+)\s*\S{0,2}\s+([\d.,]+)\s*\S{0,2}\s*$/gim;
+
+function parsePdfProformaText(fullText) {
+    const piNoMatch   = fullText.match(/PI\s*NO\s*:?\s*([0-9]{2,4}-[0-9]{1,4})/i);
+    const piDateMatch = fullText.match(/PI\s*DATE\s*:?\s*([0-9]{1,2}\.[0-9]{1,2}\.[0-9]{2,4})/i);
+    const total       = extractTotalAmount(fullText);
+
+    const items = [];
+    let m;
+    PDF_ITEM_LINE_RE.lastIndex = 0;
+    while ((m = PDF_ITEM_LINE_RE.exec(fullText)) !== null) {
+        items.push({
+            code: m[1].replace(/\s+/g, ''),
+            description: m[2].trim(),
+            quantity: parseTurkishFloat(m[3]),
+            netPrice: parseTurkishFloat(m[4]),
+            amount: parseTurkishFloat(m[5]),
+        });
+    }
+
+    return {
+        piNo: piNoMatch ? piNoMatch[1] : null,
+        piDate: piDateMatch ? piDateToIso(piDateMatch[1]) : null,
+        totalAmount: total ? total.amount : null,
+        totalCurrency: total ? total.currency : null,
+        items,
+    };
+}
+
+function piDateToIso(str) {
+    const parts = str.split('.');
+    if (parts.length !== 3) return null;
+    let [d, mo, y] = parts;
+    if (y.length === 2) y = '20' + y;
+    d = d.padStart(2, '0');
+    mo = mo.padStart(2, '0');
+    return `${y}-${mo}-${d}`;
+}
+
+async function handlePdfItemFileSelect(file) {
+    if (!window.pdfjsLib) {
+        await showAlertDialog('PDF kütüphanesi yüklenemedi. Sayfayı yenileyip tekrar deneyin.', { variant: 'danger', title: 'Hata' });
+        return;
+    }
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+        let fullText = '';
+        for (let p = 1; p <= pdf.numPages; p++) {
+            const page = await pdf.getPage(p);
+            const content = await page.getTextContent();
+            fullText += reconstructPdfLines(content.items) + '\n';
+        }
+
+        const { piNo, piDate, totalAmount, items } = parsePdfProformaText(fullText);
+
+        if (items.length === 0) {
+            await showAlertDialog('PDF içinde ürün kalemi satırı bulunamadı. Dosya formatını kontrol edin.', { variant: 'warn', title: 'Kalem Bulunamadı' });
+            return;
+        }
+
+        // Ürün kodu eşleştirme — sistemde kayıtlı olmayan kod varsa import tamamen durdurulur.
+        const matched   = [];
+        const unmatched = [];
+        for (const it of items) {
+            const prod = globalProducts.find(p =>
+                (p.stok_kodu || '').trim().toLocaleUpperCase('tr-TR') === it.code.toLocaleUpperCase('tr-TR')
+            );
+            if (prod) matched.push({ ...it, product: prod });
+            else unmatched.push(it);
+        }
+
+        if (unmatched.length > 0) {
+            const list = unmatched.map(u => `• ${u.code} — ${u.description}`).join('\n');
+            await showAlertDialog(
+                `Aşağıdaki ürün kodları sistemde (Ürün Kartları) kayıtlı değil:\n\n${list}\n\nİçe aktarma durduruldu. Lütfen önce "Ürünler" sayfasından bu ürün kartlarını oluşturun, ardından tekrar deneyin.`,
+                { variant: 'danger', title: 'Eşleşmeyen Ürün Kodları' }
+            );
+            return;
+        }
+
+        if (quotationItemsBuffer.length > 0) {
+            const ok = await showConfirmDialog(
+                'Kalem tablosunda zaten satırlar var. PDF içe aktarma, mevcut tüm kalem satırlarının yerine PDF\'deki satırları koyacak. Devam edilsin mi?',
+                { title: 'Mevcut Kalemler Değiştirilecek', variant: 'warn', confirmText: 'Değiştir ve Devam Et' }
+            );
+            if (!ok) return;
+        }
+
+        // Teklif No / Teklif Tarihi alanlarını doldur (mevcut değer varsa onay iste)
+        const quotationNoInput   = document.getElementById('quotation_number');
+        const quotationDateInput = document.getElementById('quotation_date');
+
+        if (piNo) {
+            if (quotationNoInput.value && quotationNoInput.value !== piNo) {
+                const ok = await showConfirmDialog(
+                    `Teklif No alanı zaten "${quotationNoInput.value}" olarak dolu. PDF'deki PI NO değeri "${piNo}" ile değiştirilsin mi?`,
+                    { title: 'Teklif No Çakışması', variant: 'warn', confirmText: 'Değiştir' }
+                );
+                if (ok) quotationNoInput.value = piNo;
+            } else {
+                quotationNoInput.value = piNo;
+            }
+        }
+        if (piDate) {
+            if (quotationDateInput.value && quotationDateInput.value !== piDate) {
+                const ok = await showConfirmDialog(
+                    `Teklif Tarihi alanı zaten dolu. PDF'deki PI DATE değeri ile değiştirilsin mi?`,
+                    { title: 'Teklif Tarihi Çakışması', variant: 'warn', confirmText: 'Değiştir' }
+                );
+                if (ok) quotationDateInput.value = piDate;
+            } else {
+                quotationDateInput.value = piDate;
+            }
+        }
+
+        // Toplam Tutar alanını doldur (mevcut değer varsa onay iste)
+        if (totalAmount !== null) {
+            const totalAmountInput = document.getElementById('total_amount');
+            const formattedTotal   = totalAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 });
+            const currentTotal     = parseTurkishFloat(totalAmountInput.value);
+            let applyTotal = true;
+            if (totalAmountInput.value && Math.abs(currentTotal - totalAmount) > 0.01) {
+                applyTotal = await showConfirmDialog(
+                    `Toplam Tutar alanı zaten "${totalAmountInput.value}" olarak dolu. PDF'deki genel toplam "${formattedTotal}" ile değiştirilsin mi?`,
+                    { title: 'Toplam Tutar Çakışması', variant: 'warn', confirmText: 'Değiştir' }
+                );
+            }
+            if (applyTotal) {
+                totalAmountInput.value = formattedTotal;
+            }
+        }
+
+        // Kalem tablosunu PDF'deki kalemlerle değiştir
+        quotationItemsBuffer = matched.map(it => ({
+            id: null,
+            product_id: it.product.id,
+            product_name: it.product.stok_adi_1,
+            product_code: it.product.stok_kodu,
+            quantity: it.quantity,
+            unit_price: it.netPrice,
+            notes: null,
+        }));
+
+        switchTab('items');
+
+        // Adet x Net Fiyat ile PDF'deki AMOUNT tutarı uyuşmuyorsa uyar (parsing kontrolü)
+        const mismatches = matched.filter(it => Math.abs(it.quantity * it.netPrice - it.amount) > 0.05);
+        if (mismatches.length > 0) {
+            const list = mismatches.map(u => `• ${u.code}: ${u.quantity} x ${u.netPrice} ≠ ${u.amount}`).join('\n');
+            await showAlertDialog(
+                `${matched.length} kalem içe aktarıldı, ancak şu satırlarda Adet x Net Fiyat, PDF'deki AMOUNT ile uyuşmuyor — lütfen kontrol edin:\n\n${list}`,
+                { variant: 'warn', title: 'Kontrol Gerekli' }
+            );
+        } else {
+            await showAlertDialog(`${matched.length} ürün kalemi PDF'den başarıyla içe aktarıldı.`, { variant: 'success', title: 'İçe Aktarma Tamamlandı' });
+        }
+    } catch (err) {
+        console.error('PDF kalem import hatası:', err.message);
+        await showAlertDialog('PDF işlenirken hata oluştu: ' + err.message, { variant: 'danger', title: 'Hata' });
+    }
+}
+
 // ── EVENT LISTENERS ───────────────────────────────────────────────────────────
 function initEventListeners() {
     document.getElementById('btn-open-quotation-modal').addEventListener('click', openModalForCreate);
@@ -844,10 +1164,19 @@ function initEventListeners() {
     document.getElementById('filter-quotation-currency').addEventListener('change', applyFilters);
     document.getElementById('filter-quotation-status').addEventListener('change', applyFilters);
     document.getElementById('btn-add-item-row').addEventListener('click', addItemRow);
+    document.getElementById('currency').addEventListener('change', updateItemsColumnHeaders);
     document.getElementById('tab-general').addEventListener('click', () => switchTab('general'));
     document.getElementById('tab-items').addEventListener('click', () => switchTab('items'));
 
     document.getElementById('total_amount').addEventListener('input', updateItemsTotal);
+
+    // PDF'den kalem içe aktarma
+    const pdfItemInput = document.getElementById('pdf-item-import-input');
+    document.getElementById('btn-import-pdf-items').addEventListener('click', () => pdfItemInput.click());
+    pdfItemInput.addEventListener('change', () => {
+        if (pdfItemInput.files[0]) handlePdfItemFileSelect(pdfItemInput.files[0]);
+        pdfItemInput.value = '';
+    });
 }
 
 // ── YARDIMCI ──────────────────────────────────────────────────────────────────
