@@ -877,6 +877,20 @@ function updateItemAmount(tbody, idx) {
     if (cell) cell.textContent = calcAmount(orderItemsBuffer[idx].quantity, orderItemsBuffer[idx].unit_price);
 }
 
+// Kalem toplamı ile genel toplam arasındaki fark, bilinen bir KDV oranına (%1/%8/%10/%18/%20)
+// denk geliyorsa kullanıcıyı bilgilendir — aksi halde "yanlış kayıt" sanılabilir.
+function vatMismatchHint(itemsTotal, targetTotal) {
+    if (itemsTotal <= 0) return '';
+    const ratio = targetTotal / itemsTotal;
+    const vatRates = [0.20, 0.18, 0.10, 0.08, 0.01];
+    for (const rate of vatRates) {
+        if (Math.abs(ratio - (1 + rate)) < 0.005) {
+            return ` Muhtemel sebep: PDF'deki kalem fiyatları KDV hariç, genel toplam ise %${Math.round(rate * 100)} KDV dahil görünüyor — kayıt hatası olmayabilir.`;
+        }
+    }
+    return '';
+}
+
 function updateItemsTotal() {
     const total = orderItemsBuffer.reduce((s, i) =>
         s + ((parseFloat(i.quantity) || 0) * (parseFloat(i.unit_price) || 0)), 0);
@@ -889,7 +903,7 @@ function updateItemsTotal() {
     const warn = document.getElementById('items-total-warning');
     if (orderTotal > 0 && Math.abs(total - orderTotal) > 0.01) {
         warn.classList.remove('hidden');
-        warn.textContent = `⚠ Kalem toplamı (${total.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}) sipariş tutarından (${orderTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}) farklı!`;
+        warn.textContent = `⚠ Kalem toplamı (${total.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}) sipariş tutarından (${orderTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}) farklı!${vatMismatchHint(total, orderTotal)}`;
     } else {
         warn.classList.add('hidden');
     }
@@ -1548,8 +1562,18 @@ function extractTotalAmount(fullText) {
 
 // Satır formatı: <...> <ÜRÜN KODU> <AÇIKLAMA> <ADET> pcs./ad./adet <PALET (opsiyonel)> <NET FİYAT><para birimi> <TUTAR><para birimi>
 // Palet sütunu her proforma şablonunda yok (bazı siparişler paletsiz) — bu yüzden opsiyonel.
-// Değeri (tam sayı ya da "2,0" gibi ondalık) hiç kullanılmıyor, sadece atlanıyor: bu modülde palet hesabı kapsam dışı.
-const PDF_ITEM_LINE_RE = /((?:[A-Za-z0-9]+\s*-\s*){2,}[A-Za-z0-9]+)\s+(.+?)\s+(\d+(?:[.,]\d+)?)\s*(?:pcs|ad|adet)\.?\s+(?:\d+(?:[.,]\d+)?\s+)?([\d.,]+)\s*\S{0,2}\s+([\d.,]+)\s*\S{0,2}\s*$/gim;
+// Değeri (tam sayı, "2,0" gibi ondalık, ya da bomboş sütun için tek başına "-") hiç kullanılmıyor,
+// sadece atlanıyor: bu modülde palet hesabı kapsam dışı.
+// Ürün kodu ya bizim standart tireli formatımız (SETK3104-2615-165-1-6000, 53-01-04-031) ya da
+// tireli olmayan tek parça bir kod (örn. tedarikçiden alınıp tek seferlik satılan bir ürünün kodu,
+// TM00415 gibi — büyük harf + rakam, boşluksuz) olabilir.
+// Satır sonunda ($) durmuyor: bazı şablonlarda TUTAR'dan sonra Net/Gross Weight, Palet Ölçüleri gibi
+// ek sütunlar aynı satırda devam ediyor — TUTAR'ı yakalayınca durmak yeterli, satırın gerisini görmezden gel.
+// Bazı şablonlarda NET FİYAT'tan önce LİSTE FİYATI + İSKONTO % sütunları da var
+// (örn. "278,00 € 76,00% 66,72 € 400,32 €" → liste fiyatı, iskonto, NET FİYAT, TUTAR).
+// İskonto her zaman "%" ile bitişik yazıldığından bu iki fazladan sütun, sadece bu şablonlarda
+// devreye giren opsiyonel bir blokla atlanıyor — NET FİYAT ve TUTAR her zaman doğru yakalanıyor.
+const PDF_ITEM_LINE_RE = /((?:[A-Za-z0-9]+\s*-\s*){2,}[A-Za-z0-9]+|\b[A-Z]{2,8}\d{2,8}\b)\s+(.+?)\s+(\d+(?:[.,]\d+)?)\s*(?:pcs|ad|adet)\.?\s+(?:(?:\d+(?:[.,]\d+)?|-)\s+)?(?:[\d.,]+\s*\S{0,2}\s+[\d.,]+%\s+)?([\d.,]+)\s*\S{0,2}\s+([\d.,]+)\s*\S{0,2}/gim;
 
 function parsePdfProformaText(fullText) {
     const piNoMatch   = fullText.match(/PI\s*NO\s*:?\s*([0-9]{2,4}-[0-9]{1,4})/i);
@@ -1562,7 +1586,8 @@ function parsePdfProformaText(fullText) {
     while ((m = PDF_ITEM_LINE_RE.exec(fullText)) !== null) {
         items.push({
             code: m[1].replace(/\s+/g, ''),
-            description: m[2].trim(),
+            // Boş RENK/DELİK sütunları için PDF'de bırakılan "-" işaretleri satır sonunda kalabiliyor.
+            description: m[2].trim().replace(/(?:\s+-)+$/, '').trim(),
             quantity: parseTurkishFloat(m[3]),
             netPrice: parseTurkishFloat(m[4]),
             amount: parseTurkishFloat(m[5]),
@@ -1611,24 +1636,24 @@ async function handlePdfItemFileSelect(file) {
             return;
         }
 
-        // Ürün kodu eşleştirme — sistemde kayıtlı olmayan kod varsa import tamamen durdurulur.
-        const matched   = [];
-        const unmatched = [];
+        // Ürün kodu eşleştirme — sistemde kayıtlı olmayan kod varsa, ürün kartı açmadan
+        // serbest metin olarak içe aktarmak isteyip istemediği sorulur (tek seferlik ürünler için).
+        const productByCode = new Map();
         for (const it of items) {
             const prod = globalProducts.find(p =>
                 (p.stok_kodu || '').trim().toLocaleUpperCase('tr-TR') === it.code.toLocaleUpperCase('tr-TR')
             );
-            if (prod) matched.push({ ...it, product: prod });
-            else unmatched.push(it);
+            if (prod) productByCode.set(it.code, prod);
         }
+        const unmatched = items.filter(it => !productByCode.has(it.code));
 
         if (unmatched.length > 0) {
             const list = unmatched.map(u => `• ${u.code} — ${u.description}`).join('\n');
-            await showAlertDialog(
-                `Aşağıdaki ürün kodları sistemde (Ürün Kartları) kayıtlı değil:\n\n${list}\n\nİçe aktarma durduruldu. Lütfen önce "Ürünler" sayfasından bu ürün kartlarını oluşturun, ardından tekrar deneyin.`,
-                { variant: 'danger', title: 'Eşleşmeyen Ürün Kodları' }
+            const importAsFreeText = await showConfirmDialog(
+                `Aşağıdaki ürün kodları sistemde (Ürün Kartları) kayıtlı değil:\n\n${list}\n\nBu kalemleri ürün kartı oluşturmadan, PDF'deki kod/açıklama ile serbest metin olarak içe aktarayım mı?`,
+                { title: 'Eşleşmeyen Ürün Kodları', variant: 'warn', confirmText: 'Serbest Metin Olarak Aktar' }
             );
-            return;
+            if (!importAsFreeText) return;
         }
 
         if (orderItemsBuffer.length > 0) {
@@ -1702,29 +1727,34 @@ async function handlePdfItemFileSelect(file) {
             }
         }
 
-        // Kalem tablosunu PDF'deki kalemlerle değiştir
-        orderItemsBuffer = matched.map(it => ({
-            id: null,
-            product_id: it.product.id,
-            product_name: it.product.stok_adi_1,
-            product_code: it.product.stok_kodu,
-            quantity: it.quantity,
-            unit_price: it.netPrice,
-            notes: null,
-        }));
+        // Kalem tablosunu PDF'deki kalemlerle değiştir (eşleşen ürünler kart bilgisiyle,
+        // eşleşmeyenler PDF'deki kod/açıklama ile serbest metin olarak)
+        orderItemsBuffer = items.map(it => {
+            const prod = productByCode.get(it.code);
+            return {
+                id: null,
+                product_id: prod ? prod.id : null,
+                product_name: prod ? prod.stok_adi_1 : it.description,
+                product_code: prod ? prod.stok_kodu : it.code,
+                quantity: it.quantity,
+                unit_price: it.netPrice,
+                notes: null,
+            };
+        });
 
         switchTab('items');
 
         // Adet x Net Fiyat ile PDF'deki AMOUNT tutarı uyuşmuyorsa uyar (parsing kontrolü)
-        const mismatches = matched.filter(it => Math.abs(it.quantity * it.netPrice - it.amount) > 0.05);
+        const mismatches = items.filter(it => Math.abs(it.quantity * it.netPrice - it.amount) > 0.05);
+        const freeTextNote = unmatched.length > 0 ? ` (${unmatched.length} tanesi serbest metin olarak, ürün kartı olmadan)` : '';
         if (mismatches.length > 0) {
             const list = mismatches.map(u => `• ${u.code}: ${u.quantity} x ${u.netPrice} ≠ ${u.amount}`).join('\n');
             await showAlertDialog(
-                `${matched.length} kalem içe aktarıldı, ancak şu satırlarda Adet x Net Fiyat, PDF'deki AMOUNT ile uyuşmuyor — lütfen kontrol edin:\n\n${list}`,
+                `${items.length} kalem içe aktarıldı${freeTextNote}, ancak şu satırlarda Adet x Net Fiyat, PDF'deki AMOUNT ile uyuşmuyor — lütfen kontrol edin:\n\n${list}`,
                 { variant: 'warn', title: 'Kontrol Gerekli' }
             );
         } else {
-            await showAlertDialog(`${matched.length} ürün kalemi PDF'den başarıyla içe aktarıldı.`, { variant: 'success', title: 'İçe Aktarma Tamamlandı' });
+            await showAlertDialog(`${items.length} ürün kalemi PDF'den başarıyla içe aktarıldı${freeTextNote}.`, { variant: 'success', title: 'İçe Aktarma Tamamlandı' });
         }
     } catch (err) {
         console.error('PDF kalem import hatası:', err.message);
