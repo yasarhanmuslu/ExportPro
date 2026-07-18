@@ -480,7 +480,6 @@ async function saveQuotationItems(quotationId, userId) {
             quantity: item.quantity || null,
             unit_price: item.unit_price || null,
             currency: document.getElementById('currency').value,
-            notes: item.notes || null,
         };
         if (item.id) {
             const { error } = await supabase.from('quotation_items').update(itemPayload).eq('id', item.id);
@@ -914,6 +913,9 @@ function updateItemsTotal() {
         s + ((parseFloat(i.quantity) || 0) * (parseFloat(i.unit_price) || 0)), 0);
     document.getElementById('items-total').textContent = total.toLocaleString('tr-TR', { minimumFractionDigits: 2 });
 
+    const qtyTotal = quotationItemsBuffer.reduce((s, i) => s + (parseFloat(i.quantity) || 0), 0);
+    document.getElementById('items-qty-total').textContent = qtyTotal.toLocaleString('tr-TR');
+
     const qTotal = parseTurkishFloat(document.getElementById('total_amount').value);
     const warn = document.getElementById('items-total-warning');
     if (qTotal > 0 && Math.abs(total - qTotal) > 0.01) {
@@ -988,7 +990,8 @@ function extractTotalAmount(fullText) {
 
 // Satır formatı: <...> <ÜRÜN KODU> <AÇIKLAMA> <ADET> pcs./ad./adet <PALET (opsiyonel)> <NET FİYAT><para birimi> <TUTAR><para birimi>
 // Palet sütunu her proforma şablonunda yok (bazı siparişler paletsiz) — bu yüzden opsiyonel.
-const PDF_ITEM_LINE_RE = /((?:[A-Za-z0-9]+\s*-\s*){2,}[A-Za-z0-9]+)\s+(.+?)\s+(\d+(?:[.,]\d+)?)\s*(?:pcs|ad|adet)\.?\s+(?:\d+\s+)?([\d.,]+)\s*\S{0,2}\s+([\d.,]+)\s*\S{0,2}\s*$/gim;
+// Değeri (tam sayı ya da "2,0" gibi ondalık) hiç kullanılmıyor, sadece atlanıyor: bu modülde palet hesabı kapsam dışı.
+const PDF_ITEM_LINE_RE = /((?:[A-Za-z0-9]+\s*-\s*){2,}[A-Za-z0-9]+)\s+(.+?)\s+(\d+(?:[.,]\d+)?)\s*(?:pcs|ad|adet)\.?\s+(?:\d+(?:[.,]\d+)?\s+)?([\d.,]+)\s*\S{0,2}\s+([\d.,]+)\s*\S{0,2}\s*$/gim;
 
 function parsePdfProformaText(fullText) {
     const piNoMatch   = fullText.match(/PI\s*NO\s*:?\s*([0-9]{2,4}-[0-9]{1,4})/i);
@@ -1119,6 +1122,23 @@ async function handlePdfItemFileSelect(file) {
             }
             if (applyTotal) {
                 totalAmountInput.value = formattedTotal;
+            }
+        }
+
+        // Adet / Miktar alanını doldur (kalemlerin adet toplamı — mevcut değer varsa onay iste)
+        const totalQuantity = items.reduce((s, it) => s + (parseFloat(it.quantity) || 0), 0);
+        if (totalQuantity > 0) {
+            const quantityInput = document.getElementById('order_quantity');
+            const formattedQuantity = totalQuantity.toLocaleString('tr-TR');
+            let applyQuantity = true;
+            if (quantityInput.value && quantityInput.value !== formattedQuantity) {
+                applyQuantity = await showConfirmDialog(
+                    `Adet / Miktar alanı zaten "${quantityInput.value}" olarak dolu. PDF'deki kalemlerin adet toplamı "${formattedQuantity}" ile değiştirilsin mi?`,
+                    { title: 'Adet / Miktar Çakışması', variant: 'warn', confirmText: 'Değiştir' }
+                );
+            }
+            if (applyQuantity) {
+                quantityInput.value = formattedQuantity;
             }
         }
 
