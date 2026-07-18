@@ -9,7 +9,7 @@ import { logChange } from './utils/auditLog.js';
 let globalCustomers = [];
 let globalClientPrices = []; // { customer_id, company_name, products: [{product_name, list_price, discount_rate, net_price, id?}] }
 let tempProducts = []; // Modal içi geçici ürün listesi
-let globalProductOptions = []; // { id, product_name, product_code } - ürün seçimi için
+let globalProductOptions = []; // urunler'den: { id, stok_kodu, stok_adi_1 } - ürün seçimi için
 let ctx = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -47,15 +47,16 @@ async function fetchCustomers() {
 }
 
 // Ürün seçimi için ürün listesini çek (datalist autocomplete)
+// Not: önceden var olmayan bir 'products' tablosunu sorguluyordu (her zaman boş
+// dönüyordu, autocomplete hiç çalışmıyordu) — gerçek ürün kataloğu 'urunler'.
 async function fetchProductOptions() {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
         const { data, error } = await supabase
-            .from('products')
-            .select('id, product_name, product_code')
-            .eq('user_id', ctx.ownerId)
-            .order('product_name', { ascending: true });
+            .from('urunler')
+            .select('id, stok_kodu, stok_adi_1')
+            .order('stok_adi_1', { ascending: true });
         if (error) throw error;
         globalProductOptions = data || [];
 
@@ -65,8 +66,8 @@ async function fetchProductOptions() {
             globalProductOptions.forEach(p => {
                 const opt = document.createElement('option');
                 // Görünür değer: ürün adı; kod varsa parantez içinde ipucu
-                opt.value = p.product_name;
-                opt.label = p.product_code ? `${p.product_code} — ${p.product_name}` : p.product_name;
+                opt.value = p.stok_adi_1;
+                opt.label = p.stok_kodu ? `${p.stok_kodu} — ${p.stok_adi_1}` : p.stok_adi_1;
                 dl.appendChild(opt);
             });
         }
@@ -80,8 +81,8 @@ function resolveProductId(nameOrCode) {
     if (!nameOrCode) return null;
     const v = nameOrCode.trim().toLowerCase();
     const match = globalProductOptions.find(p =>
-        (p.product_name && p.product_name.toLowerCase() === v) ||
-        (p.product_code && p.product_code.toLowerCase() === v)
+        (p.stok_adi_1 && p.stok_adi_1.toLowerCase() === v) ||
+        (p.stok_kodu && p.stok_kodu.toLowerCase() === v)
     );
     return match ? match.id : null;
 }

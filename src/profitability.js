@@ -5,7 +5,8 @@ import { getAccessContext, guardModuleAccess } from './utils/permissions.js';
 
 // ── Global veri depoları ──────────────────────────────────────────────────────
 let globalPrices = [];       // customer_prices + customers join
-let globalOrders = [];       // orders (customer_id, total_amount)
+let globalOrders = [];       // orders (id, customer_id, total_amount)
+let globalOrderItems = [];   // order_items (gerçek sipariş kalemleri — tüm siparişler)
 let globalCustomerMap = {};  // { customerId: { company_name, prices[], totalOrders } }
 let discountChart = null;
 
@@ -38,12 +39,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ── Ana veri yükleme ─────────────────────────────────────────────────────────
 async function loadAllData() {
     try {
-        await Promise.all([fetchCustomerPrices(), fetchOrders()]);
+        await Promise.all([fetchCustomerPrices(), fetchOrders(), fetchOrderItems()]);
         buildCustomerMap();
         renderKPIs();
         renderCustomerTable();
         renderDiscountChart();
         renderProductPriceAnalysis();
+        renderRealSalesProducts();
+        renderPriceComparison();
     } catch (err) {
         console.error('Karlılık analizi yükleme hatası:', err.message);
     }
@@ -67,17 +70,48 @@ async function fetchCustomerPrices() {
 async function fetchOrders() {
     const { data, error } = await supabase
         .from('orders')
-        .select('customer_id, total_amount, currency')
+        .select('id, customer_id, total_amount, currency')
         .order('customer_id', { ascending: true });
 
     if (error) throw error;
     globalOrders = data || [];
 }
 
+// Gerçek sipariş kalemleri — orders.js'te girilen ürün satırları (order_items).
+// Henüz her siparişe kalem girilmedi; bu yüzden aşağıdaki analizler kısmi veri üzerinde çalışır.
+async function fetchOrderItems() {
+    const { data, error } = await supabase
+        .from('order_items')
+        .select('order_id, product_name, product_code, quantity, unit_price, currency');
+
+    if (error) throw error;
+    globalOrderItems = data || [];
+}
+
+const CURRENCY_SYMBOLS = { EUR: '€', USD: '$', TRY: '₺', GBP: '£' };
+
 // ── VERİ BİRLEŞTİRME ─────────────────────────────────────────────────────────
+
+// order_id → gerçek kalem bazlı satış tutarı (qty × unit_price toplamı).
+// Sadece kalem girilmiş siparişler için dolu olur.
+let globalOrderItemsRevenueByOrder = {};
+
+// Bir sipariş için, kalemleri girilmişse gerçek kalem toplamını, girilmemişse
+// sipariş formunda elle girilen total_amount'u kullanır (kısmi veri geçişi).
+function effectiveOrderAmount(o) {
+    const itemsRevenue = globalOrderItemsRevenueByOrder[o.id];
+    return itemsRevenue > 0 ? itemsRevenue : (parseFloat(o.total_amount) || 0);
+}
 
 function buildCustomerMap() {
     globalCustomerMap = {};
+
+    globalOrderItemsRevenueByOrder = {};
+    globalOrderItems.forEach(it => {
+        const qty = parseFloat(it.quantity) || 0;
+        const price = parseFloat(it.unit_price) || 0;
+        globalOrderItemsRevenueByOrder[it.order_id] = (globalOrderItemsRevenueByOrder[it.order_id] || 0) + qty * price;
+    });
 
     // Müşteri fiyat kayıtlarını grupla
     globalPrices.forEach(p => {
@@ -95,11 +129,11 @@ function buildCustomerMap() {
         globalCustomerMap[cid].prices.push(p);
     });
 
-    // Sipariş toplamlarını müşteri bazında ekle
+    // Sipariş toplamlarını müşteri bazında ekle (kalem girilmişse gerçek tutar)
     globalOrders.forEach(o => {
         const cid = o.customer_id;
         if (cid && globalCustomerMap[cid]) {
-            globalCustomerMap[cid].totalOrders += (o.total_amount || 0);
+            globalCustomerMap[cid].totalOrders += effectiveOrderAmount(o);
         }
     });
 }
@@ -112,7 +146,7 @@ function avgOf(arr, key) {
 }
 
 function sumOrders(orders) {
-    return orders.reduce((s, o) => s + (o.total_amount || 0), 0);
+    return orders.reduce((s, o) => s + effectiveOrderAmount(o), 0);
 }
 
 function calcScore(avgDiscount, totalOrders, maxOrders) {
@@ -372,6 +406,164 @@ function renderProductPriceAnalysis() {
                 }
             </span>
         </div>`;
+    }).join('');
+}
+
+// ── E) GERÇEK SATIŞ VERİSİ: ÜRÜN PERFORMANSI ─────────────────────────────────
+// customer_prices (liste fiyatı) yerine order_items'taki gerçekten satılan
+// adet × birim fiyat üzerinden hesaplanır. Sipariş bazında kalem girişi devam
+// ettiği için bu, mevcut ana kadar girilmiş siparişlerin kısmi görünümüdür.
+
+function normalizeName(s) {
+    return (s || '').trim().toLocaleLowerCase('tr-TR');
+}
+
+// Aynı ürün farklı para cinsiyle satılmış olabilir (sipariş formunda EUR/USD/TRY/GBP
+// seçilebiliyor) — bu yüzden gruplama ürün adı + para birimi ikilisine göre yapılır,
+// aksi halde farklı para cinsindeki tutarlar aynı toplamda yanlışlıkla toplanır.
+function buildProductSalesMap() {
+    const map = {};
+    globalOrderItems.forEach(it => {
+        const name = (it.product_name || '').trim() || 'Bilinmeyen';
+        const currency = it.currency || '?';
+        const key = `${name}|${currency}`;
+        const qty = parseFloat(it.quantity) || 0;
+        const price = parseFloat(it.unit_price) || 0;
+        if (!map[key]) map[key] = { name, currency, qty: 0, revenue: 0, orderIds: new Set() };
+        map[key].qty += qty;
+        map[key].revenue += qty * price;
+        map[key].orderIds.add(it.order_id);
+    });
+    return Object.values(map)
+        .map(p => ({ ...p, orderCount: p.orderIds.size }))
+        .sort((a, b) => b.revenue - a.revenue);
+}
+
+function renderRealSalesProducts() {
+    const container = document.getElementById('real-sales-product-list');
+    const badge = document.getElementById('real-sales-coverage');
+    if (!container) return;
+
+    const orderIdsWithItems = new Set(globalOrderItems.map(i => i.order_id));
+    const totalOrders = globalOrders.length;
+    const coveredOrders = orderIdsWithItems.size;
+    if (badge) {
+        badge.textContent = totalOrders
+            ? `${coveredOrders} / ${totalOrders} siparişte kalem girildi`
+            : '0 sipariş';
+    }
+
+    const products = buildProductSalesMap();
+    if (!products.length) {
+        container.innerHTML = `<div style="text-align:center;padding:24px;color:#968B7A;font-size:12px;">
+            Henüz hiçbir siparişe ürün kalemi girilmedi.
+        </div>`;
+        return;
+    }
+
+    const globalMax = Math.max(...products.map(p => p.revenue), 1);
+
+    container.innerHTML = products.map(p => {
+        const shortName = p.name.length > 30 ? p.name.substring(0, 28) + '…' : p.name;
+        const barWidth = Math.max((p.revenue / globalMax) * 100, 1).toFixed(1);
+        const sym = CURRENCY_SYMBOLS[p.currency] || p.currency;
+        return `
+        <div class="product-price-row">
+            <div style="flex:0 0 190px;min-width:0;">
+                <div style="font-size:12px;font-weight:500;color:#1C1A17;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escHtml(p.name)}">${escHtml(shortName)}</div>
+                <div style="font-size:10px;color:#968B7A;margin-top:1px;">${p.orderCount} sipariş &middot; ${p.qty.toLocaleString('tr-TR')} adet &middot; ${escHtml(p.currency)}</div>
+            </div>
+            <div class="price-range-bar">
+                <div class="price-range-fill" style="left:0%;width:${barWidth}%;"></div>
+            </div>
+            <div style="flex:0 0 auto;text-align:right;min-width:110px;">
+                <div style="font-size:12px;font-family:monospace;font-weight:600;color:#2D4A3E;">${formatCurrency(p.revenue)} ${sym}</div>
+                <div style="font-size:10px;color:#968B7A;">ort: ${(p.revenue / (p.qty || 1)).toFixed(2)} ${sym}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ── F) FİYAT LİSTESİ vs GERÇEK SATIŞ KARŞILAŞTIRMASI ─────────────────────────
+// customer_prices'taki kayıtlı iskonto ile order_items'ta gerçekleşen satış
+// fiyatından hesaplanan gerçek iskonto karşılaştırılır. Eşleştirme müşteri +
+// ürün adı üzerinden yapılır (serbest metin girişi olduğundan yaklaşıktır —
+// aynı ürün farklı yazılmışsa eşleşmeyebilir).
+
+function buildPriceComparison() {
+    const orderMap = {};
+    globalOrders.forEach(o => { orderMap[o.id] = o; });
+
+    const priceLookup = {};
+    globalPrices.forEach(p => {
+        priceLookup[`${p.customer_id}|${normalizeName(p.product_name)}`] = p;
+    });
+
+    const soldMap = {};
+    globalOrderItems.forEach(it => {
+        const order = orderMap[it.order_id];
+        if (!order?.customer_id) return;
+        // customer_prices'taki liste fiyatı her zaman EUR (bkz. Müşteri Fiyatları formu
+        // "Liste (€)") — farklı para cinsinden satılan kalemler burada karşılaştırılamaz.
+        if ((it.currency || 'EUR') !== 'EUR') return;
+        const key = `${order.customer_id}|${normalizeName(it.product_name)}`;
+        if (!soldMap[key]) soldMap[key] = { customerId: order.customer_id, name: it.product_name, qty: 0, revenue: 0 };
+        const qty = parseFloat(it.quantity) || 0;
+        const price = parseFloat(it.unit_price) || 0;
+        soldMap[key].qty += qty;
+        soldMap[key].revenue += qty * price;
+    });
+
+    const rows = [];
+    Object.entries(soldMap).forEach(([key, sold]) => {
+        const priced = priceLookup[key];
+        if (!priced || sold.qty <= 0) return;
+        const listPrice = parseFloat(priced.list_price) || 0;
+        const actualAvgPrice = sold.revenue / sold.qty;
+        const actualDiscount = listPrice > 0 ? ((listPrice - actualAvgPrice) / listPrice) * 100 : 0;
+        const recordedDiscount = parseFloat(priced.discount_rate) || 0;
+        rows.push({
+            companyName: globalCustomerMap[sold.customerId]?.company_name || 'Bilinmeyen',
+            productName: sold.name,
+            listPrice, recordedDiscount,
+            actualAvgPrice, actualDiscount,
+            deltaPts: actualDiscount - recordedDiscount,
+        });
+    });
+
+    return rows.sort((a, b) => Math.abs(b.deltaPts) - Math.abs(a.deltaPts));
+}
+
+function renderPriceComparison() {
+    const tbody = document.getElementById('price-compare-tbody');
+    const countBadge = document.getElementById('price-compare-count');
+    if (!tbody) return;
+
+    const rows = buildPriceComparison();
+    if (countBadge) countBadge.textContent = `${rows.length} eşleşme`;
+
+    if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:#968B7A;">
+            Fiyat listesi ile sipariş kalemleri arasında eşleşme bulunamadı (ürün adları henüz örtüşmüyor olabilir).
+        </td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = rows.map(r => {
+        const flagged = Math.abs(r.deltaPts) > 2;
+        const deltaColor = r.deltaPts > 2 ? '#9F3D3D' : r.deltaPts < -2 ? '#3D6E50' : '#6B655B';
+        return `
+        <tr>
+            <td style="font-weight:500;">${escHtml(r.companyName)}</td>
+            <td>${escHtml(r.productName)}</td>
+            <td style="text-align:right;font-family:monospace;font-size:12px;">${r.listPrice.toFixed(2)}</td>
+            <td style="text-align:right;">% ${r.recordedDiscount.toFixed(1)}</td>
+            <td style="text-align:right;font-family:monospace;font-size:12px;">${r.actualAvgPrice.toFixed(2)}</td>
+            <td style="text-align:right;">% ${r.actualDiscount.toFixed(1)}</td>
+            <td style="text-align:right;font-weight:600;color:${deltaColor};">
+                ${flagged ? '<i class="fa-solid fa-triangle-exclamation" style="font-size:9px;margin-right:3px;"></i>' : ''}${r.deltaPts > 0 ? '+' : ''}${r.deltaPts.toFixed(1)} p
+            </td>
+        </tr>`;
     }).join('');
 }
 
