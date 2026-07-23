@@ -21,12 +21,15 @@ import { requireAuth } from './auth/auth.js';
 import { showAlertDialog, showConfirmDialog } from './utils/dialogs.js';
 import { getAccessContext, guardModuleAccess, applyEditLock, canEdit } from './utils/permissions.js';
 import { logChange } from './utils/auditLog.js';
+import { getRegion, parseHistoryNotes } from './utils/customerHelpers.js';
 
 // Global Müşteri Hafızası
 let globalCustomers = [];
 // Dinamik geçmiş notları (array of objects): [{ date, note }]
 let historyNotes = [];
 let ctx = null;
+// "Müşteri Sorumlusu" görünen ad -> app_users.id eşlemesi (call-rotation modülü için)
+let accountOwnerMap = {};
 
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
@@ -34,6 +37,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     ctx = await getAccessContext();
     if (!(await guardModuleAccess(ctx, 'customers'))) return;
     await renderNavbar('customers', ctx);
+    await fetchAccountOwners();
     await fetchCustomers();
     initEventListeners();
     initTabs();
@@ -43,6 +47,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ════════════════════════════════════════════════════════════════
 //  VERİ ÇEKME
 // ════════════════════════════════════════════════════════════════
+// "Müşteri Sorumlusu" dropdown'ındaki isimleri app_users.id'ye eşler
+// (call-rotation sayfası account_owner_id üzerinden filtreleme yapabilsin diye).
+async function fetchAccountOwners() {
+    try {
+        const { data, error } = await supabase
+            .from('app_users')
+            .select('id, display_name')
+            .in('display_name', ['Yaşarhan Muslu', 'Ömer Faruk Uçan']);
+        if (error) throw error;
+        accountOwnerMap = {};
+        (data || []).forEach(u => { if (u.display_name) accountOwnerMap[u.display_name] = u.id; });
+    } catch (error) {
+        console.error("Müşteri sorumluları çekilemedi:", error.message);
+    }
+}
+
 async function fetchCustomers() {
     try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -321,18 +341,6 @@ function closeModal() {
 // ════════════════════════════════════════════════════════════════
 //  DİNAMİK GEÇMİŞ NOTLARI
 // ════════════════════════════════════════════════════════════════
-// DB'den gelen history_notes değerini güvenli şekilde diziye çevirir.
-function parseHistoryNotes(raw) {
-    if (!raw) return [];
-    if (Array.isArray(raw)) return raw;
-    try {
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
-    } catch {
-        return [];
-    }
-}
-
 function renderHistoryRows() {
     const wrap = document.getElementById('history-rows');
     wrap.innerHTML = '';
@@ -473,6 +481,7 @@ async function handleFormSubmit(e) {
         payment_term:       document.getElementById('payment_term').value,
         acquisition_source: document.getElementById('acquisition_source').value,
         account_owner:      raw('account_owner') || 'Atanmadı',
+        account_owner_id:   accountOwnerMap[raw('account_owner')] || null,
         vat_number:         raw('vat_number'),
 
         // Segmentasyon & Risk
@@ -655,6 +664,7 @@ function mapImportRow(row) {
     const numOrNull = (v) => { const n = Number(v); return v !== '' && Number.isFinite(n) ? n : null; };
 
     const company = g('Firma Adı', 'Firma Ünvanı', 'company_name');
+    const ownerName = g('Sorumlu', 'account_owner') || 'Atanmadı';
     return {
         company_name: company ? toTitleCase(company) : '',
         country:      g('Ülke', 'country') || null,
@@ -663,7 +673,8 @@ function mapImportRow(row) {
         phone:        g('Telefon', 'phone') || null,
         website:      g('Web', 'Web Sitesi', 'website') || null,
         client_group: g('Müşteri Tipi', 'client_group') || 'Toptancı',
-        account_owner: g('Sorumlu', 'account_owner') || 'Atanmadı',
+        account_owner:    ownerName,
+        account_owner_id: accountOwnerMap[ownerName] || null,
         currency:     g('Para Birimi', 'currency') || null,
         incoterms:    g('Incoterms', 'Teslim Şekli', 'incoterms') || null,
         payment_term: g('Ödeme Koşulu', 'payment_term') || 'Peşin',
@@ -677,44 +688,6 @@ function mapImportRow(row) {
         status:       g('Durum', 'status') || 'Aktif',
         short_info:   g('Kısa Bilgi', 'short_info') || null,
     };
-}
-
-// ════════════════════════════════════════════════════════════════
-//  BÖLGE HARİTASI
-// ════════════════════════════════════════════════════════════════
-const REGION_MAP = {
-    // AVRUPA
-    'ALMANYA': 'Avrupa', 'ARNAVUTLUK': 'Avrupa', 'AVUSTRALYA': 'Avrupa',
-    'AVUSTURYA': 'Avrupa', 'BOSNA HERSEK': 'Avrupa',
-    'BULGARİSTAN': 'Avrupa', 'ÇEKYA': 'Avrupa', 'ESTONYA': 'Avrupa',
-    'FRANSA': 'Avrupa', 'HIRVATİSTAN': 'Avrupa', 'İNGİLTERE': 'Avrupa',
-    'İTALYA': 'Avrupa', 'KARADAĞ': 'Avrupa', 'KOSOVA': 'Avrupa',
-    'LİTVANYA': 'Avrupa', 'MACARİSTAN': 'Avrupa', 'MAKEDONYA': 'Avrupa',
-    'MOLDOVA': 'Avrupa', 'ROMANYA': 'Avrupa', 'SIRBİSTAN': 'Avrupa',
-    'YUNANİSTAN': 'Avrupa',
-    // ASYA
-    'AZERBAYCAN': 'Asya', 'GÜRCİSTAN': 'Asya', 'TÜRKİYE': 'Asya',
-    'TÜRKMENİSTAN': 'Asya', 'KIBRIS': 'Asya', 'RUSYA': 'Asya',
-    'BANGLADEŞ': 'Asya', 'HİNDİSTAN': 'Asya', 'PAKİSTAN': 'Asya',
-    // ORTA DOĞU
-    'B.A.E': 'Orta Doğu', 'BAHREYN': 'Orta Doğu',
-    'FİLİSTİN': 'Orta Doğu', 'IRAK': 'Orta Doğu',
-    'İRAN': 'Orta Doğu', 'İSRAİL': 'Orta Doğu',
-    'KATAR': 'Orta Doğu', 'KUVEYT': 'Orta Doğu', 'LÜBNAN': 'Orta Doğu',
-    'SUUDİ ARABİSTAN': 'Orta Doğu', 'UMMAN': 'Orta Doğu', 'ÜRDÜN': 'Orta Doğu',
-    // AFRİKA
-    'CEZAYİR': 'Afrika', 'ETİYOPYA': 'Afrika', 'FAS': 'Afrika',
-    'FİLDİŞİ SAHİLİ': 'Afrika', 'GANA': 'Afrika', 'GİNE': 'Afrika',
-    'KAMERUN': 'Afrika', 'LİBYA': 'Afrika',
-    'MAURİTİUS': 'Afrika', 'MISIR': 'Afrika', 'NİJERYA': 'Afrika',
-    'SENEGAL': 'Afrika', 'SOMALİ': 'Afrika', 'SUDAN': 'Afrika',
-    'TUNUS': 'Afrika',
-};
-
-function getRegion(country) {
-    if (!country) return 'Diğer';
-    const normalized = country.trim().toLocaleUpperCase('tr-TR');
-    return REGION_MAP[normalized] || 'Diğer';
 }
 
 // ════════════════════════════════════════════════════════════════

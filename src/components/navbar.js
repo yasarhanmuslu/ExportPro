@@ -1,7 +1,7 @@
 import { supabase } from '../utils/supabaseClient.js';
 import { isOwner, canView } from '../utils/permissions.js';
 
-const APP_VERSION = 'V: 1.1.01';
+const APP_VERSION = 'V: 1.1.02';
 const ADMIN_TAB = { id: 'admin', label: 'Yönetici', icon: 'fa-user-shield', href: 'admin.html' };
 
 // MENU MODELI
@@ -22,6 +22,7 @@ const MENU = [
     {
         type: 'group', id: 'grp-customer', label: 'Müşteri İşlemleri', icon: 'fa-users',
         children: [
+            { id: 'call-rotation', label: 'Günlük Arama Listesi',    icon: 'fa-phone-volume',  href: 'call-rotation.html', permissionId: 'customers' },
             { id: 'orders',        label: 'Siparişler',              icon: 'fa-boxes-stacked', href: 'orders.html' },
             { id: 'quotations',    label: 'Teklifler',               icon: 'fa-file-contract', href: 'quotations.html' },
             { id: 'fixed-prices',  label: 'Müşteri Sabit Fiyatlar',  icon: 'fa-tags',          href: '#', soon: true },
@@ -65,10 +66,10 @@ export async function renderNavbar(activeTab, ctx = null) {
     const visibleMenu = MENU
         .map(node => {
             if (node.type === 'group') {
-                const children = node.children.filter(c => c.soon || owner || c.id === 'dashboard' || canView(ctx, c.id));
+                const children = node.children.filter(c => c.soon || owner || c.id === 'dashboard' || canView(ctx, c.permissionId || c.id));
                 return children.length ? { ...node, children } : null;
             }
-            return (node.href === '#' || owner || node.id === 'dashboard' || canView(ctx, node.id)) ? node : null;
+            return (node.href === '#' || owner || node.id === 'dashboard' || canView(ctx, node.permissionId || node.id)) ? node : null;
         })
         .filter(Boolean);
 

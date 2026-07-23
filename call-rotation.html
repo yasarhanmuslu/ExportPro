@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <script>/* Flash önle */ (function(){var t=localStorage.getItem('ep-theme')||'light';document.documentElement.classList.add(t==='dark'?'dark':'light');})();</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Günlük Arama Listesi — Export Suite</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
+    <link rel="stylesheet" href="./src/assets/css/theme.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --porc-bg:      var(--surface-2, #F6F3EC);
+            --porc-surface: var(--surface,   #FBF8F1);
+            --porc-border:  var(--border,    #E4DDCE);
+            --porc-ink:     var(--ink-1,     #1C1A17);
+            --porc-ink-2:   var(--ink-2,     #6B655B);
+            --porc-ink-3:   var(--ink-3,     #968B7A);
+            --porc-accent:  #2D4A3E;
+        }
+        body { background: var(--porc-bg) !important; color: var(--porc-ink) !important; }
+        select {
+            background: var(--surface, #fff) !important; border: 1px solid var(--porc-border) !important;
+            border-radius: 6px !important; padding: 0 12px;
+            color: var(--porc-ink) !important;
+            font-family: Verdana, Geneva, sans-serif !important; font-size: 13px !important;
+            height: 38px;
+        }
+        select:focus {
+            outline: none !important; border-color: var(--porc-accent) !important;
+            box-shadow: 0 0 0 3px rgba(45,74,62,0.10) !important;
+        }
+        .page-title { color: var(--porc-ink) !important; }
+
+        /* ── Modal (dialogs.js pencereleri için — theme.css yalnızca renk/gölge verir,
+               konumlandırma her sayfada ayrı tanımlanmalı) ── */
+        .modal-backdrop {
+            position: fixed; inset: 0;
+            background: rgba(28,26,23,0.45) !important; backdrop-filter: blur(4px);
+            display: flex; align-items: flex-start; justify-content: center;
+            z-index: 300; padding: 1.5rem; overflow-y: auto;
+        }
+        .modal-backdrop.hidden { display: none; }
+        .modal-content {
+            background: var(--porc-surface); border: 1px solid var(--porc-border);
+            border-radius: 1rem; padding: 1.5rem; width: 100%; max-width: 40rem;
+            box-shadow: 0 24px 50px -12px rgba(28,26,23,0.18); margin: auto;
+            color: var(--porc-ink);
+            max-height: calc(100vh - 3rem); display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        /* 3 sütunlu satır: Bilgi | Not | Durum/Aksiyon — her kart aynı grid-template-columns'u
+           kullandığı için (ortak bir grid konteynerine gerek kalmadan) sütunlar kartlar arasında
+           hizalı kalır. Bolca boşluk yerine notlar kendi sabit sütununda gösterilir. */
+        .call-card {
+            background: var(--surface, #fff); border: 1px solid var(--porc-border);
+            border-radius: 0.75rem; margin-bottom: 10px; overflow: hidden;
+            display: grid; grid-template-columns: 1.3fr 1fr 270px; align-items: stretch;
+        }
+        .call-card.done { background: var(--porc-surface); }
+        .call-card-info { min-width: 0; padding: 10px 20px; display: flex; flex-direction: column; justify-content: center; gap: 3px; }
+        .call-card-note-col {
+            min-width: 0; padding: 10px 20px; border-left: 1px solid var(--porc-border);
+            display: flex; align-items: center; gap: 7px;
+            font-size: 12px; line-height: 1.5; color: var(--porc-ink-2);
+        }
+        .call-card-note-col i { color: var(--porc-accent); flex-shrink: 0; }
+        .call-card-note-col.empty::after { content: '—'; color: var(--porc-border); }
+        .call-card-actions {
+            min-width: 0; padding: 10px 20px; border-left: 1px solid var(--porc-border);
+            display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px;
+        }
+        .call-badge {
+            display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.05em; padding: 2px 8px; border-radius: 999px; margin-left: 8px;
+        }
+        .call-badge-aktif { background: #E1EEE5; color: #3D6E50; }
+        .call-badge-pasif { background: #EFEAE0; color: var(--porc-ink-3); }
+        .btn-call-action {
+            height: 30px; padding: 0 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+            cursor: pointer; border: 1px solid var(--porc-border); background: var(--porc-surface);
+            color: var(--porc-ink-2); display: flex; align-items: center; gap: 6px; white-space: nowrap;
+        }
+        .btn-call-action:hover { border-color: var(--porc-accent); color: var(--porc-accent); }
+        .btn-call-primary { background: var(--porc-accent); border-color: var(--porc-accent); color: #fff; }
+        .btn-call-primary:hover { color: #fff; opacity: 0.9; }
+        .call-done-badge { margin-left: 0 !important; }
+        .section-label {
+            font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+            color: var(--porc-ink-3); margin: 22px 0 10px;
+        }
+        .btn-add-extra {
+            width: 100%; height: 38px; margin: 4px 0 8px;
+            border: 1px dashed var(--porc-border); border-radius: 8px; background: transparent;
+            color: var(--porc-ink-3); font-size: 12px; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            transition: all .15s;
+        }
+        .btn-add-extra:hover { border-color: var(--porc-accent); color: var(--porc-accent); background: var(--surface, #fff); }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div id="navbar-target"></div>
+
+    <main class="min-h-screen" style="margin-left:230px;padding:32px;">
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5" style="border-bottom:1px solid var(--porc-border);">
+            <div>
+                <h2 class="page-title text-2xl font-bold">
+                    <i class="fa-solid fa-phone-volume" style="color:var(--porc-accent);"></i> Günlük Arama Listesi
+                </h2>
+                <p class="text-sm mt-1" style="color:var(--porc-ink-2);">Portföyünüzden bugün aranacak 3 Pasif + 2 Aktif müşteri.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <select id="region-select">
+                    <option value="">— Bölge Seçiniz —</option>
+                    <option value="Avrupa">🌍 Avrupa</option>
+                    <option value="Orta Doğu">🕌 Orta Doğu</option>
+                    <option value="Afrika">🌍 Afrika</option>
+                    <option value="Asya">🌏 Asya</option>
+                </select>
+            </div>
+        </header>
+
+        <div id="call-rotation-container">
+            <div class="text-center py-12 rounded-xl" style="background:var(--surface,#fff);border:1px dashed var(--porc-border);">
+                <i class="fa-solid fa-map-location-dot text-3xl mb-3" style="color:var(--porc-ink-3);"></i>
+                <p class="text-sm" style="color:var(--porc-ink-2);">Listeyi görmek için önce bir bölge seçin.</p>
+            </div>
+        </div>
+    </main>
+
+    <script type="module" src="./src/call-rotation.js"></script>
+</body>
+</html>
