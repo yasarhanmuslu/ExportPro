@@ -163,8 +163,8 @@ function renderCustomersList(customersList) {
                         <td>${escapeHtml(getCanonicalCountry(cust.country))}</td>
                         <td>${escapeHtml(cust.contact_name || '—')}</td>
                         <td>
-                            <div class="text-xs">${escapeHtml(cust.email || '—')}</div>
-                            <div class="text-xs cell-muted">${escapeHtml(cust.phone || '')}</div>
+                            <div class="text-xs cell-truncate" title="${escapeHtml(cust.email || '')}">${escapeHtml(cust.email || '—')}</div>
+                            <div class="text-xs cell-muted cell-truncate" title="${escapeHtml(cust.phone || '')}">${escapeHtml(cust.phone || '')}</div>
                         </td>
                         <td>${renderWebsite(cust.website)}</td>
                         <td>
@@ -182,8 +182,8 @@ function renderCustomersList(customersList) {
                                 ${cust.status || 'Aktif'}
                             </span>
                         </td>
-                        <td class="text-right">
-                            <button class="btn-edit-trigger text-xs px-3 py-1.5 rounded-md transition-colors" data-id="${cust.id}" style="background:var(--surface,#fff);border:1px solid var(--porc-border);color:var(--porc-accent);">
+                        <td class="text-right col-action">
+                            <button class="btn-edit-trigger text-xs px-3 py-1.5 rounded-md transition-colors" data-id="${cust.id}" style="background:var(--surface,#fff);border:1px solid var(--porc-border);color:var(--porc-accent);white-space:nowrap;">
                                 <i class="fa-solid fa-pen-to-square"></i> Düzenle
                             </button>
                         </td>
@@ -215,7 +215,7 @@ function renderWebsite(url) {
     const clean = url.trim();
     const href = /^https?:\/\//i.test(clean) ? clean : 'https://' + clean;
     const label = clean.replace(/^https?:\/\//i, '').replace(/\/$/, '');
-    return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" class="text-xs underline" style="color:var(--porc-accent);">${escapeHtml(label)}</a>`;
+    return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" class="text-xs underline cell-truncate" title="${escapeHtml(label)}" style="color:var(--porc-accent);">${escapeHtml(label)}</a>`;
 }
 
 // ════════════════════════════════════════════════════════════════

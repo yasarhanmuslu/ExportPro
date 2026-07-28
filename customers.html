@@ -74,12 +74,16 @@
             border-bottom: 1px solid var(--porc-border);
         }
         .custom-table td {
-            padding: 0.75rem 1rem; font-size: 0.875rem;
+            padding: 0.6rem 1rem; font-size: 0.875rem;
             color: var(--porc-ink-2); border-bottom: 1px solid var(--porc-border);
-            overflow-wrap: anywhere;
         }
-        /* Web sitesi / e-posta gibi boşluksuz uzun metinler tabloyu sayfa dışına taşırmasın */
-        .custom-table td a { overflow-wrap: anywhere; }
+        /* Web sitesi / e-posta gibi boşluksuz uzun metinler tabloyu sayfa dışına taşırmasın —
+           satırı büyütmeden tek satırda kırp (…), tam metin title tooltip'inde görünür. */
+        .custom-table .cell-truncate {
+            display: block; max-width: 190px; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap;
+        }
+        .custom-table td.col-action { white-space: nowrap; }
         .custom-table tbody tr:hover { background: var(--porc-surface); }
         .custom-table tbody tr:last-child td { border-bottom: none; }
         /* Hücre vurgu yardımcıları */
