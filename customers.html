@@ -76,7 +76,10 @@
         .custom-table td {
             padding: 0.75rem 1rem; font-size: 0.875rem;
             color: var(--porc-ink-2); border-bottom: 1px solid var(--porc-border);
+            overflow-wrap: anywhere;
         }
+        /* Web sitesi / e-posta gibi boşluksuz uzun metinler tabloyu sayfa dışına taşırmasın */
+        .custom-table td a { overflow-wrap: anywhere; }
         .custom-table tbody tr:hover { background: var(--porc-surface); }
         .custom-table tbody tr:last-child td { border-bottom: none; }
         /* Hücre vurgu yardımcıları */
