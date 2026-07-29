@@ -249,7 +249,7 @@ function initEventListeners() {
     document.getElementById('filter-group').addEventListener('change', applyFilters);
     document.getElementById('filter-status').addEventListener('change', applyFilters);
     document.getElementById('filter-owner').addEventListener('change', applyFilters);
-    document.getElementById('btn-export-excel').addEventListener('click', exportToCSV);
+    document.getElementById('btn-export-excel').addEventListener('click', exportCustomersToExcel);
     document.getElementById('btn-add-note').addEventListener('click', () => addHistoryRow());
     document.getElementById('import-file-input').addEventListener('change', handleImportFile);
 
@@ -845,39 +845,157 @@ function escapeAttr(str) {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  CSV DIŞA AKTARMA
+//  EXCEL DIŞA AKTARMA — orders.js'teki stilize export şablonuyla aynı desen
 // ════════════════════════════════════════════════════════════════
-async function exportToCSV() {
+const CUSTOMER_STATUS_COLORS = {
+    'Aktif':      { bg: 'BBF7D0', fg: '166534' },
+    'Potansiyel': { bg: 'FEF08A', fg: '854D0E' },
+    'Kara Liste': { bg: 'FECACA', fg: '991B1B' },
+    'Pasif':      { bg: 'E2E8F0', fg: '475569' },
+};
+async function exportCustomersToExcel() {
     if (globalCustomers.length === 0) {
         await showAlertDialog("Dışa aktarılacak veri bulunamadı.", { variant: 'warn', title: 'Uyarı' });
         return;
     }
+    const XLSX = window.XLSX;
+    if (!XLSX) { await showAlertDialog('XLSX kütüphanesi yüklenemedi.', { variant: 'danger', title: 'Hata' }); return; }
 
-    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-    csvContent += "Firma Adı;Ülke;Bölge;Yetkili;E-Posta;Telefon;Yetkili 2;E-Posta 2;Telefon 2;Web;Müşteri Tipi;Sorumlu;Para Birimi;Incoterms;Ödeme Koşulu;Edinme Kaynağı;Vergi No;Dil;Risk Skoru;Kredi Limiti;Yıllık Hedef;Ürün İlgi;İlk İşlem;Son İşlem;Durum;Kısa Bilgi\n";
+    const HEADER_BG  = '2D4A3E';
+    const HEADER_FG  = 'FFFFFF';
+    const SUBHDR_BG  = '5C7A6B';
+    const BORDER_RGB = 'D9D2C2';
+    const ZEBRA_BG   = 'F6F3EC';
+
+    const HEADERS = ['Firma Adı', 'Ülke', 'Bölge', 'Yetkili', 'E-Posta', 'Telefon', 'Yetkili 2', 'E-Posta 2', 'Telefon 2', 'Web', 'Müşteri Tipi', 'Sorumlu', 'Para Birimi', 'Incoterms', 'Ödeme Koşulu', 'Edinme Kaynağı', 'Vergi No', 'Dil', 'Risk Skoru', 'Kredi Limiti', 'Yıllık Hedef', 'Ürün İlgi', 'İlk İşlem', 'Son İşlem', 'Durum', 'Kısa Bilgi'];
+    const COL_COUNT = HEADERS.length;
+    const toDate = s => s ? new Date(s + 'T00:00:00') : null;
+
+    const summary = {};
+    globalCustomers.forEach(c => {
+        const st = c.status || 'Aktif';
+        summary[st] = (summary[st] || 0) + 1;
+    });
+    const statuses = Object.keys(summary).sort((a, b) => (summary[b] - summary[a]));
+
+    const aoa = [];
+    aoa.push(['EXPORT SUITE — MÜŞTERİ ARŞİVİ']);
+    aoa.push([`Oluşturma Tarihi: ${new Date().toLocaleDateString('tr-TR')}   •   Toplam Kayıt: ${globalCustomers.length}`]);
+    aoa.push([]);
+    aoa.push(['ÖZET (Durum Bazında)']);
+    const summaryHeaderRow = aoa.length;
+    aoa.push(['Durum', 'Müşteri Sayısı']);
+    statuses.forEach(st => aoa.push([st, summary[st]]));
+    aoa.push([]);
+    const tableHeaderRow = aoa.length;
+    aoa.push(HEADERS);
+    const dataStartRow = aoa.length;
 
     globalCustomers.forEach(c => {
-        const q = v => `"${(v == null ? '' : v).toString().replace(/"/g, '""')}"`;
-        csvContent += [
-            q(c.company_name), q(c.country), q(c.region || getRegion(c.country)), q(c.contact_name),
-            q(c.email), q(c.phone),
-            q(c.contact_name_2), q(c.email_2), q(c.phone_2),
-            q(c.website),
-            q(c.client_group || 'Toptancı'),
-            q((c.account_owner && c.account_owner !== 'Atanmadı') ? c.account_owner : ''),
-            q(c.currency), q(c.incoterms), q(c.payment_term), q(c.acquisition_source),
-            q(c.vat_number), q(c.language), q(c.risk_score), q(c.credit_limit),
-            q(c.annual_volume_target), q(c.product_interests),
-            q(c.first_order_date), q(c.last_order_date),
-            q(c.status || 'Aktif'), q(c.short_info)
-        ].join(';') + '\n';
+        aoa.push([
+            c.company_name || '',
+            c.country || '',
+            c.region || getRegion(c.country),
+            c.contact_name || '',
+            c.email || '',
+            c.phone || '',
+            c.contact_name_2 || '',
+            c.email_2 || '',
+            c.phone_2 || '',
+            c.website || '',
+            c.client_group || 'Toptancı',
+            (c.account_owner && c.account_owner !== 'Atanmadı') ? c.account_owner : '',
+            c.currency || '',
+            c.incoterms || '',
+            c.payment_term || '',
+            c.acquisition_source || '',
+            c.vat_number || '',
+            c.language || '',
+            Number.isFinite(parseFloat(c.risk_score)) ? parseFloat(c.risk_score) : '',
+            Number.isFinite(parseFloat(c.credit_limit)) ? parseFloat(c.credit_limit) : '',
+            Number.isFinite(parseFloat(c.annual_volume_target)) ? parseFloat(c.annual_volume_target) : '',
+            c.product_interests || '',
+            toDate(c.first_order_date),
+            toDate(c.last_order_date),
+            c.status || 'Aktif',
+            c.short_info || '',
+        ]);
     });
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Export_Musteri_Arsivi_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+    ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: COL_COUNT - 1 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: COL_COUNT - 1 } },
+        { s: { r: 3, c: 0 }, e: { r: 3, c: COL_COUNT - 1 } },
+    ];
+    ws['!cols'] = [
+        { wch: 24 }, { wch: 14 }, { wch: 11 }, { wch: 18 }, { wch: 26 }, { wch: 16 },
+        { wch: 18 }, { wch: 24 }, { wch: 16 }, { wch: 22 }, { wch: 13 }, { wch: 16 },
+        { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 10 },
+        { wch: 9 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 12 },
+        { wch: 11 }, { wch: 34 },
+    ];
+    ws['!rows'] = [];
+    ws['!rows'][0] = { hpt: 26 };
+    ws['!rows'][tableHeaderRow] = { hpt: 22 };
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: tableHeaderRow, c: 0 }, e: { r: dataStartRow + globalCustomers.length - 1, c: COL_COUNT - 1 } }) };
+
+    const setStyle = (r, c, style) => {
+        const ref = XLSX.utils.encode_cell({ r, c });
+        if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+        ws[ref].s = style;
+        if (style.numFmt) ws[ref].z = style.numFmt;
+    };
+    const thin = { style: 'thin', color: { rgb: BORDER_RGB } };
+    const fullBorder = { top: thin, bottom: thin, left: thin, right: thin };
+
+    setStyle(0, 0, { font: { bold: true, sz: 16, color: { rgb: HEADER_FG } }, fill: { patternType: 'solid', fgColor: { rgb: HEADER_BG } }, alignment: { horizontal: 'center', vertical: 'center' } });
+    setStyle(1, 0, { font: { italic: true, sz: 10, color: { rgb: '6B6656' } }, alignment: { horizontal: 'center' } });
+    setStyle(3, 0, { font: { bold: true, sz: 11, color: { rgb: HEADER_BG } } });
+
+    for (let c = 0; c < 2; c++) {
+        setStyle(summaryHeaderRow, c, { font: { bold: true, color: { rgb: HEADER_FG } }, fill: { patternType: 'solid', fgColor: { rgb: SUBHDR_BG } }, border: fullBorder, alignment: { horizontal: 'center' } });
+    }
+    statuses.forEach((st, i) => {
+        const r = summaryHeaderRow + 1 + i;
+        setStyle(r, 0, { border: fullBorder, alignment: { horizontal: 'center' }, font: { sz: 10 } });
+        setStyle(r, 1, { border: fullBorder, alignment: { horizontal: 'right' }, font: { sz: 10 } });
+    });
+
+    for (let c = 0; c < COL_COUNT; c++) {
+        setStyle(tableHeaderRow, c, { font: { bold: true, sz: 10, color: { rgb: HEADER_FG } }, fill: { patternType: 'solid', fgColor: { rgb: HEADER_BG } }, border: fullBorder, alignment: { horizontal: 'center', vertical: 'center', wrapText: true } });
+    }
+
+    const dateCols  = [22, 23];
+    const moneyCols = [19, 20];
+    globalCustomers.forEach((c, idx) => {
+        const r       = dataStartRow + idx;
+        const zebra   = idx % 2 === 1 ? ZEBRA_BG : 'FFFFFF';
+        const status  = c.status || 'Aktif';
+        const stColor = CUSTOMER_STATUS_COLORS[status] || CUSTOMER_STATUS_COLORS['Aktif'];
+
+        for (let c2 = 0; c2 < COL_COUNT; c2++) {
+            const style = {
+                border: fullBorder,
+                fill: { patternType: 'solid', fgColor: { rgb: zebra } },
+                font: { sz: 10 },
+                alignment: { vertical: 'center', wrapText: c2 === 25 },
+            };
+            if (dateCols.includes(c2))  { style.numFmt = 'dd.mm.yyyy'; style.alignment.horizontal = 'center'; }
+            if (moneyCols.includes(c2)) { style.numFmt = '#,##0.00'; style.alignment.horizontal = 'right'; }
+            if (c2 === 18) { style.numFmt = '#,##0'; style.alignment.horizontal = 'center'; }
+            if (c2 === 2)  { style.alignment.horizontal = 'center'; }
+            if (c2 === 24) {
+                style.fill = { patternType: 'solid', fgColor: { rgb: stColor.bg } };
+                style.font = { sz: 10, bold: true, color: { rgb: stColor.fg } };
+                style.alignment.horizontal = 'center';
+            }
+            setStyle(r, c2, style);
+        }
+    });
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Müşteriler');
+    XLSX.writeFile(wb, `Export_Musteri_Arsivi_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
