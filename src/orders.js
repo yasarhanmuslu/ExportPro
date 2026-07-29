@@ -5,6 +5,7 @@ import { requireAuth } from './auth/auth.js';
 import { showAlertDialog, showConfirmDialog } from './utils/dialogs.js';
 import { getAccessContext, guardModuleAccess, applyEditLock, canEdit } from './utils/permissions.js';
 import { logChange } from './utils/auditLog.js';
+import { IdevitCode } from './utils/idevitCodeRules.js';
 
 // ── DURUM ETİKETLERİ ────────────────────────────────────────────────────────
 const STATUS_TAGS_LIST = [
@@ -1575,10 +1576,88 @@ function extractTotalAmount(fullText) {
 // devreye giren opsiyonel bir blokla atlanıyor — NET FİYAT ve TUTAR her zaman doğru yakalanıyor.
 const PDF_ITEM_LINE_RE = /((?:[A-Za-z0-9]+\s*-\s*){2,}[A-Za-z0-9]+|\b[A-Z]{2,8}\d{2,8}\b)\s+(.+?)\s+(\d+(?:[.,]\d+)?)\s*(?:pcs|ad|adet)\.?\s+(?:(?:\d+(?:[.,]\d+)?|-)\s+)?(?:[\d.,]+\s*\S{0,2}\s+[\d.,]+%\s+)?([\d.,]+)\s*\S{0,2}\s+([\d.,]+)\s*\S{0,2}/gim;
 
+// İngilizce proformalarda RENK sütunu "COLOUR" başlığıyla geliyor ve değerleri de İngilizce
+// yazılıyor ("White", "Matt Black"). Sütun başlığına hiç bakılmadığı için başlığın dili önemsiz;
+// ancak değerlerin ürün kartındaki Türkçe renklerle karşılaştırılabilmesi için karşılığına
+// çevrilmesi gerekiyor. Arşivdeki İngilizce proformalarda fiilen "Mat"/"Matt" yazımlarının ikisi
+// de kullanıldığından her iki biçim de listede.
+// Belirsiz değerler bilerek listeye ALINMADI — ör. tek başına "Chrome", ürün kartındaki
+// "Mat Krom" mu "Parlak Krom" mu olduğunu söylemiyor. Listede olmayan değer yakalanmaz,
+// kontrol sessizce atlanır: yanlış uyarı üretmektense kontrol etmemek tercih edildi.
+const COLOR_SYNONYMS_EN = {
+    'white': 'beyaz',
+    'black': 'siyah',
+    'mat black':  'mat siyah',  'matt black':  'mat siyah',
+    'mat white':  'mat beyaz',  'matt white':  'mat beyaz',
+    'mat grey':   'mat gri',    'matt grey':   'mat gri',
+    'mat gray':   'mat gri',    'matt gray':   'mat gri',
+    'mat chrome': 'mat krom',   'matt chrome': 'mat krom',
+    'bright chrome': 'parlak krom', 'polished chrome': 'parlak krom',
+    'gold plated':     'altın kaplama',  'gold decor':     'altın dekor',
+    'platinum plated': 'platin kaplama', 'platinum decor': 'platin dekor',
+    'decor': 'dekorlu', 'decorated': 'dekorlu',
+};
+
+// Renkleri karşılaştırılabilir tek bir biçime indirger; İngilizce değerler Türkçe karşılığına
+// çevrilir. Türkçe küçültme ("I"->"ı") İngilizce kelimeleri bozduğundan ("WHITE"->"whıte"),
+// eş anlamlı araması hem düz hem Türkçe küçültülmüş biçimle yapılır.
+function normalizeColor(value) {
+    const raw = (value || '').toString().trim().replace(/\s+/g, ' ');
+    const tr  = raw.toLocaleLowerCase('tr-TR');
+    const en  = raw.toLowerCase();
+    return COLOR_SYNONYMS_EN[en] || COLOR_SYNONYMS_EN[tr] || tr;
+}
+
+// Bilinen renk adları sözlüğü. İki kaynaktan kurulur:
+//   1) Kod kuralları (RENK2_TO_RENK / PLATING_GGGG) — kod hanesinden türetilebilen renkler,
+//   2) Ürün kartlarındaki mevcut renkler — "Mat Krom" gibi aksesuar renkleri kod hanesinden
+//      türetilemediği için yalnızca burada bulunur.
+function buildKnownColorSet() {
+    const set = new Set();
+    const add = v => { const n = normalizeColor(v); if (n) set.add(n); };
+    Object.values(IdevitCode.DICT.RENK2_TO_RENK).forEach(list => list.forEach(add));
+    Object.values(IdevitCode.DICT.PLATING_GGGG).forEach(map => Object.values(map).forEach(add));
+    globalProducts.forEach(p => add(p.renk));
+    return set;
+}
+
+// PDF'in RENK sütununu ayıklar. Ürün kodu ile adet arasında kalan metinde sütunlar bazen '\t'
+// ile bazen de sadece boşlukla ayrıldığından (kolon aralığı eşiğe göre değişiyor), sabit bir
+// sütun konumu varsayılamaz: metindeki kelime öbekleri bilinen renk adlarıyla karşılaştırılır.
+// Tablo sütun sırası ÜRÜN TANIMI | RENK | DELİK olduğundan EN SAĞDAKİ eşleşme alınır — böylece
+// ürün tanımında renk kelimesi geçse bile RENK sütunu kazanır. Eşit konumda en uzun eşleşme
+// öncelikli ("Mat Siyah", "Siyah"a tercih edilir). Hiç renk bulunmazsa null döner ve kontrol
+// sessizce atlanır.
+function extractPdfColor(segment, knownColors) {
+    const tokens = segment.split(/\s+/).filter(Boolean);
+    let best = null;
+    for (let start = 0; start < tokens.length; start++) {
+        for (let end = start + 1; end <= Math.min(start + 4, tokens.length); end++) {
+            const phrase = tokens.slice(start, end).join(' ');
+            if (!knownColors.has(normalizeColor(phrase))) continue;
+            const better = !best || end > best.end || (end === best.end && start < best.start);
+            if (better) best = { start, end, phrase };
+        }
+    }
+    return best ? best.phrase : null;
+}
+
+// Kalemin "olması gereken" rengi: önce ürün kartı (aksesuar kodlarını da kapsar),
+// kart yoksa ya da rengi boşsa kodun renk hanesinden türetilir.
+function resolveExpectedColor(code, prod) {
+    if (prod && (prod.renk || '').trim()) return { color: prod.renk.trim(), source: 'Ürün kartı' };
+    const d = IdevitCode.describe(code);
+    if (d.ok && d.format === 'main' && d.renk && d.renk !== '(bilinmiyor)') {
+        return { color: d.renk, source: 'Ürün kodu' };
+    }
+    return null;
+}
+
 function parsePdfProformaText(fullText) {
     const piNoMatch   = fullText.match(/PI\s*NO\s*:?\s*([0-9]{2,4}-[0-9]{1,4})/i);
     const piDateMatch = fullText.match(/PI\s*DATE\s*:?\s*([0-9]{1,2}\.[0-9]{1,2}\.[0-9]{2,4})/i);
     const total       = extractTotalAmount(fullText);
+    const knownColors = buildKnownColorSet();
 
     const items = [];
     let m;
@@ -1588,6 +1667,7 @@ function parsePdfProformaText(fullText) {
             code: m[1].replace(/\s+/g, ''),
             // Boş RENK/DELİK sütunları için PDF'de bırakılan "-" işaretleri satır sonunda kalabiliyor.
             description: m[2].trim().replace(/(?:\s+-)+$/, '').trim(),
+            color: extractPdfColor(m[2], knownColors),
             quantity: parseTurkishFloat(m[3]),
             netPrice: parseTurkishFloat(m[4]),
             amount: parseTurkishFloat(m[5]),
@@ -1654,6 +1734,29 @@ async function handlePdfItemFileSelect(file) {
                 { title: 'Eşleşmeyen Ürün Kodları', variant: 'warn', confirmText: 'Serbest Metin Olarak Aktar' }
             );
             if (!importAsFreeText) return;
+        }
+
+        // Renk tutarlılığı — PDF'in RENK sütunu, ürün kartındaki (ya da kodun renk hanesindeki)
+        // renkle uyuşmuyorsa yanlış ürün kodu girilmiş olabilir; aktarmadan önce onay iste.
+        const colorMismatches = [];
+        for (const it of items) {
+            if (!it.color) continue;
+            const expected = resolveExpectedColor(it.code, productByCode.get(it.code));
+            if (!expected) continue;
+            if (normalizeColor(expected.color) !== normalizeColor(it.color)) {
+                colorMismatches.push({ item: it, expected });
+            }
+        }
+
+        if (colorMismatches.length > 0) {
+            const list = colorMismatches.map(({ item, expected }) =>
+                `• ${item.code}\n    PDF'de: "${item.color}"  ≠  ${expected.source}: "${expected.color}"`
+            ).join('\n');
+            const ok = await showConfirmDialog(
+                `Aşağıdaki kalemlerde PDF'de belirtilen RENK ile sistemdeki renk uyuşmuyor. Proformaya yanlış ürün kodu girilmiş olabilir:\n\n${list}\n\nYine de içe aktarayım mı?`,
+                { title: 'Renk Uyuşmazlığı', variant: 'warn', confirmText: 'Yine de Aktar' }
+            );
+            if (!ok) return;
         }
 
         if (orderItemsBuffer.length > 0) {
