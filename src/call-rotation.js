@@ -236,6 +236,10 @@ function cardHtml(c, todayStr) {
     const todayNote = done ? getTodayNote(c, todayStr) : null;
     const isMessage = todayNote && todayNote.note && todayNote.note.startsWith('[Mesaj]');
     const badgeClass = c.status === 'Aktif' ? 'call-badge-aktif' : 'call-badge-pasif';
+    // Yönetici görünümünde farklı ülkelerden firmalar yan yana geldiği için ülke kartta da gösterilir.
+    const countryBadge = c.country
+        ? `<span class="call-badge call-badge-country"><i class="fa-solid fa-location-dot"></i>${escapeHtml(c.country)}</span>`
+        : '';
     const contactLine = [c.contact_name, c.phone, c.email].filter(Boolean).join(' · ') || '—';
     const lastCalledLine = c.last_called_at
         ? `Son arama: ${formatDate(c.last_called_at)}`
@@ -272,7 +276,7 @@ function cardHtml(c, todayStr) {
             <div class="call-card-info">
                 <div class="text-sm font-semibold" style="color:var(--porc-ink);">
                     ${escapeHtml(c.company_name)}
-                    <span class="call-badge ${badgeClass}">${escapeHtml(c.status)}</span>
+                    <span class="call-badge ${badgeClass}">${escapeHtml(c.status)}</span>${countryBadge}
                 </div>
                 <div class="text-xs" style="color:var(--porc-ink-2);">${escapeHtml(contactLine)}</div>
                 <div class="text-xs" style="color:var(--porc-ink-3);">${lastCalledLine}</div>
