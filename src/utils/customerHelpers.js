@@ -24,8 +24,8 @@ export const REGION_MAP = {
     'SUUDİ ARABİSTAN': 'Orta Doğu', 'UMMAN': 'Orta Doğu', 'ÜRDÜN': 'Orta Doğu',
     // AFRİKA
     'CEZAYİR': 'Afrika', 'ETİYOPYA': 'Afrika', 'FAS': 'Afrika',
-    'FİLDİŞİ SAHİLİ': 'Afrika', 'GANA': 'Afrika', 'GİNE': 'Afrika',
-    'KAMERUN': 'Afrika', 'LİBYA': 'Afrika',
+    'FİLDİŞİ SAHİLİ': 'Afrika', 'GABON': 'Afrika', 'GANA': 'Afrika',
+    'GİNE': 'Afrika', 'KAMERUN': 'Afrika', 'LİBYA': 'Afrika',
     'MAURİTİUS': 'Afrika', 'MISIR': 'Afrika', 'NİJERYA': 'Afrika',
     'SENEGAL': 'Afrika', 'SOMALİ': 'Afrika', 'SUDAN': 'Afrika',
     'TUNUS': 'Afrika',
