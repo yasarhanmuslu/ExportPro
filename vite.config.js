@@ -12,6 +12,7 @@ export default defineConfig({
         orders: resolve(__dirname, 'orders.html'),
         quotations: resolve(__dirname, 'quotations.html'),
         prices: resolve(__dirname, 'prices.html'),
+        clientPrices: resolve(__dirname, 'client-prices.html'),
         creditNotes: resolve(__dirname, 'credit-notes.html'),
         orderTimeline: resolve(__dirname, 'order-timeline.html'),
         profitability: resolve(__dirname, 'profitability.html'),

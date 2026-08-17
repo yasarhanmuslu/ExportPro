@@ -11,6 +11,7 @@ export const MODULES = [
     { id: 'orders',           label: 'Siparişler',              href: 'orders.html' },
     { id: 'quotations',       label: 'Teklifler',               href: 'quotations.html' },
     { id: 'credit-notes',     label: 'Credit Notes',            href: 'credit-notes.html' },
+    { id: 'client-prices',    label: 'Müşteri Sabit Fiyatlar',  href: 'client-prices.html' },
     { id: 'prices',           label: 'Fiyat Robotu',            href: 'prices.html' },
     { id: 'profitability',    label: 'Karlılık Analizi',        href: 'profitability.html' },
     { id: 'complaints',       label: 'Şikayet Panosu',          href: 'complaints.html' },
@@ -20,7 +21,6 @@ export const MODULES = [
     { id: 'market-analysis',  label: 'Pazar Analizi',           href: 'market-analysis.html' },
     { id: 'loading-planner',  label: 'Yükleme Planlayıcı',      href: 'loading-planner.html' },
     { id: 'shipments',        label: 'Sevkiyatlar',             href: 'shipments.html',        note: 'menüde yok' },
-    { id: 'client-prices',    label: 'Müşteri Fiyatları',       href: 'client-prices.html',    note: 'menüde yok' },
 ];
 // Not: presentation.html kimlik doğrulaması/navbar olmayan bağımsız bir tanıtım
 // sayfasıdır (requireAuth/renderNavbar/supabase sorgusu hiç kullanmıyor) - yönetici

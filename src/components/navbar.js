@@ -1,7 +1,7 @@
 import { supabase } from '../utils/supabaseClient.js';
 import { isOwner, canView } from '../utils/permissions.js';
 
-const APP_VERSION = 'V: 1.1.07';
+const APP_VERSION = 'V: 1.1.08';
 const ADMIN_TAB = { id: 'admin', label: 'Yönetici', icon: 'fa-user-shield', href: 'admin.html' };
 
 // MENU MODELI
@@ -25,7 +25,7 @@ const MENU = [
             { id: 'call-rotation', label: 'Günlük Arama Listesi',    icon: 'fa-phone-volume',  href: 'call-rotation.html', permissionId: 'customers' },
             { id: 'orders',        label: 'Siparişler',              icon: 'fa-boxes-stacked', href: 'orders.html' },
             { id: 'quotations',    label: 'Teklifler',               icon: 'fa-file-contract', href: 'quotations.html' },
-            { id: 'fixed-prices',  label: 'Müşteri Sabit Fiyatlar',  icon: 'fa-tags',          href: '#', soon: true },
+            { id: 'client-prices', label: 'Müşteri Sabit Fiyatlar',  icon: 'fa-tags',          href: 'client-prices.html' },
             { id: 'credit-notes',  label: 'Credit Notes',            icon: 'fa-file-invoice',  href: 'credit-notes.html' },
         ]
     },

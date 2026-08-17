@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <script>/* Flash önle */ (function(){var t=localStorage.getItem('ep-theme')||'light';document.documentElement.classList.add(t==='dark'?'dark':'light');})();</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Müşteri Fiyat Kartları — Export Suite</title>
+    <title>Müşteri Sabit Fiyatlar — Export Suite</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
     <link rel="stylesheet" href="./src/assets/css/theme.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -55,9 +55,9 @@
         <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b">
             <div>
                 <h2 class="page-title">
-                    <i class="fa-solid fa-tags text-[#2D4A3E]"></i> Müşteri Fiyat Kartları
+                    <i class="fa-solid fa-tags text-[#2D4A3E]"></i> Müşteri Sabit Fiyatlar
                 </h2>
-                <p class="text-sm text-slate-400 mt-1">Müşteri bazlı özel fiyat tanımlamaları, iskonto oranları ve net fiyat yönetimi.</p>
+                <p class="text-sm text-slate-400 mt-1">Müşterilerle anlaşılmış sabit ürün fiyatları, iskonto oranları ve net fiyat yönetimi.</p>
             </div>
             <div class="flex items-center gap-3">
                 <button id="btn-export-client-prices" class="px-4 py-2 bg-[#FBF8F1] hover:bg-[#FBF8F1] border border-slate-700 rounded-lg text-sm font-semibold flex items-center gap-2 text-slate-300 cursor-pointer">
@@ -104,11 +104,23 @@
                 <!-- 1. Müşteri Seç -->
                 <div class="bg-[rgba(228,90,128,0.06)] border border-[rgba(228,90,128,0.18)] rounded-xl p-4">
                     <p class="text-xs font-bold text-[#2D4A3E] uppercase tracking-widest mb-3 border-b border-indigo-900/40 pb-2">1. Müşteri Seçimi</p>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Müşteri Firma *</label>
-                        <select id="cp-customer-select" required>
-                            <option value="">-- Müşteri Seçiniz --</option>
-                        </select>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Müşteri Firma *</label>
+                            <select id="cp-customer-select" required>
+                                <option value="">-- Müşteri Seçiniz --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Para Birimi *</label>
+                            <select id="cp-currency-select" required>
+                                <option value="EUR">EUR (€)</option>
+                                <option value="USD">USD ($)</option>
+                                <option value="TRY">TRY (₺)</option>
+                                <option value="GBP">GBP (£)</option>
+                            </select>
+                            <p id="cp-currency-hint" class="text-[10px] text-slate-500 mt-1"></p>
+                        </div>
                     </div>
                 </div>
 
@@ -126,11 +138,11 @@
                             <datalist id="cp-product-options"></datalist>
                         </div>
                         <div class="col-span-2">
-                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Liste (€)</label>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Liste (<span class="cp-cur-sym">€</span>)</label>
                             <input type="number" id="cp-temp-list" step="0.01" placeholder="100.00">
                         </div>
                         <div class="col-span-3">
-                            <label class="block text-xs font-semibold text-[#2D4A3E] uppercase tracking-wider mb-1">Net Fiyat (€)</label>
+                            <label class="block text-xs font-semibold text-[#2D4A3E] uppercase tracking-wider mb-1">Net Fiyat (<span class="cp-cur-sym">€</span>)</label>
                             <input type="number" id="cp-temp-net" step="0.01" placeholder="75.00">
                         </div>
                         <div class="col-span-2">
@@ -151,9 +163,9 @@
                         <thead>
                             <tr>
                                 <th>Ürün / Kod</th>
-                                <th class="text-right">Liste (€)</th>
+                                <th class="text-right">Liste (<span class="cp-cur-sym">€</span>)</th>
                                 <th class="text-center">İskonto %</th>
-                                <th class="text-right">Net (€)</th>
+                                <th class="text-right">Net (<span class="cp-cur-sym">€</span>)</th>
                                 <th class="text-center">İşlem</th>
                             </tr>
                         </thead>
