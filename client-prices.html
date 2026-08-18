@@ -68,6 +68,11 @@
         }
         .lang-toggle button.active { background: #2D4A3E; color: #fff; }
 
+        /* ── Sayısal/kod hücreleri alt satıra kaymasın ── */
+        .cp-nowrap { white-space: nowrap !important; }
+        .inner-table th, .inner-table td { white-space: nowrap; }
+        .inner-table td.wrap-ok, .inner-table th.wrap-ok { white-space: normal; }
+
         /* ── Ürün görseli (kart tablosu) ── */
         .cp-thumb {
             width: 34px; height: 34px; border-radius: 5px; object-fit: cover;
@@ -93,8 +98,14 @@
                 <p class="text-sm text-slate-400 mt-1">Müşterilerle anlaşılmış sabit ürün fiyatları, iskonto oranları ve net fiyat yönetimi.</p>
             </div>
             <div class="flex items-center gap-3">
+                <button id="btn-import-from-orders" data-requires-edit class="px-4 py-2 bg-[#FBF8F1] hover:bg-[#F0EDE4] border border-slate-700 rounded-lg text-sm font-semibold flex items-center gap-2 text-slate-300 cursor-pointer">
+                    <i class="fa-solid fa-file-import text-[#B5651D]"></i> Siparişlerden Getir
+                </button>
+                <button id="btn-compare-customers" class="px-4 py-2 bg-[#FBF8F1] hover:bg-[#F0EDE4] border border-slate-700 rounded-lg text-sm font-semibold flex items-center gap-2 text-slate-300 cursor-pointer">
+                    <i class="fa-solid fa-scale-balanced text-[#2D4A3E]"></i> Karşılaştır
+                </button>
                 <button id="btn-export-client-prices" class="px-4 py-2 bg-[#FBF8F1] hover:bg-[#FBF8F1] border border-slate-700 rounded-lg text-sm font-semibold flex items-center gap-2 text-slate-300 cursor-pointer">
-                    <i class="fa-solid fa-file-excel text-emerald-500"></i> Fiyat Listesini Aktar
+                    <i class="fa-solid fa-file-excel text-emerald-500"></i> Excel'e Aktar
                 </button>
                 <button id="btn-open-cp-modal" data-requires-edit class="px-4 py-2 bg-[#2D4A3E] hover:bg-[#1a3329] text-white rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer">
                     <i class="fa-solid fa-plus"></i> Yeni Müşteri Fiyat Kartı
@@ -112,9 +123,13 @@
                 <button type="button" id="btn-lang-tr" data-lang="tr">TR</button>
                 <button type="button" id="btn-lang-en" data-lang="en">EN</button>
             </div>
+            <button type="button" id="btn-select-all-cards" class="px-3 py-2 bg-[#FBF8F1] border border-slate-700 rounded-lg text-xs font-semibold text-slate-300 cursor-pointer whitespace-nowrap">
+                Tümünü Seç / Bırak
+            </button>
             <div class="bg-[#F6F3EC]/40 border border-slate-800 rounded-lg px-4 py-2 flex items-center gap-3 text-xs text-slate-400 font-medium whitespace-nowrap">
                 <span>Kayıtlı Fiyat Kartı:</span>
                 <span id="total-cp-records" class="text-[#2D4A3E] font-bold text-sm">0 Müşteri</span>
+                <span id="cp-selected-count" class="text-[#B5651D] font-bold"></span>
             </div>
         </section>
 
@@ -170,27 +185,15 @@
                         <button type="button" id="btn-cancel-product-edit" class="hidden text-xs text-[#9F3D3D] font-bold hover:text-[#9F3D3D] cursor-pointer">Vazgeç</button>
                     </div>
                     <input type="hidden" id="cp-edit-product-idx">
-                    <div class="product-form-row grid grid-cols-12 gap-2 items-end">
-                        <div class="col-span-3">
+                    <div class="product-form-row grid grid-cols-12 gap-2 items-end mb-2">
+                        <div class="col-span-9">
                             <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Stok Kodu / Ürün Adı</label>
                             <input type="text" id="cp-temp-product" list="cp-product-options" autocomplete="off" placeholder="Kod veya ad yazın...">
                             <datalist id="cp-product-options"></datalist>
                         </div>
                         <div class="col-span-2">
-                            <label id="cp-list-price-label" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Liste (<span class="cp-cur-sym">€</span>)</label>
-                            <input type="number" id="cp-temp-list" step="0.01" placeholder="100.00">
-                        </div>
-                        <div class="col-span-2">
-                            <label class="block text-xs font-semibold text-[#2D4A3E] uppercase tracking-wider mb-1">Net (<span class="cp-cur-sym">€</span>)</label>
-                            <input type="number" id="cp-temp-net" step="0.01" placeholder="75.00">
-                        </div>
-                        <div class="col-span-2">
-                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">İskonto (%)</label>
-                            <input type="number" id="cp-temp-discount" step="0.01" placeholder="25.00">
-                        </div>
-                        <div class="col-span-2">
-                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Fiyat Tarihi</label>
-                            <input type="date" id="cp-temp-date">
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Fark (%)</label>
+                            <input type="text" id="cp-temp-diff" readonly placeholder="—" style="background:var(--surface-2) !important;">
                         </div>
                         <div class="col-span-1">
                             <button type="button" id="btn-add-cp-product" class="w-full bg-[#FBF8F1] hover:bg-slate-600 text-white rounded-lg font-bold transition cursor-pointer" style="padding:0.45rem;">
@@ -198,25 +201,53 @@
                             </button>
                         </div>
                     </div>
+                    <div class="product-form-row grid grid-cols-12 gap-2 items-end">
+                        <div class="col-span-2">
+                            <label id="cp-list-price-label" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Liste (<span class="cp-cur-sym">€</span>)</label>
+                            <input type="number" id="cp-temp-list" step="0.01" placeholder="100.00">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">İskonto (%)</label>
+                            <input type="number" id="cp-temp-discount" step="0.01" placeholder="25.00">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-semibold text-[#2D4A3E] uppercase tracking-wider mb-1">Net v.1 (<span class="cp-cur-sym">€</span>)</label>
+                            <input type="number" id="cp-temp-net" step="0.01" placeholder="75.00">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">v.1 Tarihi</label>
+                            <input type="date" id="cp-temp-date">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-semibold text-[#B5651D] uppercase tracking-wider mb-1">Net v.2 (<span class="cp-cur-sym">€</span>)</label>
+                            <input type="number" id="cp-temp-net2" step="0.01" placeholder="opsiyonel">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-semibold text-[#B5651D] uppercase tracking-wider mb-1">v.2 Tarihi</label>
+                            <input type="date" id="cp-temp-date2">
+                        </div>
+                    </div>
                     <p id="cp-autofill-hint" class="text-[10px] text-slate-500 mt-2"></p>
                 </div>
 
                 <!-- 3. Ürün Listesi -->
-                <div class="border border-slate-800 rounded-xl overflow-hidden">
+                <div class="border border-slate-800 rounded-xl" style="overflow-x:auto;">
                     <table class="inner-table">
                         <thead>
                             <tr>
                                 <th>Stok Kodu</th>
                                 <th>Ürün Adı</th>
-                                <th class="text-right">Liste (<span class="cp-cur-sym">€</span>)</th>
-                                <th class="text-center">İskonto %</th>
-                                <th class="text-right">Net (<span class="cp-cur-sym">€</span>)</th>
+                                <th class="text-right">Liste</th>
+                                <th class="text-center">İsk. %</th>
+                                <th class="text-right">Net v.1</th>
+                                <th class="text-right">Net v.2</th>
+                                <th class="text-center">Fark %</th>
                                 <th class="text-center">Tarih</th>
                                 <th class="text-center">İşlem</th>
                             </tr>
                         </thead>
                         <tbody id="cp-temp-product-list">
-                            <tr><td colspan="7" class="text-center text-slate-600 py-4 text-xs">Henüz ürün eklenmedi.</td></tr>
+                            <tr><td colspan="9" class="text-center text-slate-600 py-4 text-xs">Henüz ürün eklenmedi.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -236,6 +267,127 @@
         </div>
     </div>
 
+    <!-- Siparişlerden Getir — önizleme modalı -->
+    <div id="cp-import-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width:78rem;">
+            <div class="flex items-center justify-between border-b px-6 py-4">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-file-import text-[#B5651D]"></i> Siparişlerden Fiyat Getir
+                </h3>
+                <button id="btn-close-import-modal" class="text-[#968B7A] hover:text-slate-300 cursor-pointer">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="px-6 py-3 border-b border-slate-800 text-xs text-slate-400 space-y-1">
+                <p>Sipariş kalemlerinden müşteri + ürün + para birimi bazında net fiyatlar türetildi.
+                   <strong>Bedelsiz</strong> ödemeli ve <strong>İptal</strong> durumundaki siparişler ile birim fiyatı boş/sıfır olan kalemler hariç tutuldu.</p>
+                <p>Bir üründe birden fazla farklı fiyat varsa (Credit Note, tek seferlik iskonto vb.) satır
+                   <span class="text-[#B5651D] font-semibold">sarı</span> işaretlenir ve açılır listeden doğru fiyatı seçebilirsiniz.</p>
+            </div>
+
+            <div class="px-6 py-3 flex flex-wrap items-center gap-3 border-b border-slate-800">
+                <div class="search-wrap" style="flex:1;min-width:220px;">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" class="search-box" id="cp-import-search" autocomplete="off"
+                           placeholder="Müşteri, stok kodu veya ürün ara...">
+                </div>
+                <select id="cp-import-filter" style="width:auto;min-width:200px;">
+                    <option value="all">Tümü</option>
+                    <option value="new">Yalnızca yeni satırlar</option>
+                    <option value="conflict">Yalnızca farklı fiyatlılar</option>
+                    <option value="variance">Yalnızca çoklu fiyatlılar</option>
+                </select>
+                <button type="button" id="btn-import-select-all" class="px-3 py-2 bg-[#FBF8F1] border border-slate-700 rounded-lg text-xs font-semibold text-slate-300 cursor-pointer">
+                    Görünenleri Seç / Bırak
+                </button>
+                <span id="cp-import-count" class="text-xs text-[#2D4A3E] font-bold ml-auto"></span>
+            </div>
+
+            <div class="flex-1 overflow-y-auto px-6 py-4">
+                <div style="overflow-x:auto;">
+                    <table class="inner-table" id="cp-import-table">
+                        <thead>
+                            <tr>
+                                <th style="width:34px;"><input type="checkbox" id="cp-import-check-all" style="width:auto;height:auto;"></th>
+                                <th>Müşteri</th>
+                                <th>Stok Kodu</th>
+                                <th>Ürün Adı</th>
+                                <th class="text-center">Kur</th>
+                                <th class="text-center">Sipariş</th>
+                                <th class="text-right">Sipariş Fiyatı</th>
+                                <th class="text-right">Karttaki Fiyat</th>
+                                <th>Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cp-import-body">
+                            <tr><td colspan="9" class="text-center text-slate-600 py-6 text-xs">Hesaplanıyor...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 px-6 py-4 border-t border-slate-800">
+                <p id="cp-import-summary" class="text-xs text-slate-400"></p>
+                <div class="flex items-center gap-3 ml-auto">
+                    <button type="button" id="btn-cancel-import" class="px-4 py-2 bg-[#FBF8F1] hover:bg-[#FBF8F1] border border-slate-700 rounded-lg text-sm font-semibold text-slate-300 cursor-pointer">Vazgeç</button>
+                    <button type="button" id="btn-save-import" data-requires-edit class="px-4 py-2 bg-[#2D4A3E] hover:bg-[#1a3329] text-white rounded-lg text-sm font-semibold cursor-pointer">
+                        <i class="fa-solid fa-floppy-disk mr-1"></i> Seçilenleri Kaydet
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Müşteri Karşılaştırma modalı -->
+    <div id="cp-compare-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width:82rem;">
+            <div class="flex items-center justify-between border-b px-6 py-4">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-scale-balanced text-[#2D4A3E]"></i> Müşteri Fiyat Karşılaştırma
+                </h3>
+                <button id="btn-close-compare-modal" class="text-[#968B7A] hover:text-slate-300 cursor-pointer">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div id="cp-compare-warning" class="px-6 py-3 border-b border-slate-800 text-xs hidden"></div>
+
+            <div class="px-6 py-3 flex flex-wrap items-center gap-3 border-b border-slate-800">
+                <div class="search-wrap" style="flex:1;min-width:220px;">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" class="search-box" id="cp-compare-search" autocomplete="off"
+                           placeholder="Stok kodu veya ürün ara...">
+                </div>
+                <label class="flex items-center gap-2 text-xs text-slate-400 whitespace-nowrap cursor-pointer">
+                    <input type="checkbox" id="cp-compare-only-shared" style="width:auto;height:auto;">
+                    Yalnızca hepsinde olan ürünler
+                </label>
+                <span id="cp-compare-count" class="text-xs text-[#2D4A3E] font-bold ml-auto"></span>
+            </div>
+
+            <div class="flex-1 overflow-y-auto px-6 py-4">
+                <div style="overflow-x:auto;">
+                    <table class="inner-table" id="cp-compare-table">
+                        <thead id="cp-compare-head"></thead>
+                        <tbody id="cp-compare-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 px-6 py-4 border-t border-slate-800">
+                <p class="text-xs text-slate-400">Gösterilen fiyat her müşterinin <strong>güncel</strong> net fiyatıdır (v.2 varsa v.2).</p>
+                <div class="flex items-center gap-3 ml-auto">
+                    <button type="button" id="btn-export-compare" class="px-4 py-2 bg-[#FBF8F1] border border-slate-700 rounded-lg text-sm font-semibold text-slate-300 cursor-pointer">
+                        <i class="fa-solid fa-file-excel text-emerald-500 mr-1"></i> Excel'e Aktar
+                    </button>
+                    <button type="button" id="btn-close-compare" class="px-4 py-2 bg-[#2D4A3E] hover:bg-[#1a3329] text-white rounded-lg text-sm font-semibold cursor-pointer">Kapat</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <script type="module" src="./src/client-prices.js"></script>
 </body>
 </html>
