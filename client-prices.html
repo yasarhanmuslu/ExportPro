@@ -31,7 +31,9 @@
         input:focus, select:focus { outline: none; border-color: #2D4A3E; box-shadow: 0 0 0 3px rgba(45,74,62,0.08); }
         .modal-backdrop { position: fixed; inset: 0; background: rgba(28,26,23,0.5); backdrop-filter: blur(4px); display: flex; align-items: flex-start; justify-content: center; z-index: 100; padding: 1rem; overflow-y: auto; }
         .modal-backdrop.hidden { display: none; }
-        .modal-content { background: rgb(15 23 42); border: 1px solid rgb(30 41 59); border-radius: 1rem; width: 100%; max-width: 60rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); margin: auto; overflow: hidden; display: flex; flex-direction: column; max-height: 90vh; }
+        /* 9 kolonlu ürün tablosu 60rem'e sığmıyordu; yatay kaydırma çubuğu da
+           tablonun altında kaldığı için modalın dibine inmeden görünmüyordu. */
+        .modal-content { background: rgb(15 23 42); border: 1px solid rgb(30 41 59); border-radius: 1rem; width: 100%; max-width: 76rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); margin: auto; overflow: hidden; display: flex; flex-direction: column; max-height: 90vh; }
         .custom-table-container { overflow-x: auto; background: rgba(15,23,42,0.4); border: 1px solid rgb(30 41 59); border-radius: 0.75rem; }
         .custom-table { width: 100%; border-collapse: collapse; }
         .custom-table th { padding: 0.75rem 1rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgb(100 116 139); text-align: left; white-space: nowrap; border-bottom: 1px solid rgb(30 41 59); }
