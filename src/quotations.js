@@ -1002,6 +1002,29 @@ function extractTotalAmount(fullText) {
     return { amount: parseTurkishFloat(totalMatch[1]), currency: totalMatch[2] || null };
 }
 
+// Proformanın döviz cinsi. Önce genel toplam satırının yanındaki kod okunur ("15.212,50 USD");
+// bazı şablonlarda toplamın yanında kod yerine yalnızca sembol yazıldığından, kod okunamazsa
+// metindeki para birimi sembolleri sayılır ve en çok geçen sembolün kodu alınır (kalem
+// satırlarındaki NET FİYAT / TUTAR sütunları sembolle yazılıyor: "118,00 $").
+// Hiçbiri bulunamazsa null döner ve formdaki döviz alanına dokunulmaz.
+const PDF_CURRENCY_BY_SYMBOL = { '€': 'EUR', '$': 'USD', '₺': 'TRY', '£': 'GBP' };
+const PDF_CURRENCY_BY_CODE   = { EUR: 'EUR', USD: 'USD', TRY: 'TRY', GBP: 'GBP', TL: 'TRY' };
+
+function resolvePdfCurrency(fullText, totalCurrencyCode) {
+    // Toplam satırındaki kod her zaman para birimi olmayabilir (şablona göre yanına başka
+    // bir kelime gelebiliyor), bu yüzden yalnızca tanınan kodlar kabul edilir.
+    const code = PDF_CURRENCY_BY_CODE[(totalCurrencyCode || '').trim().toUpperCase()];
+    if (code) return code;
+
+    const counts = {};
+    for (const ch of fullText) {
+        const cur = PDF_CURRENCY_BY_SYMBOL[ch];
+        if (cur) counts[cur] = (counts[cur] || 0) + 1;
+    }
+    const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+    return best ? best[0] : null;
+}
+
 // Satır formatı: <...> <ÜRÜN KODU> <AÇIKLAMA> <ADET> pcs./ad./adet <PALET (opsiyonel)> <NET FİYAT><para birimi> <TUTAR><para birimi>
 // Palet sütunu her proforma şablonunda yok (bazı siparişler paletsiz) — bu yüzden opsiyonel.
 // Değeri (tam sayı, "2,0" gibi ondalık, ya da bomboş sütun için tek başına "-") hiç kullanılmıyor,
@@ -1040,7 +1063,7 @@ function parsePdfProformaText(fullText) {
         piNo: piNoMatch ? piNoMatch[1] : null,
         piDate: piDateMatch ? piDateToIso(piDateMatch[1]) : null,
         totalAmount: total ? total.amount : null,
-        totalCurrency: total ? total.currency : null,
+        currency: resolvePdfCurrency(fullText, total ? total.currency : null),
         items,
     };
 }
@@ -1071,7 +1094,7 @@ async function handlePdfItemFileSelect(file) {
             fullText += reconstructPdfLines(content.items) + '\n';
         }
 
-        const { piNo, piDate, totalAmount, items } = parsePdfProformaText(fullText);
+        const { piNo, piDate, totalAmount, currency: pdfCurrency, items } = parsePdfProformaText(fullText);
 
         if (items.length === 0) {
             await showAlertDialog('PDF içinde ürün kalemi satırı bulunamadı. Dosya formatını kontrol edin.', { variant: 'warn', title: 'Kalem Bulunamadı' });
@@ -1130,6 +1153,25 @@ async function handlePdfItemFileSelect(file) {
                 if (ok) quotationDateInput.value = piDate;
             } else {
                 quotationDateInput.value = piDate;
+            }
+        }
+
+        // Döviz cinsini PDF'e göre ayarla — kalem fiyatları ve toplam tutar PDF'den geldiğine
+        // göre para birimi de PDF'in para birimi olmalı. Yeni kayıtta sessizce uygulanır
+        // (form EUR ile açılıyor ve elle düzeltmek unutulup yanlış dövizle kayıt açılıyordu);
+        // mevcut bir kaydı düzenlerken kayıtlı döviz cinsi değişeceğinden onay istenir.
+        if (pdfCurrency) {
+            const currencyInput = document.getElementById('currency');
+            let applyCurrency = true;
+            if (currentQuotationId && currencyInput.value && currencyInput.value !== pdfCurrency) {
+                applyCurrency = await showConfirmDialog(
+                    `Döviz cinsi "${currencyInput.value}" olarak seçili. PDF'deki döviz cinsi "${pdfCurrency}" ile değiştirilsin mi?`,
+                    { title: 'Döviz Cinsi Çakışması', variant: 'warn', confirmText: 'Değiştir' }
+                );
+            }
+            if (applyCurrency && currencyInput.value !== pdfCurrency) {
+                currencyInput.value = pdfCurrency;
+                updateItemsColumnHeaders();
             }
         }
 

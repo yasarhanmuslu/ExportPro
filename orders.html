@@ -243,7 +243,7 @@
             <button id="tab-items"   class="modal-tab"><i class="fa-solid fa-list-ul" style="margin-right:5px;"></i>Sipariş Kalemleri</button>
         </div>
 
-        <form id="order-form">
+        <form id="order-form" novalidate>
             <input type="hidden" id="order-id">
 
             <div class="modal-scroll-body">
@@ -279,7 +279,7 @@
                             <input type="text" id="ideal_order_no" placeholder="Örn: 0003474">
                         </div>
                         <div>
-                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Sipariş Türü</label>
+                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Sipariş Türü *</label>
                             <select id="order_type">
                                 <option value="">-- Seçiniz --</option>
                                 <option value="İhracat">İhracat</option>
@@ -336,7 +336,7 @@
                             <input type="text" id="order_quantity" placeholder="Örn: 1.010 adet">
                         </div>
                         <div>
-                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Ödeme Şekli</label>
+                            <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;margin-bottom:6px;">Ödeme Şekli *</label>
                             <select id="payment_method">
                                 <option value="">-- Seçiniz --</option>
                                 <option value="Peşin">Peşin</option>
