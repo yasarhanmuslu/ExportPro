@@ -175,6 +175,8 @@ function renderQuotationsList(list) {
                 </div>
                 <div class="row-col-fin">
                     <div class="fin-r"><span class="fin-lbl">Toplam</span><span class="fin-val">${fmt(q.total_amount)} ${s}</span></div>
+                    <div class="fin-divider"></div>
+                    <div class="fin-r"><span class="fin-lbl">Adet</span><span class="fin-sub">${escapeHtml(q.order_quantity || '—')}</span><span style="width:6px;display:inline-block;"></span><span class="fin-lbl">Ödeme</span><span class="fin-sub">${escapeHtml(q.payment_method || '—')}</span></div>
                 </div>
                 <div class="row-col-act">
                     <button class="btn-yonet btn-edit-quotation-trigger" data-id="${q.id}">
