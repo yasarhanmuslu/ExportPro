@@ -1,10 +1,14 @@
-// quotations.js — V: 1.0.84
+// quotations.js — V: 1.0.85
 import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
 import { showAlertDialog, showConfirmDialog, showPromptDialog } from './utils/dialogs.js';
 import { getAccessContext, guardModuleAccess, applyEditLock, canEdit } from './utils/permissions.js';
 import { logChange } from './utils/auditLog.js';
+import {
+    parseProformaPdf, findItemMismatches, formatMismatchList,
+    resolveFonksiyonLabel, parseTurkishFloat,
+} from './utils/proformaPdf.js';
 
 // ── DURUM LİSTESİ ─────────────────────────────────────────────────────────────
 const STATUS_LIST = [
@@ -63,7 +67,7 @@ async function fetchProductsData() {
     try {
         const { data, error } = await supabase
             .from('urunler')
-            .select('id, stok_kodu, stok_adi_1, stok_adi_2, renk, fonksiyon_1, fonksiyon_2, fonksiyon_3')
+            .select('id, stok_kodu, stok_adi_1, stok_adi_2, seri_adi, renk, fonksiyon_1, fonksiyon_2, fonksiyon_3')
             .order('stok_adi_1', { ascending: true });
         if (error) throw error;
         globalProducts = data || [];
@@ -710,26 +714,8 @@ function applyFilters() {
 
 // ── KALEM TABLOSU ─────────────────────────────────────────────────────────────
 
-// Ürünün fonksiyon_1/2/3 alanlarından, müşteriye gönderilen proformalarda kullanılan
-// sadeleştirilmiş Türkçe "Fonksiyon" etiketini bulur (hangi fonksiyon slotunda olduğuna bakmaksızın).
-const FONKSIYON_LABEL_RULES = [
-    { values: ['kanalsız delikli', 'kanallı delikli'], label: 'Taharet Delikli' },
-    { values: ['kanalsız deliksiz', 'kanallı deliksiz'], label: 'Taharet Deliksiz' },
-    { values: ['delikli', 'sağdan delikli', 'soldan delikli'], label: 'Armatür Delikli' },
-    { values: ['deliksiz'], label: 'Armatür Deliksiz' },
-];
-
-function resolveFonksiyonLabel(product) {
-    if (!product) return '';
-    const fields = [product.fonksiyon_1, product.fonksiyon_2, product.fonksiyon_3];
-    for (const raw of fields) {
-        if (!raw) continue;
-        const norm = raw.trim().toLocaleLowerCase('tr-TR');
-        const rule = FONKSIYON_LABEL_RULES.find(r => r.values.includes(norm));
-        if (rule) return rule.label;
-    }
-    return '';
-}
+// Fonksiyon ("Taharet Delikli" / "Armatür Deliksiz" …) etiketi utils/proformaPdf.js'ten gelir:
+// PDF içe aktarmadaki DELİK kontrolü ile kalem tablosunun aynı sözlüğü kullanması şart.
 
 function currentQuotationCurrencySymbol() {
     const sym = { EUR: '€', USD: '$', TRY: '₺', GBP: '£' };
@@ -762,15 +748,22 @@ function renderItemsTable() {
         const renk      = product?.renk || '';
         const fonksiyon = resolveFonksiyonLabel(product);
 
+        // PDF içe aktarmada yakalanan uyuşmazlık — kullanıcı "Yine de Aktar" dedikten sonra da
+        // hangi satırın şüpheli olduğu tabloda görünsün.
+        const mismatchBadge = item._pdfMismatch
+            ? `<i class="fa-solid fa-triangle-exclamation" title="PDF ile ürün kartı farklı:&#10;${escapeHtml(item._pdfMismatch.join('\n'))}" style="flex-shrink:0;color:#B45309;font-size:12px;margin-top:1px;"></i>`
+            : '';
+
         const productCell = isSelected
-            ? `<div style="display:flex;align-items:flex-start;gap:6px;border:1px solid #E4DDCE;border-radius:6px;padding:6px 8px;background:#F6F3EC;min-height:34px;">
+            ? `<div style="display:flex;align-items:flex-start;gap:6px;border:1px solid ${item._pdfMismatch ? '#E0A03A' : '#E4DDCE'};border-radius:6px;padding:6px 8px;background:${item._pdfMismatch ? '#FDF6E7' : '#F6F3EC'};min-height:34px;">
+                   ${mismatchBadge}
                    <div style="flex:1;font-size:12px;line-height:1.35;color:#1C1A17;">${escapeHtml(item.product_name || '')}</div>
                    <button type="button" class="item-clear-btn" data-idx="${idx}" title="Ürünü kaldır / değiştir" style="flex-shrink:0;background:none;border:none;cursor:pointer;color:#968B7A;font-size:11px;padding:2px;">
                        <i class="fa-solid fa-xmark"></i>
                    </button>
                </div>
                <input type="text" class="item-search hidden" data-idx="${idx}" autocomplete="off" value="">`
-            : `<input type="text" class="item-search" data-idx="${idx}" autocomplete="off" placeholder="Ürün ara (kod / TR / EN) veya serbest metin" value="${escapeHtml(item.product_name || '')}" style="height:34px;font-size:12px;">`;
+            : `<div style="display:flex;align-items:center;gap:6px;">${mismatchBadge}<input type="text" class="item-search" data-idx="${idx}" autocomplete="off" placeholder="Ürün ara (kod / TR / EN) veya serbest metin" value="${escapeHtml(item.product_name || '')}" style="flex:1;height:34px;font-size:12px;"></div>`;
 
         const tr = document.createElement('tr');
         tr.dataset.idx = idx;
@@ -948,137 +941,9 @@ function addItemRow() {
 }
 
 // ── PDF'DEN KALEM İÇE AKTARMA ────────────────────────────────────────────────
-// Proforma fatura PDF'inden PI NO, PI DATE, genel toplam ve ürün kalemlerini (kod/adet/net fiyat) okur.
-// Büyük x-boşlukları (aynı satırdaki farklı tablo sütunları) '\t' ile ayrılır; normal kelime
-// boşlukları tek boşluk olarak korunur. '\t' de bir \s karakteri olduğundan mevcut regex'leri bozmaz.
-function reconstructPdfLines(items) {
-    const tolY = 2;
-    const colGapThreshold = 20;
-    const rows = new Map();
-    for (const item of items) {
-        const y = item.transform[5];
-        let key = null;
-        for (const k of rows.keys()) {
-            if (Math.abs(k - y) <= tolY) { key = k; break; }
-        }
-        if (key === null) key = y;
-        if (!rows.has(key)) rows.set(key, []);
-        rows.get(key).push(item);
-    }
-    const sortedKeys = Array.from(rows.keys()).sort((a, b) => b - a);
-    const lines = [];
-    for (const k of sortedKeys) {
-        const rowItems = rows.get(k).slice().sort((a, b) => a.transform[4] - b.transform[4]);
-        let line = '';
-        let lastEndX = null;
-        for (const it of rowItems) {
-            const x = it.transform[4];
-            if (lastEndX !== null) {
-                const gap = x - lastEndX;
-                if (gap > colGapThreshold) line += '\t';
-                else if (gap > 1) line += ' ';
-            }
-            line += it.str;
-            lastEndX = x + (it.width || 0);
-        }
-        lines.push(line.trim());
-    }
-    return lines.join('\n');
-}
-
-// Genel toplam satırını bulur — örn: "EX-WORKS / ISTANBUL : 5.086,80 EUR".
-// Etiket (Incoterm) sabit kodlanmaz: önce "DELIVERY TERMS :" (İngilizce) veya "TESLİM ŞEKLİ :" (Türkçe)
-// değeri okunur (örn. "EX-WORKS / ISTANBUL"), sonra aynı metnin ": <tutar> <para birimi>" ile tekrar
-// geçtiği hücre aranır (bu, teslim şekli ne olursa olsun çalışır).
-function extractTotalAmount(fullText) {
-    const termMatch =
-        fullText.match(/DE+LIVERY\s*TERMS\s*:\s*([^\t\n]+?)\s*(?:\t|\n|$)/i) ||
-        fullText.match(/TESL[İIiı]M\s*ŞEKL[İIiı]\s*:\s*([^\t\n]+?)\s*(?:\t|\n|$)/i);
-    if (!termMatch) return null;
-    const term = termMatch[1].trim();
-    if (!term) return null;
-    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const totalRe = new RegExp(escaped + '\\s*:\\s*([\\d.,]+)\\s*([A-Z]{2,3})?', 'i');
-    const totalMatch = fullText.match(totalRe);
-    if (!totalMatch) return null;
-    return { amount: parseTurkishFloat(totalMatch[1]), currency: totalMatch[2] || null };
-}
-
-// Proformanın döviz cinsi. Önce genel toplam satırının yanındaki kod okunur ("15.212,50 USD");
-// bazı şablonlarda toplamın yanında kod yerine yalnızca sembol yazıldığından, kod okunamazsa
-// metindeki para birimi sembolleri sayılır ve en çok geçen sembolün kodu alınır (kalem
-// satırlarındaki NET FİYAT / TUTAR sütunları sembolle yazılıyor: "118,00 $").
-// Hiçbiri bulunamazsa null döner ve formdaki döviz alanına dokunulmaz.
-const PDF_CURRENCY_BY_SYMBOL = { '€': 'EUR', '$': 'USD', '₺': 'TRY', '£': 'GBP' };
-const PDF_CURRENCY_BY_CODE   = { EUR: 'EUR', USD: 'USD', TRY: 'TRY', GBP: 'GBP', TL: 'TRY' };
-
-function resolvePdfCurrency(fullText, totalCurrencyCode) {
-    // Toplam satırındaki kod her zaman para birimi olmayabilir (şablona göre yanına başka
-    // bir kelime gelebiliyor), bu yüzden yalnızca tanınan kodlar kabul edilir.
-    const code = PDF_CURRENCY_BY_CODE[(totalCurrencyCode || '').trim().toUpperCase()];
-    if (code) return code;
-
-    const counts = {};
-    for (const ch of fullText) {
-        const cur = PDF_CURRENCY_BY_SYMBOL[ch];
-        if (cur) counts[cur] = (counts[cur] || 0) + 1;
-    }
-    const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-    return best ? best[0] : null;
-}
-
-// Satır formatı: <...> <ÜRÜN KODU> <AÇIKLAMA> <ADET> pcs./ad./adet <PALET (opsiyonel)> <NET FİYAT><para birimi> <TUTAR><para birimi>
-// Palet sütunu her proforma şablonunda yok (bazı siparişler paletsiz) — bu yüzden opsiyonel.
-// Değeri (tam sayı, "2,0" gibi ondalık, ya da bomboş sütun için tek başına "-") hiç kullanılmıyor,
-// sadece atlanıyor: bu modülde palet hesabı kapsam dışı.
-// Ürün kodu ya bizim standart tireli formatımız (SETK3104-2615-165-1-6000, 53-01-04-031) ya da
-// tireli olmayan tek parça bir kod (örn. tedarikçiden alınıp tek seferlik satılan bir ürünün kodu,
-// TM00415 gibi — büyük harf + rakam, boşluksuz) olabilir.
-// Satır sonunda ($) durmuyor: bazı şablonlarda TUTAR'dan sonra Net/Gross Weight, Palet Ölçüleri gibi
-// ek sütunlar aynı satırda devam ediyor — TUTAR'ı yakalayınca durmak yeterli, satırın gerisini görmezden gel.
-// Bazı şablonlarda NET FİYAT'tan önce LİSTE FİYATI + İSKONTO % sütunları da var
-// (örn. "278,00 € 76,00% 66,72 € 400,32 €" → liste fiyatı, iskonto, NET FİYAT, TUTAR).
-// İskonto her zaman "%" ile bitişik yazıldığından bu iki fazladan sütun, sadece bu şablonlarda
-// devreye giren opsiyonel bir blokla atlanıyor — NET FİYAT ve TUTAR her zaman doğru yakalanıyor.
-const PDF_ITEM_LINE_RE = /((?:[A-Za-z0-9]+\s*-\s*){2,}[A-Za-z0-9]+|\b[A-Z]{2,8}\d{2,8}\b)\s+(.+?)\s+(\d+(?:[.,]\d+)?)\s*(?:pcs|ad|adet)\.?\s+(?:(?:\d+(?:[.,]\d+)?|-)\s+)?(?:[\d.,]+\s*\S{0,2}\s+[\d.,]+%\s+)?([\d.,]+)\s*\S{0,2}\s+([\d.,]+)\s*\S{0,2}/gim;
-
-function parsePdfProformaText(fullText) {
-    const piNoMatch   = fullText.match(/PI\s*NO\s*:?\s*([0-9]{2,4}-[0-9]{1,4})/i);
-    const piDateMatch = fullText.match(/PI\s*DATE\s*:?\s*([0-9]{1,2}\.[0-9]{1,2}\.[0-9]{2,4})/i);
-    const total       = extractTotalAmount(fullText);
-
-    const items = [];
-    let m;
-    PDF_ITEM_LINE_RE.lastIndex = 0;
-    while ((m = PDF_ITEM_LINE_RE.exec(fullText)) !== null) {
-        items.push({
-            code: m[1].replace(/\s+/g, ''),
-            // Boş RENK/DELİK sütunları için PDF'de bırakılan "-" işaretleri satır sonunda kalabiliyor.
-            description: m[2].trim().replace(/(?:\s+-)+$/, '').trim(),
-            quantity: parseTurkishFloat(m[3]),
-            netPrice: parseTurkishFloat(m[4]),
-            amount: parseTurkishFloat(m[5]),
-        });
-    }
-
-    return {
-        piNo: piNoMatch ? piNoMatch[1] : null,
-        piDate: piDateMatch ? piDateToIso(piDateMatch[1]) : null,
-        totalAmount: total ? total.amount : null,
-        currency: resolvePdfCurrency(fullText, total ? total.currency : null),
-        items,
-    };
-}
-
-function piDateToIso(str) {
-    const parts = str.split('.');
-    if (parts.length !== 3) return null;
-    let [d, mo, y] = parts;
-    if (y.length === 2) y = '20' + y;
-    d = d.padStart(2, '0');
-    mo = mo.padStart(2, '0');
-    return `${y}-${mo}-${d}`;
-}
+// Proforma fatura PDF'inin okunması, sütun ayrıştırması ve ürün kartı tutarlılık kontrolü
+// utils/proformaPdf.js içinde — Sipariş modülü ile ortak. Buradaki iş yalnızca sonucun
+// forma yazılması ve kullanıcıya sorulması.
 
 async function handlePdfItemFileSelect(file) {
     if (!window.pdfjsLib) {
@@ -1087,16 +952,8 @@ async function handlePdfItemFileSelect(file) {
     }
     try {
         const arrayBuffer = await file.arrayBuffer();
-        const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-
-        let fullText = '';
-        for (let p = 1; p <= pdf.numPages; p++) {
-            const page = await pdf.getPage(p);
-            const content = await page.getTextContent();
-            fullText += reconstructPdfLines(content.items) + '\n';
-        }
-
-        const { piNo, piDate, totalAmount, currency: pdfCurrency, items } = parsePdfProformaText(fullText);
+        const { piNo, piDate, totalAmount, currency: pdfCurrency, items } =
+            await parseProformaPdf(arrayBuffer, globalProducts);
 
         if (items.length === 0) {
             await showAlertDialog('PDF içinde ürün kalemi satırı bulunamadı. Dosya formatını kontrol edin.', { variant: 'warn', title: 'Kalem Bulunamadı' });
@@ -1121,6 +978,22 @@ async function handlePdfItemFileSelect(file) {
                 { title: 'Eşleşmeyen Ürün Kodları', variant: 'warn', confirmText: 'Serbest Metin Olarak Aktar' }
             );
             if (!importAsFreeText) return;
+        }
+
+        // Tutarlılık kontrolü — PDF'in RENK / DELİK / SERİ sütunları sistemdeki ürün bilgisiyle
+        // uyuşmuyorsa proformaya yanlış ürün kodu girilmiş olabilir; aktarmadan önce onay iste.
+        const attrMismatches = findItemMismatches(items, productByCode);
+        const mismatchByCode = new Map();
+        for (const mm of attrMismatches) {
+            mismatchByCode.set(mm.code, (mismatchByCode.get(mm.code) || []).concat(`${mm.field}: PDF "${mm.pdfValue}" ≠ ${mm.source} "${mm.expected}"`));
+        }
+
+        if (attrMismatches.length > 0) {
+            const ok = await showConfirmDialog(
+                `Aşağıdaki kalemlerde PDF'deki ürün tarifi ile sistemdeki ürün bilgisi uyuşmuyor. Proformaya yanlış ürün kodu girilmiş olabilir:\n\n${formatMismatchList(attrMismatches)}\n\nYine de içe aktarayım mı?`,
+                { title: 'Ürün Bilgisi Uyuşmazlığı', variant: 'warn', confirmText: 'Yine de Aktar' }
+            );
+            if (!ok) return;
         }
 
         if (quotationItemsBuffer.length > 0) {
@@ -1223,6 +1096,8 @@ async function handlePdfItemFileSelect(file) {
                 quantity: it.quantity,
                 unit_price: it.netPrice,
                 notes: null,
+                // Yalnızca ekranda uyarı rozeti için; kayıt payload'ına girmez.
+                _pdfMismatch: mismatchByCode.get(it.code) || null,
             };
         });
 
@@ -1274,15 +1149,6 @@ function initEventListeners() {
 }
 
 // ── YARDIMCI ──────────────────────────────────────────────────────────────────
-function parseTurkishFloat(value) {
-    if (!value) return 0;
-    let clean = value.toString().trim();
-    if (clean.includes('.') && clean.includes(',')) clean = clean.replace(/\./g, '').replace(/,/g, '.');
-    else if (clean.includes(',')) clean = clean.replace(/,/g, '.');
-    const parsed = parseFloat(clean);
-    return isNaN(parsed) ? 0 : parsed;
-}
-
 function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
