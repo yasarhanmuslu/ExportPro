@@ -8,36 +8,215 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
     <link rel="stylesheet" href="./src/assets/css/theme.css">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+    <script>
+        if (window.pdfjsLib) {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+        }
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* ── Porselen iç sayfa overrides ── */
-        body { background: #F6F3EC !important; color: #1C1A17 !important; }
-        .modal-backdrop { background: rgba(28,26,23,0.50) !important; backdrop-filter: blur(4px); }
-        input, select, textarea {
-            background: #fff !important; border: 1px solid #E4DDCE !important;
-            border-radius: 6px !important; color: #1C1A17 !important;
-            font-family: Verdana, Geneva, sans-serif !important; font-size: 13px !important;
-        }
-        input:focus, select:focus, textarea:focus {
-            outline: none !important; border-color: #2D4A3E !important;
-            box-shadow: 0 0 0 3px rgba(45,74,62,0.08) !important;
-        }
+        body { background: var(--bg) !important; color: var(--ink-1) !important; }
 
         input, select, textarea {
-            background: #fff; border: 1px solid #E4DDCE;
-            border-radius: 6px; padding: 0 12px;
-            color: #1C1A17; font-size: 13px; width: 100%; height: 38px;
+            background: var(--surface) !important; border: 1px solid var(--border) !important;
+            border-radius: 6px !important; color: var(--ink-1) !important;
+            font-family: Verdana, Geneva, sans-serif !important; font-size: 13px !important;
+            padding: 0 12px; width: 100%; height: 38px;
         }
-        input:focus, select:focus { outline: none; border-color: #2D4A3E; box-shadow: 0 0 0 3px rgba(45,74,62,0.08); }
-        .modal-backdrop { position: fixed; inset: 0; background: rgba(28,26,23,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
+        textarea { padding: 8px 12px; height: auto; }
+        input:focus, select:focus, textarea:focus {
+            outline: none !important; border-color: var(--accent) !important;
+            box-shadow: 0 0 0 3px rgba(45,74,62,0.08) !important;
+        }
+        input[type="checkbox"] { width: auto; height: auto; }
+
+        .modal-backdrop {
+            position: fixed; inset: 0; background: rgba(28,26,23,0.50); backdrop-filter: blur(4px);
+            display: flex; align-items: flex-start; justify-content: center; z-index: 100;
+            padding: 1rem; overflow-y: auto;
+        }
         .modal-backdrop.hidden { display: none; }
-        .modal-content { background: rgb(15 23 42); border: 1px solid rgb(30 41 59); border-radius: 1rem; width: 100%; max-width: 56rem; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
-        .custom-table-container { overflow-x: auto; background: rgba(15,23,42,0.4); border: 1px solid rgb(30 41 59); border-radius: 0.75rem; }
-        .custom-table { width: 100%; border-collapse: collapse; }
-        .custom-table th { padding: 0.75rem 1rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgb(100 116 139); text-align: left; white-space: nowrap; border-bottom: 1px solid rgb(30 41 59); }
-        .custom-table td { padding: 0.75rem 1rem; font-size: 0.875rem; color: rgb(148 163 184); border-bottom: 1px solid rgb(15 23 42); }
-        .custom-table tbody tr:hover { background: rgba(30,41,59,0.5); }
-        .custom-table tbody tr:last-child td { border-bottom: none; }
+        .modal-content {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+            width: 100%; max-width: 78rem; box-shadow: 0 25px 50px -12px rgba(28,26,23,0.25);
+            margin: auto; display: flex; flex-direction: column; max-height: 92vh; overflow: hidden;
+        }
+        .modal-content.narrow { max-width: 46rem; }
+
+        /* ── Kartlar ── */
+        .cn-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 16px;
+        }
+        .cn-kpi-label {
+            font-size: var(--text-label-caps); font-weight: var(--weight-label-caps);
+            letter-spacing: var(--ls-label-caps); text-transform: uppercase; color: var(--ink-3);
+        }
+        .cn-kpi-value { font-size: 22px; font-weight: 600; color: var(--ink-1); line-height: 1.25; }
+        .cn-kpi-sub   { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+
+        /* ── Tablolar ── */
+        .cn-table-wrap {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; overflow: auto;
+        }
+        table.cn-table { width: 100%; border-collapse: collapse; }
+        .cn-table th {
+            padding: 10px 12px; font-size: var(--text-table-header); font-weight: 700;
+            text-transform: uppercase; letter-spacing: var(--ls-table-header); color: var(--ink-3);
+            text-align: left; white-space: nowrap; background: var(--surface-2);
+            border-bottom: 1px solid var(--border-soft); position: sticky; top: 0; z-index: 2;
+        }
+        .cn-table td {
+            padding: 10px 12px; font-size: 12.5px; color: var(--ink-2);
+            border-bottom: 1px solid var(--border-soft); vertical-align: middle;
+        }
+        .cn-table tbody tr:hover { background: var(--surface-2); }
+        .cn-table tbody tr:last-child td { border-bottom: none; }
+        /* `.cn-table th` de text-align tanımladığı için başlıkta özgüllük eşitlenmeli,
+           aksi halde Tutar başlığı sola yaslı kalıyor. */
+        .cn-num, .cn-table th.cn-num { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+
+        /* ── Rozetler ── */
+        .badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 2px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 600;
+            border: 1px solid transparent; white-space: nowrap;
+        }
+        .badge-ok     { background: var(--ok-soft);     color: var(--ok);     border-color: #C9DDD0; }
+        .badge-warn   { background: var(--warn-soft);   color: var(--warn);   border-color: #E7D2B4; }
+        .badge-danger { background: var(--danger-soft); color: var(--danger); border-color: #E5C3BE; }
+        .badge-info   { background: var(--info-soft);   color: var(--info);   border-color: #C9D3E0; }
+        .badge-muted  { background: var(--surface-2);   color: var(--ink-3);  border-color: var(--border); }
+
+        /* Karar dağılımı rozetleri birbirine değmesin */
+        .badge-stack { display: flex; flex-wrap: wrap; gap: 4px; }
+
+        /* Müşteri arama açılır listesi */
+        .cn-customer-item {
+            padding: 9px 14px; cursor: pointer; font-size: 13px;
+            border-bottom: 1px solid var(--border-soft); transition: background .1s;
+        }
+        .cn-customer-item:last-child { border-bottom: none; }
+        .cn-customer-item:hover { background: var(--surface-2); }
+
+        /* Kalem satırı sıra numarası */
+        .cn-item-no {
+            position: absolute; top: 10px; left: 12px;
+            width: 20px; height: 20px; border-radius: 50%;
+            background: var(--accent); color: #fff;
+            font-size: 10.5px; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .cn-item-row { padding-left: 40px; }
+
+        /* Katalogda olmayan ürün kodu işareti */
+        .code-unknown { border-color: var(--warn) !important; }
+        .code-note { font-size: 10px; color: var(--warn); display: block; margin-top: 3px; }
+
+        /* CN detay penceresi */
+        .detail-table { width: 100%; border-collapse: collapse; }
+        .detail-table th {
+            padding: 8px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: .1em; color: var(--ink-3); text-align: left; white-space: nowrap;
+            background: var(--surface-2); border-bottom: 1px solid var(--border-soft);
+            position: sticky; top: 0; z-index: 2;
+        }
+        .detail-table td {
+            padding: 8px 10px; font-size: 12px; color: var(--ink-2);
+            border-bottom: 1px solid var(--border-soft); vertical-align: top;
+        }
+        .detail-table tbody tr:last-child td { border-bottom: none; }
+        .mono { font-family: ui-monospace, Consolas, monospace; font-size: 11.5px; }
+
+        /* ── Uyarı şeridi (siparişe işlenmeyi bekleyenler) ── */
+        .cn-alert {
+            background: var(--warn-soft); border: 1px solid #E7D2B4;
+            border-radius: 12px; padding: 14px 16px;
+        }
+        .cn-alert-row {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            padding: 8px 10px; background: rgba(255,255,255,0.6);
+            border: 1px solid rgba(178,107,51,0.18); border-radius: 8px; font-size: 12px;
+        }
+
+        /* ── Arama kutusu ── */
+        .search-wrap { position: relative; width: 100%; }
+        .search-box  { padding: 8px 12px 8px 40px !important; }
+        .search-icon {
+            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+            color: var(--ink-3); font-size: 13px; pointer-events: none; z-index: 1;
+        }
+
+        /* ── Kalem satırları (modal) ── */
+        .cn-item-row {
+            background: var(--surface-2); border: 1px solid var(--border-soft);
+            border-radius: 10px; padding: 12px; position: relative;
+        }
+        .cn-item-row.is-dup { border-color: var(--danger); box-shadow: 0 0 0 2px rgba(159,61,61,0.10); }
+        .cn-item-row input, .cn-item-row select { height: 34px; font-size: 12px !important; }
+        .field-label {
+            display: block; font-size: 9.5px; font-weight: 600; letter-spacing: .1em;
+            text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px;
+        }
+        .btn-half {
+            height: 34px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px;
+            background: var(--surface); color: var(--warn); font-size: 12px; font-weight: 700;
+            cursor: pointer; white-space: nowrap;
+        }
+        .dup-note { font-size: 10.5px; color: var(--danger); margin-top: 4px; display: block; }
+
+        /* ── Butonlar ── */
+        .btn-soft {
+            padding: 8px 14px; background: var(--surface); border: 1px solid var(--border);
+            border-radius: 8px; font-size: 12.5px; font-weight: 600; color: var(--ink-1);
+            display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+            font-family: Verdana, Geneva, sans-serif; transition: background .12s;
+        }
+        .btn-soft:hover { background: var(--surface-2); }
+        .btn-primary {
+            padding: 8px 16px; background: var(--accent); border: 1px solid var(--accent);
+            border-radius: 8px; font-size: 12.5px; font-weight: 600; color: #fff;
+            display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+            font-family: Verdana, Geneva, sans-serif; transition: background .12s;
+        }
+        .btn-primary:hover { background: #1F3A2E; }
+        .btn-danger {
+            padding: 8px 14px; background: var(--danger-soft); border: 1px solid #E5C3BE;
+            border-radius: 8px; font-size: 12.5px; font-weight: 600; color: var(--danger);
+            display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+            font-family: Verdana, Geneva, sans-serif;
+        }
+
+        /* ── İçe aktarma günlüğü ── */
+        .import-log {
+            background: var(--surface-2); border: 1px solid var(--border-soft); border-radius: 8px;
+            padding: 10px; max-height: 240px; overflow-y: auto;
+            font-size: 11.5px; font-family: ui-monospace, Consolas, monospace; line-height: 1.7;
+        }
+        .log-ok   { color: var(--ok); }
+        .log-warn { color: var(--warn); }
+        .log-err  { color: var(--danger); }
+        .log-info { color: var(--ink-2); }
+
+        .drop-zone {
+            border: 2px dashed var(--border); border-radius: 10px; padding: 28px;
+            text-align: center; cursor: pointer; background: var(--surface-2); transition: border-color .15s;
+        }
+        .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); }
+
+        .section-head {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 10px; margin-bottom: 10px;
+        }
+        .section-head h3 {
+            font-size: var(--text-card-title); font-weight: var(--weight-card-title);
+            color: var(--ink-1); display: flex; align-items: center; gap: 8px;
+        }
+        .muted { color: var(--ink-3); font-size: 11.5px; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -45,117 +224,329 @@
     <div id="navbar-target"></div>
 
     <main class="min-h-screen" style="margin-left:230px;padding:32px;">
-        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b">
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-5" style="border-bottom:1px solid var(--border);">
             <div>
                 <h2 class="page-title">
-                    <i class="fa-solid fa-file-invoice-dollar text-rose-500"></i> Credit Note (Şikayet & Mahsup) Takibi
+                    <i class="fa-solid fa-file-invoice-dollar" style="color:var(--danger);"></i> Credit Notes
                 </h2>
-                <p class="text-sm text-slate-400 mt-1">Müşteri şikayetleri, kalite kararları ve finansal statü takipleri.</p>
+                <p class="muted mt-1">
+                    Müşteri şikayetlerinde verilen alacak dekontları — mahsup ve bedelsiz gönderim takibi.
+                </p>
             </div>
-            <div class="flex items-center gap-3">
-                <button id="btn-export-cn" class="px-4 py-2 bg-[#FBF8F1] hover:bg-[#F0EDE4F1] border border-slate-700 rounded-lg text-sm font-semibold flex items-center gap-2 text-slate-300 cursor-pointer">
-                    <i class="fa-solid fa-file-excel text-emerald-500"></i> Dışa Aktar
+            <div class="flex items-center gap-2 flex-wrap">
+                <button id="btn-import-doc" data-requires-edit class="btn-soft" title="Tek bir Credit Note belgesini (.docx) okuyup forma doldurur">
+                    <i class="fa-solid fa-file-word" style="color:#2B579A;"></i> Belgeden Aktar
                 </button>
-                <button id="btn-open-cn-modal" data-requires-edit class="px-4 py-2 bg-[#9F3D3D] hover:bg-[#7a2e2e]00 text-white rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer">
-                    <i class="fa-solid fa-circle-plus"></i> Yeni CN Dosyası Aç
+                <input type="file" id="doc-import-input" accept=".docx,.pdf" style="display:none;">
+                <button id="btn-import-excel" data-requires-edit class="btn-soft" title="CREDIT NOTE TAKIP.xlsx dosyasından toplu geçmiş aktarımı">
+                    <i class="fa-solid fa-file-import" style="color:var(--bronze);"></i> Excel'den Toplu Aktar
+                </button>
+                <button id="btn-export-cn" class="btn-soft">
+                    <i class="fa-solid fa-file-excel" style="color:var(--ok);"></i> Excel'e Aktar
+                </button>
+                <button id="btn-open-cn-modal" data-requires-edit class="btn-primary">
+                    <i class="fa-solid fa-plus"></i> Yeni Credit Note
                 </button>
             </div>
         </header>
 
-        <section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="relative">
-                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-500 text-sm z-10"></i>
-                <input type="text" id="cn-search-input" placeholder="Müşteri adına göre dosya ara..." style="padding-left:2.5rem">
+        <!-- ══ KPI ŞERİDİ ══ -->
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5" id="cn-kpi-strip">
+            <div class="cn-card">
+                <div class="cn-kpi-label">Siparişe İşlenmeyi Bekleyen</div>
+                <div class="cn-kpi-value" id="kpi-pending-count" style="color:var(--warn);">—</div>
+                <div class="cn-kpi-sub" id="kpi-pending-sub">&nbsp;</div>
             </div>
-            <select id="filter-cn-status">
-                <option value="">Tüm Süreç Durumları</option>
-                <option value="İncelemede">İncelemede</option>
-                <option value="Onaylandı">Onaylandı</option>
-                <option value="Reddedildi">Reddedildi</option>
-                <option value="Mahsup Edildi">Mahsup Edildi</option>
-            </select>
-            <div class="bg-[#F6F3EC]/40 border border-slate-800 rounded-lg px-4 py-2 flex items-center justify-between text-xs text-slate-400 font-medium">
-                <span>Açık Şikayet/Dosya:</span>
-                <span id="total-cn-records" class="text-[#9F3D3D] font-bold text-sm">0 Dosya</span>
+            <div class="cn-card">
+                <div class="cn-kpi-label">Bekleyen Mahsup Tutarı</div>
+                <div class="cn-kpi-value" id="kpi-pending-amount">—</div>
+                <div class="cn-kpi-sub" id="kpi-pending-amount-sub">&nbsp;</div>
+            </div>
+            <div class="cn-card">
+                <div class="cn-kpi-label">Bekleyen Bedelsiz Ürün</div>
+                <div class="cn-kpi-value" id="kpi-free-goods">—</div>
+                <div class="cn-kpi-sub">adet, gönderilmeyi bekliyor</div>
+            </div>
+            <div class="cn-card">
+                <div class="cn-kpi-label">Toplam Credit Note</div>
+                <div class="cn-kpi-value" id="kpi-total-cn">—</div>
+                <div class="cn-kpi-sub" id="kpi-total-cn-sub">&nbsp;</div>
             </div>
         </section>
 
-        <section class="custom-table-container">
-            <table class="custom-table">
+        <!-- ══ SİPARİŞE İŞLENMEYİ BEKLEYENLER ══ -->
+        <section id="pending-panel" class="cn-alert mb-5 hidden">
+            <div class="section-head">
+                <h3 style="color:var(--warn);">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Siparişe İşlenmeyi Bekleyenler
+                </h3>
+                <button id="btn-toggle-pending" class="btn-soft" style="padding:5px 10px;font-size:11.5px;">
+                    <i class="fa-solid fa-chevron-up"></i> Gizle
+                </button>
+            </div>
+            <p class="muted mb-3" style="color:var(--warn);">
+                Kararı verilmiş ama henüz bir siparişte uygulanmamış Credit Note'lar. Sipariş bazında gruplandı.
+            </p>
+            <div id="pending-list" class="flex flex-col gap-2"></div>
+        </section>
+
+        <!-- ══ FİLTRELER ══ -->
+        <section class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-4">
+            <div class="search-wrap md:col-span-2">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" class="search-box" id="cn-search-input" autocomplete="off"
+                       placeholder="Müşteri, ürün, ürün kodu, Ürün ID veya müşteri referansı ara...">
+            </div>
+            <select id="filter-cn-customer"><option value="">Tüm Müşteriler</option></select>
+            <select id="filter-cn-status"><option value="">Tüm Süreç Durumları</option></select>
+            <select id="filter-cn-decision"><option value="">Tüm Kararlar</option></select>
+            <select id="filter-cn-year"><option value="">Tüm Yıllar</option></select>
+        </section>
+
+        <!-- ══ ANA TABLO ══ -->
+        <section class="cn-table-wrap" style="max-height:calc(100vh - 260px);">
+            <table class="cn-table">
                 <thead>
                     <tr>
-                        <th>Belge Tarihi</th>
-                        <th>Müşteri / Firma</th>
-                        <th>Şikayetli Kalemler</th>
-                        <th>Süreç Durumu</th>
-                        <th class="text-center">İşlem</th>
+                        <th style="width:52px;">No</th>
+                        <th style="width:96px;">Tarih</th>
+                        <th>Müşteri / Ülke</th>
+                        <th>Kalemler</th>
+                        <th style="width:150px;">Karar Dağılımı</th>
+                        <th style="width:118px;" class="cn-num">Tutar</th>
+                        <th style="width:110px;">Sipariş</th>
+                        <th style="width:132px;">Durum</th>
+                        <th style="width:64px;"></th>
                     </tr>
                 </thead>
                 <tbody id="cn-table-body">
-                    <tr><td colspan="5" class="text-center text-slate-500 py-8">Yükleniyor...</td></tr>
+                    <tr><td colspan="9" style="text-align:center;color:var(--ink-3);padding:32px;">Yükleniyor...</td></tr>
                 </tbody>
             </table>
         </section>
+        <p class="muted mt-2" id="cn-result-count">&nbsp;</p>
     </main>
 
-    <!-- Modal -->
+    <!-- ═══════════ CREDIT NOTE MODAL ═══════════ -->
     <div id="cn-modal" class="modal-backdrop hidden">
         <div class="modal-content">
-            <div class="flex items-center justify-between border-b p-6">
-                <h3 id="cn-modal-title" class="text-lg font-bold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-file-medical text-rose-500"></i> Yeni Credit Note Dosyası
+            <div class="flex items-center justify-between p-5" style="border-bottom:1px solid var(--border);">
+                <h3 id="cn-modal-title" class="modal-title flex items-center gap-2" style="font-size:16px;font-weight:600;color:var(--ink-1);">
+                    <i class="fa-solid fa-file-invoice-dollar" style="color:var(--danger);"></i> Yeni Credit Note
                 </h3>
-                <button id="btn-close-cn-modal" class="text-[#968B7A] hover:text-slate-300 cursor-pointer">
-                    <i class="fa-solid fa-xmark text-lg"></i>
+                <button id="btn-close-cn-modal" class="btn-soft" style="padding:6px 10px;">
+                    <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
 
-            <form id="cn-form" class="flex-1 overflow-y-auto p-6 space-y-6">
+            <form id="cn-form" class="flex-1 overflow-y-auto p-5 space-y-5" style="min-height:0;">
                 <input type="hidden" id="cn-id">
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-[#FBF8F1] p-4 border border-slate-800 rounded-xl">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Müşteri Firma *</label>
-                        <select id="cn-customer-select" required>
-                            <option value="">-- Müşteri Seçiniz --</option>
-                        </select>
+                <!-- Belge bilgileri -->
+                <div class="cn-card" style="background:var(--surface-2);">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                            <label class="field-label">CN No</label>
+                            <input type="number" id="cn_no" placeholder="Sıra no">
+                        </div>
+                        <div>
+                            <label class="field-label">Belge Tarihi *</label>
+                            <input type="date" id="cn_date" required>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="field-label">Müşteri *</label>
+                            <!-- Yazarak arama (orders.html'deki müşteri seçici ile aynı kalıp):
+                                 446 müşteri arasında düz <select> ile gezmek zordu. -->
+                            <div id="cn-customer-wrapper" style="position:relative;">
+                                <i class="fa-solid fa-magnifying-glass"
+                                   style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-3);font-size:11px;pointer-events:none;z-index:1;"></i>
+                                <input type="text" id="cn-customer-search" autocomplete="off"
+                                       placeholder="Firma adı veya ülke yazarak ara..." style="padding-left:32px !important;">
+                                <input type="hidden" id="cn-customer-select">
+                                <div id="cn-customer-list" class="hidden"
+                                     style="position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--accent);border-radius:6px;max-height:220px;overflow-y:auto;z-index:200;box-shadow:0 8px 24px rgba(28,26,23,0.12);"></div>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Belge Tarihi *</label>
-                        <input type="date" id="cn_date" required>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                        <div>
+                            <label class="field-label">Para Birimi</label>
+                            <select id="cn_currency"></select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="field-label">Uygulanacak Sipariş</label>
+                            <select id="cn_target_order">
+                                <option value="">-- Sipariş Seçiniz --</option>
+                            </select>
+                            <input type="text" id="cn_target_order_text" class="mt-2"
+                                   placeholder="Sipariş henüz sistemde yoksa: 2026-03">
+                        </div>
+                        <div>
+                            <label class="field-label">Süreç Durumu</label>
+                            <select id="cn_process_status"></select>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Süreç Durumu</label>
-                        <select id="process_status">
-                            <option value="İncelemede">İncelemede</option>
-                            <option value="Onaylandı">Onaylandı</option>
-                            <option value="Reddedildi">Reddedildi</option>
-                            <option value="Mahsup Edildi">Mahsup Edildi</option>
-                        </select>
+                    <div class="mt-3">
+                        <label class="field-label">Notlar</label>
+                        <textarea id="cn_notes" rows="2" placeholder="Belgeyle ilgili serbest notlar..."></textarea>
                     </div>
                 </div>
 
-                <div class="space-y-4">
-                    <div class="flex items-center justify-between border-b pb-2">
-                        <h4 class="text-xs font-bold text-[#2D4A3E] uppercase tracking-widest flex items-center gap-2">
-                            <i class="fa-solid fa-boxes-stacked"></i> Şikayet Ürün Kalemleri
-                        </h4>
-                        <button type="button" id="btn-add-item-row" class="text-xs bg-[#E8EEEA]50 hover:bg-[#E8EEEA]00 border border-indigo-900 text-[#2D4A3E] px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer">
-                            <i class="fa-solid fa-plus text-xs"></i> Yeni Satır Ekle
-                        </button>
+                <!-- Kalemler -->
+                <div>
+                    <div class="section-head">
+                        <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);">
+                            <i class="fa-solid fa-boxes-stacked"></i> Şikayet Kalemleri
+                        </h3>
+                        <div class="flex items-center gap-2">
+                            <button type="button" id="btn-import-doc-inline" data-requires-edit class="btn-soft" style="padding:5px 10px;font-size:11.5px;">
+                                <i class="fa-solid fa-file-word" style="color:#2B579A;"></i> Belgeden Doldur
+                            </button>
+                            <button type="button" id="btn-add-item-row" data-requires-edit class="btn-soft" style="padding:5px 10px;font-size:11.5px;">
+                                <i class="fa-solid fa-plus"></i> Satır Ekle
+                            </button>
+                        </div>
                     </div>
-                    <div id="cn-items-container" class="space-y-4"></div>
+                    <div id="cn-items-container" class="space-y-3"></div>
+                </div>
+
+                <!-- Toplam -->
+                <div class="cn-card flex flex-col md:flex-row md:items-center justify-between gap-3" style="background:var(--accent-soft);border-color:#C9DDD0;">
+                    <div>
+                        <div class="cn-kpi-label" style="color:var(--accent);">Hesaplanan Mahsup Toplamı</div>
+                        <div class="cn-kpi-value" id="cn-calc-total" style="color:var(--accent);">—</div>
+                        <div class="cn-kpi-sub" id="cn-free-goods-sub">&nbsp;</div>
+                    </div>
+                    <div style="min-width:230px;">
+                        <label class="field-label">Belgede Yazan Tutar (opsiyonel)</label>
+                        <input type="number" step="0.01" id="cn_total_amount"
+                               placeholder="Boş bırakılırsa hesaplanan kullanılır">
+                        <span class="muted" style="display:block;margin-top:4px;">
+                            Belgede elle yuvarlanmış bir tutar varsa buraya yazın.
+                        </span>
+                    </div>
                 </div>
             </form>
 
-            <div class="flex items-center justify-between border-t border-[#EFEAE0] p-6 bg-slate-950/60">
-                <button type="button" id="btn-delete-cn" data-requires-edit class="hidden px-4 py-2 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/50 text-[#9F3D3D] text-sm font-semibold rounded-lg cursor-pointer">
-                    <i class="fa-solid fa-trash-can"></i> Dosyayı Sil
+            <div class="flex items-center justify-between p-5 gap-3" style="border-top:1px solid var(--border);background:var(--surface-2);">
+                <button type="button" id="btn-delete-cn" data-requires-edit class="btn-danger hidden">
+                    <i class="fa-solid fa-trash-can"></i> Sil
                 </button>
-                <div class="flex items-center gap-3 ml-auto">
-                    <button type="button" id="btn-cn-cancel" class="px-4 py-2 bg-[#FBF8F1] hover:bg-[#FBF8F1] border border-slate-700 rounded-lg text-sm font-semibold text-slate-300 cursor-pointer">İptal / Kapat</button>
-                    <button type="submit" form="cn-form" data-requires-edit class="px-5 py-2 bg-[#9F3D3D] hover:bg-[#7a2e2e]00 text-white rounded-lg text-sm font-semibold cursor-pointer">Değişiklikleri Kaydet</button>
+                <div class="flex items-center gap-2 ml-auto">
+                    <button type="button" id="btn-cn-cancel" class="btn-soft">Vazgeç</button>
+                    <button type="submit" form="cn-form" data-requires-edit class="btn-primary">
+                        <i class="fa-solid fa-floppy-disk"></i> Kaydet
+                    </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════ CN DETAY (SALT OKUNUR) ═══════════ -->
+    <div id="cn-detail-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <div class="flex items-center justify-between p-5" style="border-bottom:1px solid var(--border);">
+                <div id="cn-detail-title" style="min-width:0;"></div>
+                <button id="btn-close-cn-detail" class="btn-soft" style="padding:6px 10px;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-5 overflow-auto" style="min-height:0;">
+                <div id="cn-detail-meta" class="mb-4"></div>
+                <div class="cn-table-wrap" style="max-height:46vh;">
+                    <table class="detail-table">
+                        <thead>
+                            <tr>
+                                <th style="width:34px;">#</th>
+                                <th>Ürün</th>
+                                <th style="width:150px;">Ürün ID / Müşteri Ref</th>
+                                <th style="width:130px;">Karar</th>
+                                <th style="width:110px;">Hata</th>
+                                <th style="width:60px;" class="cn-num">Adet</th>
+                                <th style="width:96px;" class="cn-num">Birim</th>
+                                <th style="width:96px;" class="cn-num">Tutar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cn-detail-body"></tbody>
+                    </table>
+                </div>
+                <div id="cn-detail-notes" class="mt-3"></div>
+            </div>
+            <div class="flex items-center justify-between p-5 gap-3" style="border-top:1px solid var(--border);background:var(--surface-2);">
+                <span class="muted"><i class="fa-solid fa-circle-info"></i> Düzenlemek için sağdaki klasör simgesini kullanın.</span>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="btn-cn-detail-close" class="btn-soft">Kapat</button>
+                    <button type="button" id="btn-cn-detail-edit" data-requires-edit class="btn-primary">
+                        <i class="fa-solid fa-file-pen"></i> Düzenle
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════ BELGEDEN İÇE AKTARMA — ÖNİZLEME ═══════════ -->
+    <div id="doc-preview-modal" class="modal-backdrop hidden">
+        <div class="modal-content narrow">
+            <div class="flex items-center justify-between p-5" style="border-bottom:1px solid var(--border);">
+                <h3 class="modal-title flex items-center gap-2" style="font-size:16px;font-weight:600;color:var(--ink-1);">
+                    <i class="fa-solid fa-file-word" style="color:#2B579A;"></i> Belge Okundu
+                </h3>
+                <button id="btn-close-doc-preview" class="btn-soft" style="padding:6px 10px;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-3 overflow-y-auto" style="min-height:0;">
+                <div id="doc-preview-summary"></div>
+                <div id="doc-preview-log" class="import-log"></div>
+            </div>
+            <div class="flex items-center justify-end gap-2 p-5" style="border-top:1px solid var(--border);background:var(--surface-2);">
+                <button type="button" id="btn-doc-cancel" class="btn-soft">Vazgeç</button>
+                <button type="button" id="btn-doc-apply" class="btn-primary">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Forma Aktar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════ EXCEL TOPLU İÇE AKTARMA ═══════════ -->
+    <div id="import-modal" class="modal-backdrop hidden">
+        <div class="modal-content narrow">
+            <div class="flex items-center justify-between p-5" style="border-bottom:1px solid var(--border);">
+                <h3 class="modal-title flex items-center gap-2" style="font-size:16px;font-weight:600;color:var(--ink-1);">
+                    <i class="fa-solid fa-file-import" style="color:var(--bronze);"></i> Excel'den Toplu Aktarma
+                </h3>
+                <button id="btn-close-import-modal" class="btn-soft" style="padding:6px 10px;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-4 overflow-y-auto" style="min-height:0;">
+                <p class="muted">
+                    <strong style="color:var(--ink-1);">CREDIT NOTE TAKIP.xlsx</strong> dosyasını yükleyin.
+                    Beklenen sütunlar: <em>NO · ÜLKE · MÜŞTERİ · TARİH · ÜRÜNLER · ÜRÜN KODU · ÜRÜN ID · KARAR · SİPARİŞ · AÇIKLAMA</em>.
+                    Satırlar müşteri ve CN No'ya göre gruplanarak Credit Note kayıtlarına dönüştürülür.
+                </p>
+                <div class="drop-zone" id="import-drop-zone">
+                    <i class="fa-solid fa-cloud-arrow-up" style="font-size:26px;color:var(--ink-3);"></i>
+                    <p style="font-size:13px;color:var(--ink-1);margin-top:8px;font-weight:600;">
+                        Dosyayı buraya sürükleyin
+                    </p>
+                    <p class="muted">veya tıklayarak seçin (.xlsx, .xls)</p>
+                    <input type="file" id="import-file-input" accept=".xlsx,.xls" style="display:none;">
+                </div>
+                <label class="flex items-center gap-2" style="font-size:12px;color:var(--ink-2);">
+                    <input type="checkbox" id="import-clear-first">
+                    Aktarmadan önce mevcut tüm Credit Note kayıtlarını sil
+                </label>
+                <div id="import-log-wrap" class="hidden">
+                    <div class="field-label">İşlem Günlüğü</div>
+                    <div id="import-log" class="import-log"></div>
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-2 p-5" style="border-top:1px solid var(--border);background:var(--surface-2);">
+                <button type="button" id="btn-import-cancel" class="btn-soft">Kapat</button>
+                <button type="button" id="btn-import-run" class="btn-primary" disabled>
+                    <i class="fa-solid fa-play"></i> Aktarmayı Başlat
+                </button>
             </div>
         </div>
     </div>

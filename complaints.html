@@ -42,10 +42,55 @@
             padding: 2px 9px; border-radius: 999px;
             font-size: 11px; font-weight: 600;
         }
-        .badge-kabul   { background: #E1EBE4; color: #3D6E50; }
-        .badge-red     { background: #F1DDD9; color: #9F3D3D; }
-        .badge-bekliyor{ background: #F3E5D2; color: #B26B33; }
-        .badge-mahsup  { background: #E0E6EE; color: #3F5C7A; }
+        /* Karar rozetleri — tonlar creditNoteRules.js'teki DECISIONS.tone ile eşleşir */
+        .badge-ok      { background: #E1EBE4; color: #3D6E50; }
+        .badge-danger  { background: #F1DDD9; color: #9F3D3D; }
+        .badge-warn    { background: #F3E5D2; color: #B26B33; }
+        .badge-info    { background: #E0E6EE; color: #3F5C7A; }
+        .badge-muted   { background: #FBF8F1; color: #968B7A; }
+
+        /* ── Hata Kataloğu ── */
+        .defect-grid {
+            display: grid; gap: 14px;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        }
+        .defect-card {
+            border: 1px solid #EFEAE0; border-radius: 10px; overflow: hidden;
+            background: #fff; display: flex; flex-direction: column;
+        }
+        .defect-figure {
+            height: 150px; background: #FBF8F1; display: flex;
+            align-items: center; justify-content: center; position: relative;
+            border-bottom: 1px solid #EFEAE0;
+        }
+        .defect-figure img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .defect-figure .placeholder {
+            font-size: 11px; color: #968B7A; text-align: center; padding: 12px;
+            font-family: Verdana, Geneva, sans-serif;
+        }
+        .defect-body { padding: 12px; flex: 1; }
+        .defect-name {
+            font-size: 13px; font-weight: 700; color: #1C1A17;
+            font-family: Verdana, Geneva, sans-serif;
+        }
+        .defect-en { font-size: 10.5px; color: #968B7A; font-style: italic; }
+        .defect-def {
+            font-size: 11.5px; color: #6B655B; margin-top: 6px; line-height: 1.55;
+            font-family: Verdana, Geneva, sans-serif;
+        }
+        .defect-foot {
+            padding: 8px 12px; border-top: 1px solid #EFEAE0; background: #FBF8F1;
+            display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        }
+        .defect-count {
+            font-size: 11px; color: #6B655B; font-family: Verdana, Geneva, sans-serif;
+        }
+        .defect-upload-btn {
+            font-size: 11px; padding: 4px 9px; border: 1px solid #E4DDCE; border-radius: 6px;
+            background: #fff; color: #6B655B; cursor: pointer;
+            font-family: Verdana, Geneva, sans-serif;
+        }
+        .defect-upload-btn:hover { background: #F0EDE4; }
 
         .progress-bar-bg {
             background: #EFEAE0; border-radius: 999px; height: 6px; overflow: hidden;
@@ -105,10 +150,17 @@
                     Ürün ve müşteri bazlı şikayet analizi · Karar dağılımı · Zaman serisi trendi
                 </p>
             </div>
-            <button id="btn-refresh" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer"
-                style="background:#fff;border:1px solid #E4DDCE;color:#6B655B;font-family:Verdana, Geneva, sans-serif;">
-                <i class="fa-solid fa-rotate-right" style="font-size:12px;"></i> Yenile
-            </button>
+            <div class="flex items-center gap-2">
+                <button id="btn-open-defect-catalog" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer"
+                    style="background:#fff;border:1px solid #E4DDCE;color:#6B655B;font-family:Verdana, Geneva, sans-serif;"
+                    title="Hata kategorilerinin tanımları ve örnek görselleri">
+                    <i class="fa-solid fa-book-open" style="font-size:12px;color:#B26B33;"></i> Hata Kataloğu
+                </button>
+                <button id="btn-refresh" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer"
+                    style="background:#fff;border:1px solid #E4DDCE;color:#6B655B;font-family:Verdana, Geneva, sans-serif;">
+                    <i class="fa-solid fa-rotate-right" style="font-size:12px;"></i> Yenile
+                </button>
+            </div>
         </header>
 
         <!-- ── Filtre Bar ── -->
@@ -136,12 +188,15 @@
                 </div>
                 <div>
                     <label style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#968B7A;display:block;margin-bottom:5px;">Karar Durumu</label>
+                    <!-- Seçenekler creditNoteRules.js'teki DECISIONS listesinden doldurulur -->
                     <select id="filter-decision">
                         <option value="">Tüm Kararlar</option>
-                        <option value="Kabul">Kabul</option>
-                        <option value="Red">Red</option>
-                        <option value="Bekliyor">Bekliyor</option>
-                        <option value="Mahsup">Mahsup</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#968B7A;display:block;margin-bottom:5px;">Hata Kategorisi</label>
+                    <select id="filter-defect">
+                        <option value="">Tüm Hatalar</option>
                     </select>
                 </div>
             </div>
@@ -184,7 +239,7 @@
                     <i class="fa-solid fa-hourglass-half" style="margin-right:5px;color:#3F5C7A;"></i>Bekleyen CN'ler
                 </div>
                 <div id="kpi-pending" class="kpi-value" style="color:#3F5C7A">—</div>
-                <div class="text-caption" style="margin-top:4px">process_status = İncelemede</div>
+                <div class="text-caption" style="margin-top:4px">siparişe işlenmemiş</div>
             </div>
         </section>
 
@@ -290,9 +345,10 @@
                             <tr>
                                 <th>CN Tarihi</th>
                                 <th>Müşteri</th>
-                                <th>Şikayet ID</th>
+                                <th>Ürün ID / Müşteri Ref</th>
                                 <th>Karar</th>
-                                <th>Hedef Sipariş</th>
+                                <th>Hata</th>
+                                <th>Sipariş</th>
                                 <th>Açıklama</th>
                             </tr>
                         </thead>
@@ -302,6 +358,39 @@
             </div>
             <div class="flex justify-end p-5" style="border-top:1px solid #EFEAE0;">
                 <button id="btn-close-product-modal-footer" style="padding:8px 20px;border-radius:6px;border:1px solid #E4DDCE;background:#FBF8F1;color:#6B655B;font-family:Verdana, Geneva, sans-serif;font-size:13px;cursor:pointer;">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Hata Kataloğu Modal ── -->
+    <div id="defect-catalog-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width:72rem;">
+            <div class="flex items-center justify-between p-5" style="border-bottom:1px solid #EFEAE0;">
+                <div>
+                    <h3 class="modal-title">
+                        <i class="fa-solid fa-book-open" style="color:#B26B33;"></i> Hata Kataloğu
+                    </h3>
+                    <p style="font-size:11.5px;color:#968B7A;margin-top:3px;font-family:Verdana, Geneva, sans-serif;">
+                        Kalite kontrol biriminin kullandığı hata tanımları. Credit Note kalemlerinde bu kategoriler seçilir.
+                    </p>
+                </div>
+                <button id="btn-close-defect-catalog" style="background:none;border:none;cursor:pointer;color:#968B7A;font-size:18px;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-5">
+                <div id="defect-grid" class="defect-grid"></div>
+                <input type="file" id="defect-image-input" accept="image/*" style="display:none;">
+            </div>
+            <div class="flex items-center justify-between p-5" style="border-top:1px solid #EFEAE0;">
+                <span style="font-size:11px;color:#968B7A;font-family:Verdana, Geneva, sans-serif;">
+                    <i class="fa-solid fa-circle-info" style="margin-right:4px;"></i>
+                    Örnek görseller <strong>hata-gorselleri</strong> deposunda saklanır.
+                </span>
+                <button id="btn-close-defect-catalog-footer"
+                    style="padding:8px 20px;border-radius:6px;border:1px solid #E4DDCE;background:#FBF8F1;color:#6B655B;font-family:Verdana, Geneva, sans-serif;font-size:13px;cursor:pointer;">
+                    Kapat
+                </button>
             </div>
         </div>
     </div>

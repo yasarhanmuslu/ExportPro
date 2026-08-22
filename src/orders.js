@@ -112,6 +112,70 @@ async function fetchProductsData() {
     }
 }
 
+// Siparişe bağlı Credit Note özeti: order_id -> { count, byCurrency, freeQty, notes[] }
+// Sipariş listesinde "bu siparişte mahsup edilecek CN var" etiketini besler.
+let creditNoteByOrder = new Map();
+
+async function fetchCreditNotesForOrders() {
+    try {
+        const { data, error } = await supabase
+            .from('credit_notes')
+            .select('id, cn_no, cn_date, currency, total_amount, process_status, target_order_id, target_order_text, customer_id, credit_note_items(quantity, unit_price, decision, compensation_type)');
+        if (error) throw error;
+
+        creditNoteByOrder = new Map();
+        (data || []).forEach(cn => {
+            if (cn.process_status === 'İptal') return;
+
+            // Gerçek FK yoksa sipariş numarası metninden eşle (eski kayıtlar).
+            let orderId = cn.target_order_id;
+            if (!orderId && cn.target_order_text) {
+                const bare = cn.target_order_text.replace(/\s*v\.?\s*\d+$/i, '').trim();
+                const o = globalOrders.find(x =>
+                    (x.order_number || '').trim() === bare && x.customer_id === cn.customer_id);
+                if (o) orderId = o.id;
+            }
+            if (!orderId) return;
+
+            if (!creditNoteByOrder.has(orderId)) {
+                creditNoteByOrder.set(orderId, { count: 0, byCurrency: {}, freeQty: 0, open: 0, list: [] });
+            }
+            const e = creditNoteByOrder.get(orderId);
+            e.count++;
+            if (cn.process_status !== 'Siparişe İşlendi') e.open++;
+
+            const amount = effectiveCnTotal(cn);
+            if (amount > 0.005) {
+                const cur = cn.currency || 'EUR';
+                e.byCurrency[cur] = (e.byCurrency[cur] || 0) + amount;
+            }
+            e.freeQty += (cn.credit_note_items || []).reduce((s, i) =>
+                s + (i.compensation_type === 'Bedelsiz' && CN_CREDITED.has(i.decision) ? (Number(i.quantity) || 0) : 0), 0);
+
+            e.list.push(`CN ${cn.cn_no ?? '—'} · ${cn.cn_date} · ${cn.process_status}`);
+        });
+    } catch (err) {
+        // Credit Notes yetkisi olmayan kullanıcıda sipariş listesi yine çalışmalı.
+        console.warn('Credit Note özeti alınamadı:', err.message);
+        creditNoteByOrder = new Map();
+    }
+}
+
+// creditNoteRules.js'i buraya import etmemek için gerekli asgari kurallar.
+// (Alacak yazılan kararlar; %50 tolerans fiyatı belgede zaten indirilmiş olduğu
+//  için ek çarpan yoktur — ayrıntı için creditNoteRules.js.)
+const CN_CREDITED = new Set(['Confirmed', 'Confirmed - Broken', 'Tolerance - %50 Discount']);
+
+function effectiveCnTotal(cn) {
+    const stated = Number(cn.total_amount);
+    if (cn.total_amount !== null && cn.total_amount !== undefined && isFinite(stated)) return stated;
+    return (cn.credit_note_items || []).reduce((s, i) => {
+        if (i.compensation_type === 'Bedelsiz' || !CN_CREDITED.has(i.decision)) return s;
+        const q = Number(i.quantity), p = Number(i.unit_price);
+        return s + (isFinite(q) && isFinite(p) ? q * p : 0);
+    }, 0);
+}
+
 async function fetchOrdersData() {
     try {
         const { data, error } = await supabase
@@ -121,6 +185,7 @@ async function fetchOrdersData() {
         if (error) throw error;
         globalOrders = data || [];
         await autoApplyGecikmeTags(globalOrders);
+        await fetchCreditNotesForOrders();
         renderOrdersList(globalOrders);
     } catch (err) {
         console.error('Sipariş verileri yüklenemedi:', err.message);
@@ -235,6 +300,26 @@ function renderOrdersList(list) {
             ? `<div class="row-note" data-note="${escapeHtml(noteRaw)}" title="${escapeHtml(noteRaw)}" style="cursor:pointer;"><i class="fa-solid fa-note-sticky" style="font-size:10px;margin-right:4px;opacity:0.6;"></i>${escapeHtml(noteTxt)}</div>`
             : '';
 
+        // Credit Note etiketi — bu siparişte mahsup/bedelsiz uygulanacak CN var mı?
+        const cnInfo = creditNoteByOrder.get(order.id);
+        let cnBadge = '';
+        if (cnInfo) {
+            const money = Object.entries(cnInfo.byCurrency)
+                .map(([cur, v]) => `${v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${sym[cur] || cur}`)
+                .join(' + ');
+            const bits = [];
+            if (money) bits.push(money);
+            if (cnInfo.freeQty) bits.push(`${cnInfo.freeQty} ad. bedelsiz`);
+            const label = bits.length ? bits.join(' · ') : `${cnInfo.count} CN`;
+            // Açık CN varsa dikkat çeksin (henüz siparişe işlenmemiş).
+            const cls = cnInfo.open > 0 ? 'cn-tag cn-tag-open' : 'cn-tag';
+            const tip = `${cnInfo.count} Credit Note${cnInfo.open ? ` (${cnInfo.open} tanesi henüz işlenmedi)` : ''}\n${cnInfo.list.join('\n')}`;
+            cnBadge = `<div class="${cls}" title="${escapeHtml(tip)}" data-cn-order="${order.id}" style="cursor:pointer;">
+                <i class="fa-solid fa-file-invoice-dollar" style="font-size:10px;margin-right:4px;"></i>Credit Note: ${escapeHtml(label)}
+                ${cnInfo.open > 0 ? '<i class="fa-solid fa-triangle-exclamation" style="font-size:9px;margin-left:5px;"></i>' : ''}
+            </div>`;
+        }
+
         const row = document.createElement('div');
         row.className = 'order-row';
         row.innerHTML = `
@@ -248,6 +333,7 @@ function renderOrdersList(list) {
                         <div class="row-tags">${tagBadges}</div>
                     </div>
                     ${noteHtml}
+                    ${cnBadge}
                 </div>
                 <div class="row-col-dates">
                     <div class="dates-grid">
@@ -285,6 +371,16 @@ function renderOrdersList(list) {
         el.addEventListener('click', e => {
             e.stopPropagation();
             showAlertDialog(el.getAttribute('data-note'), { title: 'Sipariş Notu', variant: 'info' });
+        });
+    });
+
+    // Credit Note etiketi -> ilgili siparişin CN'lerini Credit Notes modülünde aç
+    container.querySelectorAll('[data-cn-order]').forEach(el => {
+        el.addEventListener('click', e => {
+            e.stopPropagation();
+            const o = globalOrders.find(x => x.id === el.dataset.cnOrder);
+            const q = encodeURIComponent(o?.order_number || '');
+            window.location.href = `credit-notes.html?order=${q}`;
         });
     });
 }
