@@ -10,6 +10,10 @@ import { showAlertDialog, showConfirmDialog } from './utils/dialogs.js';
 import { IdevitCode } from './utils/idevitCodeRules.js';
 import { getAccessContext, guardModuleAccess, applyEditLock, canEdit } from './utils/permissions.js';
 import { logChange } from './utils/auditLog.js';
+import {
+    styleHeaderRow, styleDataRow, addTitleBlock, downloadWorkbook,
+    XL_HEADER_BG, XL_FONT,
+} from './utils/excelStyle.js';
 import './theme.js';
 
 // ── State ───────────────────────────────────────────────────────
@@ -1037,7 +1041,8 @@ async function executeImport() {
 }
 
 // ── Export (Excel) ──────────────────────────────────────────────
-function exportToExcel() {
+// Görsel kalıp diğer modüllerle ortak — bkz. utils/excelStyle.js
+async function exportToExcel() {
     if (allProducts.length === 0) return showAlertDialog('Dışa aktarılacak ürün yok.', { variant: 'warn' });
 
     const headers = [
@@ -1046,24 +1051,50 @@ function exportToExcel() {
         'Fonksiyon Özelliği-3', 'Boyut Özelliği', 'Renk', 'Kalite', 'Ağırlık Net (Kg)',
         'Ağırlık Brüt (Kg)', 'Palet Adedi', 'En (Cm)', 'Boy (Cm)', 'Yükseklik (Cm)', 'Palet Cinsi'
     ];
+    // Kimlik alanları (kod + iki ad) koyu yeşil, öznitelikler zeytin yeşili başlık alır.
+    const PRIMARY_COLS = 3;
+    const NUM_COLS  = [15, 16, 17, 18, 19, 20];   // ağırlık / adet / ölçü sütunları
+    const WIDTHS = [
+        26, 40, 40, 10, 14, 18, 18, 16, 20, 20,
+        20, 18, 12, 12, 15, 15, 12, 10, 10, 14, 16,
+    ];
 
-    const rows = allProducts.map(p => [
-        p.stok_kodu, p.stok_adi_1, p.stok_adi_2, p.birim, p.paketleme,
-        p.seri_adi, p.urun_grubu, p.urun_turu, p.fonksiyon_1, p.fonksiyon_2,
-        p.fonksiyon_3, p.boyut_ozelligi, p.renk, p.kalite, p.agirlik_net,
-        p.agirlik_brut, p.palet_adedi,
-        p.en_cm,
-        p.boy_cm,
-        p.yukseklik_cm,
-        p.palet_cinsi
-    ]);
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Ürün Kartları');
+    ws.columns = WIDTHS.map(width => ({ width }));
 
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-    ws['!cols'] = headers.map((_, i) => ({ wch: i <= 2 ? 36 : 16 }));
+    const titleRows = addTitleBlock(ws, {
+        title: 'Ürün Kartları',
+        subtitle: `${allProducts.length} ürün · Aktarım: ${new Date().toLocaleDateString('tr-TR')}`,
+        colSpan: headers.length,
+    });
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Ürün Kartları');
-    XLSX.writeFile(wb, `Urun_Kartlari_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    styleHeaderRow(ws.addRow(headers), PRIMARY_COLS);
+
+    const num = (v) => (v === null || v === undefined || v === '') ? null : (Number(v) || null);
+
+    allProducts.forEach(p => {
+        const row = ws.addRow([
+            p.stok_kodu || '', p.stok_adi_1 || '', p.stok_adi_2 || '', p.birim || '', p.paketleme || '',
+            p.seri_adi || '', p.urun_grubu || '', p.urun_turu || '', p.fonksiyon_1 || '', p.fonksiyon_2 || '',
+            p.fonksiyon_3 || '', p.boyut_ozelligi || '', p.renk || '', p.kalite || '', num(p.agirlik_net),
+            num(p.agirlik_brut), num(p.palet_adedi), num(p.en_cm), num(p.boy_cm), num(p.yukseklik_cm),
+            p.palet_cinsi || '',
+        ]);
+        styleDataRow(row);
+        row.eachCell((cell, col) => {
+            if (NUM_COLS.includes(col)) {
+                cell.numFmt = col === 17 ? '#,##0' : '#,##0.00';
+                cell.alignment = { ...cell.alignment, horizontal: 'right' };
+            }
+            if (col === 1) cell.font = { name: XL_FONT, size: 10, bold: true, color: { argb: XL_HEADER_BG } };
+        });
+    });
+
+    ws.views = [{ state: 'frozen', xSplit: 1, ySplit: titleRows + 1 }];
+    ws.autoFilter = { from: { row: titleRows + 1, column: 1 }, to: { row: titleRows + 1, column: headers.length } };
+
+    await downloadWorkbook(wb, `Urun_Kartlari_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 // ── Event Bindings ──────────────────────────────────────────────

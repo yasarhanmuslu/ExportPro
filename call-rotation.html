@@ -103,6 +103,52 @@
             transition: all .15s;
         }
         .btn-add-extra:hover { border-color: var(--porc-accent); color: var(--porc-accent); background: var(--surface, #fff); }
+
+        /* ── Firma adı: geçmiş notlar panelini açar ── */
+        .call-company-btn {
+            background: none; border: none; padding: 0; cursor: pointer;
+            font: inherit; color: inherit; text-align: left;
+            border-bottom: 1px dashed transparent; transition: color .12s, border-color .12s;
+        }
+        .call-company-btn:hover { color: var(--porc-accent); border-bottom-color: var(--porc-accent); }
+
+        /* ── Geçmiş Notlar paneli ── */
+        .notes-panel { max-width: 46rem; }
+        .notes-list { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
+        .note-row {
+            display: grid; grid-template-columns: 132px 1fr 30px; gap: 8px; align-items: start;
+            padding: 10px; margin-bottom: 8px; border-radius: 8px;
+            background: var(--surface, #fff); border: 1px solid var(--porc-border);
+        }
+        .note-row input[type="date"], .note-row textarea {
+            width: 100%; box-sizing: border-box;
+            border: 1px solid var(--porc-border); border-radius: 6px;
+            background: var(--porc-surface); color: var(--porc-ink);
+            font-family: Verdana, Geneva, sans-serif; font-size: 12px;
+            padding: 6px 8px; outline: none;
+        }
+        .note-row textarea { resize: vertical; line-height: 1.5; }
+        .note-row input:focus, .note-row textarea:focus {
+            border-color: var(--porc-accent); box-shadow: 0 0 0 3px rgba(45,74,62,0.10);
+        }
+        .note-row[data-readonly="1"] input, .note-row[data-readonly="1"] textarea {
+            background: transparent; border-color: transparent; padding-left: 0;
+        }
+        .btn-note-del {
+            width: 28px; height: 28px; border-radius: 6px; border: 1px solid transparent;
+            background: transparent; color: var(--porc-ink-3); cursor: pointer; font-size: 11px;
+        }
+        .btn-note-del:hover { background: #FCEAEA; border-color: #E8C9C9; color: #9F3D3D; }
+        .notes-empty { padding: 28px 10px; text-align: center; font-size: 12.5px; color: var(--porc-ink-3); }
+        .notes-btn {
+            height: 34px; padding: 0 14px; border-radius: 8px; cursor: pointer;
+            font-size: 12.5px; font-weight: 700; font-family: Verdana, Geneva, sans-serif;
+            display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+            border: 1px solid var(--porc-border); background: var(--porc-surface); color: var(--porc-ink-2);
+        }
+        .notes-btn:hover { border-color: var(--porc-accent); color: var(--porc-accent); }
+        .notes-btn-primary { background: var(--porc-accent); border-color: var(--porc-accent); color: #fff; }
+        .notes-btn-primary:hover { color: #fff; opacity: .9; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -135,6 +181,48 @@
             </div>
         </div>
     </main>
+
+    <!-- ── Müşteri Kaydını Düzenle → Geçmiş Notlar ──
+         Arama listesinde firma adına tıklanınca açılır; notlara bakmak için
+         Müşteri Kartları modülüne geçmek gerekmesin diye buraya taşındı. -->
+    <div id="notes-modal" class="modal-backdrop hidden">
+        <div class="modal-content notes-panel">
+            <div class="flex items-start justify-between gap-3 border-b pb-3 mb-3" style="border-color:var(--porc-border);flex-shrink:0;">
+                <div style="min-width:0;">
+                    <div class="text-xs font-semibold" style="color:var(--porc-ink-3);letter-spacing:.08em;text-transform:uppercase;">
+                        Müşteri Kaydını Düzenle
+                    </div>
+                    <h3 id="notes-modal-title" class="text-lg font-bold flex items-center gap-2 mt-1" style="color:var(--porc-ink);">
+                        <i class="fa-solid fa-clock-rotate-left" style="color:var(--porc-accent);"></i>
+                        <span id="notes-modal-company"></span>
+                    </h3>
+                    <p id="notes-modal-sub" class="text-xs mt-1" style="color:var(--porc-ink-2);"></p>
+                </div>
+                <button type="button" id="notes-modal-close" class="cursor-pointer" style="color:var(--porc-ink-3);">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div id="notes-list" class="notes-list"></div>
+
+            <div class="flex items-center justify-between gap-3 border-t pt-4 mt-3" style="border-color:var(--porc-border);flex-shrink:0;flex-wrap:wrap;">
+                <div class="flex items-center gap-2">
+                    <button type="button" id="btn-note-add" class="notes-btn">
+                        <i class="fa-solid fa-plus"></i> Yeni Not Ekle
+                    </button>
+                    <a id="link-open-customer" class="notes-btn" href="#" title="Tüm müşteri kartını aç">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Müşteri Kartı
+                    </a>
+                </div>
+                <div class="flex items-center gap-2 ml-auto">
+                    <button type="button" id="btn-notes-cancel" class="notes-btn">Kapat</button>
+                    <button type="button" id="btn-notes-save" class="notes-btn notes-btn-primary">
+                        <i class="fa-solid fa-floppy-disk"></i> Kaydet
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script type="module" src="./src/call-rotation.js"></script>
 </body>

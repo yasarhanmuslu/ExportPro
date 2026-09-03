@@ -3,6 +3,7 @@ import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
 import { showAlertDialog, showConfirmDialog } from './utils/dialogs.js';
+import { attachProductAutocomplete, closeProductPicker } from './utils/productPicker.js';
 import { getAccessContext, guardModuleAccess, applyEditLock, canEdit } from './utils/permissions.js';
 import { logChange } from './utils/auditLog.js';
 import {
@@ -530,6 +531,7 @@ async function openModalForEdit(id) {
 
 function closeOrderModal() {
     document.getElementById('order-modal').classList.add('hidden');
+    closeProductPicker();
     orderItemsBuffer = [];
     currentOrderId   = null;
 }
@@ -855,9 +857,6 @@ function renderItemsTable() {
         tr.innerHTML = `
             <td style="position:relative;">
                 ${productCell}
-                <div class="ac-dropdown hidden" data-idx="${idx}"
-                    style="position:absolute;top:100%;left:0;right:0;z-index:60;max-height:220px;overflow-y:auto;
-                           background:#fff;border:1px solid #E4DDCE;border-radius:6px;margin-top:2px;box-shadow:0 4px 16px rgba(0,0,0,.12);"></div>
             </td>
             <td style="width:230px;">
                 <input type="text" class="item-product-code" data-idx="${idx}" value="${escapeHtml(item.product_code || '')}" placeholder="Ürün kodu" style="height:34px;font-size:11.5px;white-space:nowrap;">
@@ -886,54 +885,22 @@ function renderItemsTable() {
         tbody.appendChild(tr);
     });
 
-    // ── Ürün autocomplete — sadece görünür arama input'larına bağla ──
+    // ── Ürün autocomplete — açılır liste gövdeye basılır (bkz. utils/productPicker.js) ──
+    attachProductAutocomplete({
+        root: tbody,
+        getProducts: () => globalProducts,
+        onSelect: (prod, idx) => {
+            orderItemsBuffer[idx].product_id   = prod.id;
+            orderItemsBuffer[idx].product_name = prod.stok_adi_1;
+            orderItemsBuffer[idx].product_code = prod.stok_kodu || '';
+            renderItemsTable();
+        },
+    });
+
+    // Ürün seçilmemiş satırlarda serbest metin de kabul edilir
     tbody.querySelectorAll('.item-search').forEach(inp => {
         if (inp.classList.contains('hidden')) return;
-
         const idx = parseInt(inp.dataset.idx);
-        const dd  = tbody.querySelector(`.ac-dropdown[data-idx="${idx}"]`);
-        let debounce = null;
-
-        inp.addEventListener('input', () => {
-            clearTimeout(debounce);
-            debounce = setTimeout(() => {
-                const q = inp.value.toLocaleLowerCase('tr-TR').trim();
-                if (q.length < 1) { dd.classList.add('hidden'); return; }
-
-                const matches = globalProducts.filter(p => {
-                    const hay = [p.stok_kodu || '', p.stok_adi_1 || '', p.stok_adi_2 || '']
-                        .join(' ').toLocaleLowerCase('tr-TR');
-                    return q.split(/\s+/).every(w => hay.includes(w));
-                }).slice(0, 30);
-
-                dd.innerHTML = matches.length === 0
-                    ? `<div style="padding:8px 10px;font-size:11px;color:#968B7A;">Sonuç yok</div>`
-                    : matches.map(p => `
-                        <div class="ac-option" data-pid="${p.id}" style="padding:7px 10px;cursor:pointer;border-bottom:1px solid #F0EDE4;">
-                            <div style="font-size:11px;font-weight:600;color:#1C1A17;">${escapeHtml(p.stok_adi_1)}</div>
-                            ${p.stok_adi_2 ? `<div style="font-size:10px;color:#6B655B;">${escapeHtml(p.stok_adi_2)}</div>` : ''}
-                            <div style="font-size:10px;color:#968B7A;margin-top:2px;">${escapeHtml(p.stok_kodu || '')}${p.renk ? ' &middot; ' + escapeHtml(p.renk) : ''}</div>
-                        </div>`).join('');
-                dd.classList.remove('hidden');
-
-                dd.querySelectorAll('.ac-option').forEach(opt => {
-                    opt.addEventListener('mouseenter', () => opt.style.background = '#F6F3EC');
-                    opt.addEventListener('mouseleave', () => opt.style.background = '');
-                    opt.addEventListener('mousedown', e => {
-                        e.preventDefault();
-                        const prod = globalProducts.find(p => p.id === opt.dataset.pid);
-                        if (!prod) return;
-                        orderItemsBuffer[idx].product_id   = prod.id;
-                        orderItemsBuffer[idx].product_name = prod.stok_adi_1;
-                        orderItemsBuffer[idx].product_code = prod.stok_kodu || '';
-                        renderItemsTable();
-                    });
-                });
-            }, 120);
-        });
-
-        inp.addEventListener('blur', () => setTimeout(() => dd.classList.add('hidden'), 150));
-        inp.addEventListener('focus', () => { if (inp.value.length >= 1) inp.dispatchEvent(new Event('input')); });
         inp.addEventListener('change', () => {
             if (!orderItemsBuffer[idx].product_id) orderItemsBuffer[idx].product_name = inp.value.trim();
         });

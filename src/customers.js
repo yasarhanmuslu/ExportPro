@@ -42,7 +42,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     initEventListeners();
     initTabs();
     applyEditLock(ctx, 'customers');
+    openFromQueryParams();
 });
+
+// Başka modüllerden derin bağlantı: customers.html?customer=<id>&tab=tab-history
+// (Günlük Arama Listesi'ndeki "Müşteri Kartı" butonu bunu kullanır.)
+function openFromQueryParams() {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('customer');
+    if (!id) return;
+    if (!globalCustomers.some(c => c.id === id)) return; // silinmiş / yetki dışı kayıt
+    openModalForEdit(id);
+    const tab = params.get('tab');
+    if (tab && document.getElementById(tab)) switchTab(tab);
+}
 
 // ════════════════════════════════════════════════════════════════
 //  VERİ ÇEKME

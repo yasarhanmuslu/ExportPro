@@ -98,6 +98,22 @@ export const DEFECTS = [
         definition: 'Ürünün tabanının gereğinden fazla taşlanması sonucu meydana gelen hata.',
         group: 'İşçilik',
     },
+    // Aşağıdaki iki başlık ürünün kalitesiyle değil sevkiyatın içeriğiyle ilgilidir;
+    // kusur görseli beklenmez, o yüzden ayrı bir grupta tutuluyor.
+    {
+        id: 'yanlis-urun',
+        name: 'Yanlış Ürün',
+        en: 'Wrong Product',
+        definition: 'Siparişte istenen üründen farklı bir ürünün sevk edilmesi.',
+        group: 'Sevkiyat',
+    },
+    {
+        id: 'eksik-urun',
+        name: 'Eksik Ürün',
+        en: 'Missing Product',
+        definition: 'Siparişte yer aldığı hâlde sevkiyattan çıkmayan ya da eksik adette gönderilen ürün.',
+        group: 'Sevkiyat',
+    },
 ];
 
 const DEFECT_BY_ID = new Map(DEFECTS.map(d => [d.id, d]));

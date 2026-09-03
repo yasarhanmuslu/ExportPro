@@ -198,6 +198,10 @@ function renderList() {
     container.querySelectorAll('.btn-add-extra').forEach(btn => {
         btn.addEventListener('click', () => addExtraCustomer(btn.getAttribute('data-status')));
     });
+
+    container.querySelectorAll('.btn-open-notes').forEach(btn => {
+        btn.addEventListener('click', () => openNotesPanel(btn.getAttribute('data-id')));
+    });
 }
 
 // Havuzda gösterilenlerin dışında henüz listeye alınmamış bir sonraki müşteriyi ekler
@@ -275,7 +279,8 @@ function cardHtml(c, todayStr) {
         <div class="call-card ${done ? 'done' : ''}" data-id="${c.id}">
             <div class="call-card-info">
                 <div class="text-sm font-semibold" style="color:var(--porc-ink);">
-                    ${escapeHtml(c.company_name)}
+                    <button type="button" class="call-company-btn btn-open-notes" data-id="${c.id}"
+                            title="Geçmiş notları aç">${escapeHtml(c.company_name)}</button>
                     <span class="call-badge ${badgeClass}">${escapeHtml(c.status)}</span>${countryBadge}
                 </div>
                 <div class="text-xs" style="color:var(--porc-ink-2);">${escapeHtml(contactLine)}</div>
@@ -333,6 +338,161 @@ async function markCustomerContacted(customerId, kind) {
         await showAlertDialog('Kayıt sırasında bir hata oluştu: ' + error.message, { variant: 'danger', title: 'Hata' });
     }
 }
+
+// ════════════════════════════════════════════════════════════════
+//  GEÇMİŞ NOTLAR PANELİ
+//  Müşteri Kartları'ndaki "Geçmiş Notlar" sekmesiyle aynı veriyi
+//  (customers.history_notes) düzenler — temsilcinin not okumak için
+//  modül değiştirmesi gerekmesin diye buraya taşındı.
+// ════════════════════════════════════════════════════════════════
+let notesCustomerId = null;
+let notesBuffer = [];      // [{ date, note }]
+let notesEditable = false;
+
+function openNotesPanel(customerId) {
+    const customer = currentItems.find(c => c.id === customerId);
+    if (!customer) return;
+
+    notesCustomerId = customerId;
+    notesEditable = canEdit(ctx, 'customers');
+    // Kopya üzerinde çalışılır — Kaydet'e basılmadan yapılan değişiklikler kartı bozmaz.
+    notesBuffer = parseHistoryNotes(customer.history_notes).map(n => ({
+        date: n.date || '', note: n.note || '',
+    }));
+
+    document.getElementById('notes-modal-company').textContent = customer.company_name || '—';
+    document.getElementById('notes-modal-sub').textContent = [
+        customer.country,
+        customer.contact_name,
+        customer.last_called_at ? `Son arama: ${formatDate(customer.last_called_at)}` : 'Daha önce hiç aranmamış',
+    ].filter(Boolean).join(' · ');
+
+    // Tam kart düzenlemesi için Müşteri Kartları'na derin bağlantı
+    document.getElementById('link-open-customer').href =
+        `customers.html?customer=${encodeURIComponent(customerId)}&tab=tab-history`;
+
+    document.getElementById('btn-note-add').style.display  = notesEditable ? '' : 'none';
+    document.getElementById('btn-notes-save').style.display = notesEditable ? '' : 'none';
+
+    renderNotesList();
+    document.getElementById('notes-modal').classList.remove('hidden');
+}
+
+function closeNotesPanel() {
+    document.getElementById('notes-modal').classList.add('hidden');
+    notesCustomerId = null;
+    notesBuffer = [];
+}
+
+function renderNotesList() {
+    const wrap = document.getElementById('notes-list');
+    if (notesBuffer.length === 0) {
+        wrap.innerHTML = notesEditable
+            ? `<div class="notes-empty">Henüz not eklenmemiş. "Yeni Not Ekle" ile başlayın.</div>`
+            : `<div class="notes-empty">Henüz not eklenmemiş.</div>`;
+        return;
+    }
+
+    // En yeni not üstte görünsün; kaydederken orijinal (kronolojik) sıraya dönülür.
+    const order = notesBuffer.map((n, i) => i).sort((a, b) => {
+        const da = notesBuffer[a].date || '', db = notesBuffer[b].date || '';
+        if (da === db) return b - a;
+        return db.localeCompare(da);
+    });
+
+    wrap.innerHTML = order.map(i => {
+        const n = notesBuffer[i];
+        return `
+        <div class="note-row" data-idx="${i}" ${notesEditable ? '' : 'data-readonly="1"'}>
+            <input type="date" data-idx="${i}" data-field="date" value="${escapeHtml(n.date)}" ${notesEditable ? '' : 'readonly'}>
+            <textarea data-idx="${i}" data-field="note" rows="2" placeholder="Not" ${notesEditable ? '' : 'readonly'}>${escapeHtml(n.note)}</textarea>
+            ${notesEditable
+                ? `<button type="button" class="btn-note-del" data-idx="${i}" title="Notu sil"><i class="fa-solid fa-trash-can"></i></button>`
+                : '<span></span>'}
+        </div>`;
+    }).join('');
+
+    wrap.querySelectorAll('textarea').forEach(autoGrowNote);
+
+    if (!notesEditable) return;
+
+    wrap.querySelectorAll('input, textarea').forEach(el => {
+        el.addEventListener('input', e => {
+            const idx = +e.target.dataset.idx;
+            notesBuffer[idx][e.target.dataset.field] = e.target.value;
+            if (e.target.tagName === 'TEXTAREA') autoGrowNote(e.target);
+        });
+    });
+    wrap.querySelectorAll('.btn-note-del').forEach(btn => {
+        btn.addEventListener('click', () => {
+            notesBuffer.splice(+btn.dataset.idx, 1);
+            renderNotesList();
+        });
+    });
+}
+
+function autoGrowNote(el) {
+    const MAX = 160;
+    el.style.height = 'auto';
+    const target = Math.max(46, el.scrollHeight);
+    el.style.height = Math.min(target, MAX) + 'px';
+    el.style.overflowY = target > MAX ? 'auto' : 'hidden';
+}
+
+function addNoteRow() {
+    notesBuffer.push({ date: new Date().toISOString().slice(0, 10), note: '' });
+    renderNotesList();
+    const wrap = document.getElementById('notes-list');
+    const last = wrap.querySelector(`.note-row[data-idx="${notesBuffer.length - 1}"] textarea`);
+    if (last) last.focus();
+}
+
+async function saveNotesPanel() {
+    if (!notesCustomerId) return;
+    if (!notesEditable) {
+        await showAlertDialog('Bu modülde düzenleme yetkiniz yok.', { variant: 'warn' });
+        return;
+    }
+    // Tarihi de metni de boş olan satırlar kaydedilmez (Müşteri Kartları ile aynı kural).
+    const cleaned = notesBuffer.filter(n => (n.date && n.date.trim()) || (n.note && n.note.trim()));
+
+    try {
+        const { error } = await supabase
+            .from('customers')
+            .update({ history_notes: JSON.stringify(cleaned), updated_at: new Date().toISOString() })
+            .eq('id', notesCustomerId)
+            .eq('user_id', ctx.ownerId);
+        if (error) throw error;
+
+        const item = currentItems.find(c => c.id === notesCustomerId);
+        const companyName = item?.company_name || notesCustomerId;
+        if (item) item.history_notes = JSON.stringify(cleaned);
+
+        logChange({
+            ctx, moduleId: 'customers', action: 'update',
+            summary: `Geçmiş notlar güncellendi (arama listesi): ${companyName}`,
+        });
+
+        closeNotesPanel();
+        renderList();
+    } catch (error) {
+        console.error('Notlar kaydedilemedi:', error.message);
+        await showAlertDialog('Notlar kaydedilemedi: ' + error.message, { variant: 'danger', title: 'Hata' });
+    }
+}
+
+document.getElementById('notes-modal-close').addEventListener('click', closeNotesPanel);
+document.getElementById('btn-notes-cancel').addEventListener('click', closeNotesPanel);
+document.getElementById('btn-note-add').addEventListener('click', addNoteRow);
+document.getElementById('btn-notes-save').addEventListener('click', saveNotesPanel);
+document.getElementById('notes-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'notes-modal') closeNotesPanel();
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !document.getElementById('notes-modal').classList.contains('hidden')) {
+        closeNotesPanel();
+    }
+});
 
 // ════════════════════════════════════════════════════════════════
 //  YARDIMCI

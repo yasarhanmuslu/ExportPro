@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="./src/assets/css/theme.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
     <script>
         if (window.pdfjsLib) {
@@ -111,7 +112,6 @@
             font-size: 10.5px; font-weight: 700;
             display: flex; align-items: center; justify-content: center;
         }
-        .cn-item-row { padding-left: 40px; }
 
         /* Katalogda olmayan ürün kodu işareti */
         .code-unknown { border-color: var(--warn) !important; }
@@ -154,7 +154,10 @@
         /* ── Kalem satırları (modal) ── */
         .cn-item-row {
             background: var(--surface-2); border: 1px solid var(--border-soft);
-            border-radius: 10px; padding: 12px; position: relative;
+            border-radius: 10px; position: relative;
+            /* Sol boşluk sıra numarası rozeti için — kısayol padding ile birlikte
+               yazılmalı, ayrı kural olarak verilirse bu satır onu eziyor. */
+            padding: 12px 12px 12px 40px;
         }
         .cn-item-row.is-dup { border-color: var(--danger); box-shadow: 0 0 0 2px rgba(159,61,61,0.10); }
         .cn-item-row input, .cn-item-row select { height: 34px; font-size: 12px !important; }

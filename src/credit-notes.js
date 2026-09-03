@@ -6,6 +6,10 @@ import { getAccessContext, guardModuleAccess, applyEditLock, canEdit } from './u
 import { logChange } from './utils/auditLog.js';
 import { DEFECTS, defectLabel, matchDefect } from './utils/defectCatalog.js';
 import {
+    styleHeaderRow, styleDataRow, addTitleBlock, downloadWorkbook,
+    XL_HEADER_BG, XL_FONT,
+} from './utils/excelStyle.js';
+import {
     parseCreditNoteFile,
     matchCustomer as matchCustomerIn,
     matchCustomerDetailed,
@@ -1508,43 +1512,79 @@ function readImportFile(file) {
 // ═════════════════════════════════════════════════════════════════════════════
 // EXCEL'E AKTARMA
 // ═════════════════════════════════════════════════════════════════════════════
-function exportToExcel() {
+// Görsel kalıp diğer modüllerle ortak — bkz. utils/excelStyle.js
+async function exportToExcel() {
     if (globalCreditNotes.length === 0) {
         showAlertDialog('Dışa aktarılacak kayıt yok.', { variant: 'warn' });
         return;
     }
     const notes = applyFilters();
-    const rows = [[
+    if (notes.length === 0) {
+        showAlertDialog('Seçili filtrelerle eşleşen kayıt yok.', { variant: 'warn' });
+        return;
+    }
+
+    const headers = [
         'No', 'Ülke', 'Müşteri', 'Tarih', 'Ürün', 'Ürün Kodu', 'Ürün ID', 'Müşteri Ref',
         'Karar', 'Hata Kategorisi', 'Telafi', 'Adet', 'Birim Fiyat', 'Tutar', 'Döviz',
         'Sipariş', 'Süreç Durumu', 'Açıklama', 'CN Notu',
-    ]];
+    ];
+    // No / Ülke / Müşteri kimlik alanları koyu yeşil, kalanı zeytin yeşili başlık alır.
+    const PRIMARY_COLS = 3;
+    const WIDTHS = [
+        8, 16, 26, 12, 38, 24, 15, 20, 20, 20,
+        12, 9, 13, 13, 8, 16, 18, 32, 32,
+    ];
+    const MONEY_COLS = [13, 14];
+    const RIGHT_COLS = [12, 13, 14];
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Credit Notes');
+    ws.columns = WIDTHS.map(width => ({ width }));
+
+    let itemCount = 0;
+    notes.forEach(n => { itemCount += (n.credit_note_items || []).length; });
+
+    const titleRows = addTitleBlock(ws, {
+        title: 'Credit Notes',
+        subtitle: `${notes.length} credit note · ${itemCount} kalem · Aktarım: ${new Date().toLocaleDateString('tr-TR')}`,
+        colSpan: headers.length,
+    });
+
+    styleHeaderRow(ws.addRow(headers), PRIMARY_COLS);
 
     notes.forEach(n => {
         const order = orderLabel(n);
         (n.credit_note_items || []).forEach(i => {
-            rows.push([
-                n.cn_no ?? '', n.customers?.country || '', n.customers?.company_name || '', n.cn_date || '',
+            const row = ws.addRow([
+                n.cn_no ?? '', n.customers?.country || '', n.customers?.company_name || '',
+                n.cn_date ? new Date(n.cn_date) : null,
                 i.product_name || '', i.product_code || '', i.product_serial || '', i.customer_ref || '',
                 i.decision ? decisionLabel(i.decision) : '', i.defect_category ? defectLabel(i.defect_category) : '',
                 i.compensation_type || '', Number(i.quantity) || 0,
-                i.unit_price === null || i.unit_price === undefined ? '' : Number(i.unit_price),
-                lineAmount(i) || '', n.currency || '',
+                (i.unit_price === null || i.unit_price === undefined) ? null : Number(i.unit_price),
+                lineAmount(i) || null, n.currency || '',
                 i.target_order_text_override || order, n.process_status || '',
                 i.description || '', n.notes || '',
             ]);
+            styleDataRow(row);
+            row.eachCell((cell, col) => {
+                if (col === 1) cell.font = { name: XL_FONT, size: 10, bold: true, color: { argb: XL_HEADER_BG } };
+                if (col === 4) { cell.numFmt = 'dd.mm.yyyy'; cell.alignment = { ...cell.alignment, horizontal: 'center' }; }
+                if (MONEY_COLS.includes(col)) cell.numFmt = '#,##0.00';
+                if (RIGHT_COLS.includes(col)) cell.alignment = { ...cell.alignment, horizontal: 'right' };
+                if (col === 15) cell.alignment = { ...cell.alignment, horizontal: 'center' };
+                if (col === 14) cell.font = { name: XL_FONT, size: 10, bold: true, color: { argb: XL_HEADER_BG } };
+                // Açıklama / CN notu uzun metin — sütun içinde sarılsın
+                if (col === 18 || col === 19) cell.alignment = { ...cell.alignment, wrapText: true, vertical: 'top' };
+            });
         });
     });
 
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [
-        { wch: 6 }, { wch: 14 }, { wch: 22 }, { wch: 11 }, { wch: 34 }, { wch: 22 }, { wch: 14 },
-        { wch: 18 }, { wch: 20 }, { wch: 16 }, { wch: 10 }, { wch: 7 }, { wch: 11 }, { wch: 11 },
-        { wch: 7 }, { wch: 12 }, { wch: 16 }, { wch: 28 }, { wch: 28 },
-    ];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Credit Notes');
-    XLSX.writeFile(wb, `Credit_Notes_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    ws.views = [{ state: 'frozen', ySplit: titleRows + 1 }];
+    ws.autoFilter = { from: { row: titleRows + 1, column: 1 }, to: { row: titleRows + 1, column: headers.length } };
+
+    await downloadWorkbook(wb, `Credit_Notes_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

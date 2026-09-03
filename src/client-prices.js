@@ -4,6 +4,10 @@ import { requireAuth } from './auth/auth.js';
 import { showAlertDialog, showConfirmDialog } from './utils/dialogs.js';
 import { getAccessContext, guardModuleAccess, applyEditLock, canEdit } from './utils/permissions.js';
 import { logChange } from './utils/auditLog.js';
+import {
+    styleHeaderRow, safeSheetName, downloadWorkbook, xlBorder, safeFileNamePart,
+    XL_HEADER_BG, XL_ROW_BG, XL_TEXT, XL_ACCENT_FG,
+} from './utils/excelStyle.js';
 
 // Global veriler
 let globalCustomers = [];
@@ -891,52 +895,7 @@ function applySearch() {
 }
 
 // ─── EXCEL DIŞA AKTARMA ───────────────────────────────────────
-// Renk paleti ve stil kalıbı Fiyat Robotu (prices.js) ile birebir aynı.
-const XL_HEADER_BG   = 'FF2D4A3E';
-const XL_HEADER_BG_2 = 'FF4A6741';
-const XL_HEADER_FG   = 'FFFFFFFF';
-const XL_BORDER      = 'FFD6D2C9';
-const XL_ROW_BG      = 'FFF6F3EC';
-const XL_TEXT        = 'FF1C1A17';
-const XL_ACCENT_FG   = 'FFB5651D';
-
-function xlBorder() {
-    const side = { style: 'thin', color: { argb: XL_BORDER } };
-    return { top: side, bottom: side, left: side, right: side };
-}
-
-// Excel sayfa adı kısıtları: 31 karakter, : \ / ? * [ ] yasak
-function safeSheetName(name, used) {
-    let base = (name || 'Musteri').replace(/[:\\\/\?\*\[\]]/g, '-').slice(0, 28).trim() || 'Musteri';
-    let candidate = base, i = 2;
-    while (used.has(candidate)) { candidate = `${base.slice(0, 26)}_${i++}`; }
-    used.add(candidate);
-    return candidate;
-}
-
-function styleHeaderRow(row, primaryCols) {
-    row.height = 34;
-    row.eachCell((cell, col) => {
-        cell.font = { name: 'Arial', bold: true, size: 10, color: { argb: XL_HEADER_FG } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: col <= primaryCols ? XL_HEADER_BG : XL_HEADER_BG_2 } };
-        cell.border = xlBorder();
-        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-    });
-}
-
-function downloadWorkbook(wb, filename) {
-    return wb.xlsx.writeBuffer().then(buffer => {
-        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    });
-}
+// Renk paleti ve stil kalıbı tüm modüllerle ortak — bkz. utils/excelStyle.js
 
 // Seçili müşteriler varsa yalnızca onlar, yoksa tümü.
 // Her müşteri ayrı sayfa — birden fazla müşteri seçilse de tek dosya.
@@ -1016,7 +975,7 @@ async function exportToExcel() {
 
     const stamp = new Date().toISOString().slice(0, 10);
     const name = groups.length === 1
-        ? `Fiyat_${groups[0].company_name.replace(/[^\wÇĞİÖŞÜçğıöşü -]/g, '')}_${stamp}.xlsx`
+        ? `Fiyat_${safeFileNamePart(groups[0].company_name)}_${stamp}.xlsx`
         : `Musteri_Sabit_Fiyatlar_${groups.length}_Musteri_${stamp}.xlsx`;
     await downloadWorkbook(wb, name);
 }
