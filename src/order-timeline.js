@@ -12,6 +12,11 @@ let allOrders = [];
 let allNotes = [];
 let currentFilter = 'all';
 let currentView = 'calendar';
+// Liste görünümünün kendi filtreleri
+let listSearch = '';
+let listStatus = '';
+let listPayment = '';
+let listSort = 'shipment_asc';
 let calYear = new Date().getFullYear();
 let calMonth = new Date().getMonth(); // 0-based
 
@@ -439,13 +444,88 @@ document.addEventListener('keydown', (e) => {
 // ══════════════════════════════
 //  LİSTE GÖRÜNÜMÜ
 // ══════════════════════════════
+// Ödeme ile ilgili etiketler — "Ödeme" sütununda gösterilir
+const PAYMENT_TAGS = ['Bakiye Bekliyor', 'Ödeme Tamamlandı'];
+
+const getOrderTags = (o) => (o.status_tags && o.status_tags.length > 0)
+    ? o.status_tags : [o.order_status || 'Devam Ediyor'];
+
+const CURRENCY_SYMBOL = { EUR: '€', USD: '$', TRY: '₺', GBP: '£' };
+const fmtMoney = (v, cur) => {
+    const n = parseFloat(v);
+    if (!isFinite(n)) return '';
+    return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        + ' ' + (CURRENCY_SYMBOL[cur] || cur || '');
+};
+
+// Ödeme durumu: 'paid' | 'partial' | 'unpaid'
+function getPaymentState(o) {
+    if (getOrderTags(o).includes('Ödeme Tamamlandı')) return 'paid';
+    const total = parseFloat(o.total_amount) || 0;
+    const adv   = parseFloat(o.advance_payment) || 0;
+    const rem   = (o.remaining_balance !== null && o.remaining_balance !== undefined)
+        ? parseFloat(o.remaining_balance) : (total - adv);
+    if (total > 0 && rem <= 0.005) return 'paid';
+    if (adv > 0) return 'partial';
+    return 'unpaid';
+}
+
+const PAYMENT_STATE_LABEL = {
+    paid:    { text: 'Ödendi',         cls: 'status-ok',     icon: 'fa-circle-check' },
+    partial: { text: 'Avans Alındı',   cls: 'status-warn',   icon: 'fa-coins' },
+    unpaid:  { text: 'Ödeme Bekliyor', cls: 'status-danger', icon: 'fa-hourglass-half' },
+};
+
+// ── Liste filtreleri (arama / durum etiketi / ödeme / sıralama)
+function getListRows() {
+    let rows = getFiltered();
+
+    const q = listSearch.trim().toLocaleLowerCase('tr-TR');
+    if (q) {
+        rows = rows.filter(o => {
+            const hay = [
+                o.customers?.company_name || '',
+                o.order_number || '',
+                o.idevit_order_no || '',
+                o.ideal_order_no || '',
+            ].join(' ').toLocaleLowerCase('tr-TR');
+            return hay.includes(q);
+        });
+    }
+
+    if (listStatus) rows = rows.filter(o => getOrderTags(o).includes(listStatus));
+    if (listPayment) rows = rows.filter(o => getPaymentState(o) === listPayment);
+
+    const ts = (d) => d ? new Date(d).getTime() : null;
+    const byDate = (field, dir) => (a, b) => {
+        const av = ts(a[field]), bv = ts(b[field]);
+        if (av === null && bv === null) return 0;
+        if (av === null) return 1;   // tarihi olmayanlar her zaman sona
+        if (bv === null) return -1;
+        return dir === 'asc' ? av - bv : bv - av;
+    };
+    const SORTS = {
+        shipment_asc:  byDate('shipment_date', 'asc'),
+        shipment_desc: byDate('shipment_date', 'desc'),
+        due_asc:       byDate('due_date', 'asc'),
+        due_desc:      byDate('due_date', 'desc'),
+        order_asc:     byDate('order_date', 'asc'),
+        order_desc:    byDate('order_date', 'desc'),
+        company_asc:   (a, b) => (a.customers?.company_name || '')
+            .localeCompare(b.customers?.company_name || '', 'tr'),
+    };
+    return rows.slice().sort(SORTS[listSort] || SORTS.shipment_asc);
+}
+
 function renderList() {
     const body = document.getElementById('list-body');
     const empty = document.getElementById('list-empty');
+    const countEl = document.getElementById('list-count');
     const today = new Date(); today.setHours(0,0,0,0);
     const in7 = new Date(today); in7.setDate(in7.getDate()+7);
 
-    const filtered = getFiltered();
+    const filtered = getListRows();
+    if (countEl) countEl.textContent = `${filtered.length} Sipariş`;
 
     if (filtered.length === 0) {
         body.innerHTML = '';
@@ -464,16 +544,12 @@ function renderList() {
     const dueBadge = (dateStr, o) => {
         if (!dateStr) return '<span style="color:var(--ink-3);">—</span>';
         const d = new Date(dateStr); d.setHours(0,0,0,0);
-        const tags = (o.status_tags && o.status_tags.length > 0) ? o.status_tags : [o.order_status || ''];
-        const isDone = tags.some(t => CLOSED_TAGS_LIST.includes(t));
+        const isDone = getOrderTags(o).some(t => CLOSED_TAGS_LIST.includes(t));
         if (isDone) return `<span class="status-badge status-ok"><i class="fa-solid fa-check" style="font-size:8px;"></i> Kapandı</span>`;
         if (d < today) return `<span class="status-badge status-danger"><i class="fa-solid fa-circle-exclamation" style="font-size:8px;"></i> Gecikiyor</span>`;
         if (d <= in7) return `<span class="status-badge status-warn"><i class="fa-solid fa-clock" style="font-size:8px;"></i> Yaklaşıyor</span>`;
         return `<span class="status-badge status-ok"><i class="fa-solid fa-circle-check" style="font-size:8px;"></i> Zamanında</span>`;
     };
-
-    const getOrderTags = (o) => (o.status_tags && o.status_tags.length > 0)
-        ? o.status_tags : [o.order_status || 'Devam Ediyor'];
 
     const TAG_PRIORITY_LIST = [
         'İptal', 'Gecikme',
@@ -500,28 +576,55 @@ function renderList() {
         return map[tag] || 'status-info';
     };
 
-    const orderBadge = (o) => {
-        const tags = getOrderTags(o);
-        // Dominant tag önce göster, diğerleri ardından
+    // Dominant etiket başa, kalanlar ardına
+    const sortByPriority = (tags) => {
         const dominant = TAG_PRIORITY_LIST.find(p => tags.includes(p)) || tags[0];
-        const sorted = [dominant, ...tags.filter(t => t !== dominant)];
-        return sorted.map(t =>
-            `<span class="status-badge ${tagBadgeClass(t)}" style="margin-right:2px;">${t}</span>`
-        ).join('');
+        return dominant ? [dominant, ...tags.filter(t => t !== dominant)] : [];
+    };
+    const renderTags = (tags) => tags
+        .map(t => `<span class="status-badge ${tagBadgeClass(t)}">${escapeHtml(t)}</span>`).join('');
+
+    // "Üretim / Sevkiyat" sütunu — ödeme etiketleri hariç tüm durum etiketleri
+    const productionCell = (o) => {
+        const tags = sortByPriority(getOrderTags(o).filter(t => t && !PAYMENT_TAGS.includes(t)));
+        if (tags.length === 0) return '<span style="color:var(--ink-3,#968B7A);">—</span>';
+        return `<div class="tag-stack">${renderTags(tags)}</div>`;
+    };
+
+    // "Ödeme" sütunu — ödeme etiketi varsa o, yoksa tutarlardan türetilen durum
+    const paymentCell = (o) => {
+        const payTags = sortByPriority(getOrderTags(o).filter(t => PAYMENT_TAGS.includes(t)));
+        let badges;
+        if (payTags.length > 0) {
+            badges = renderTags(payTags);
+        } else {
+            const st = PAYMENT_STATE_LABEL[getPaymentState(o)];
+            badges = `<span class="status-badge ${st.cls}"><i class="fa-solid ${st.icon}" style="font-size:8px;"></i> ${st.text}</span>`;
+        }
+        const total = parseFloat(o.total_amount) || 0;
+        const adv   = parseFloat(o.advance_payment) || 0;
+        const rem   = (o.remaining_balance !== null && o.remaining_balance !== undefined)
+            ? parseFloat(o.remaining_balance) : (total - adv);
+        const parts = [];
+        if (rem > 0.005) parts.push(`Bakiye ${fmtMoney(rem, o.currency)}`);
+        if (o.payment_method) parts.push(escapeHtml(o.payment_method));
+        const sub = parts.length ? `<div class="cell-muted">${parts.join(' · ')}</div>` : '';
+        return `<div class="tag-stack">${badges}</div>${sub}`;
     };
 
     body.innerHTML = filtered.map(o => {
         const company = o.customers?.company_name || '—';
         return `<div class="timeline-row" style="font-size:12px;color:var(--ink-2,#6B655B);">
             <div>
-                <div style="font-weight:600;color:var(--ink-1,#1C1A17);font-size:12px;">${company}</div>
-                <div style="font-size:10px;color:var(--ink-3,#968B7A);margin-top:1px;">${o.order_number||'—'}</div>
+                <div style="font-weight:600;color:var(--ink-1,#1C1A17);font-size:12px;">${escapeHtml(company)}</div>
+                <div style="font-size:10px;color:var(--ink-3,#968B7A);margin-top:1px;">${escapeHtml(o.order_number||'—')}</div>
             </div>
             <div>${fmt(o.order_date)}</div>
             <div>${fmt(o.shipment_date)}</div>
             <div>${fmt(o.due_date)}</div>
             <div>${dueBadge(o.due_date, o)}</div>
-            <div>${orderBadge(o)}</div>
+            <div>${productionCell(o)}</div>
+            <div>${paymentCell(o)}</div>
         </div>`;
     }).join('');
 }
@@ -565,6 +668,30 @@ document.getElementById('filter-bar').addEventListener('click', (e) => {
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     render();
+});
+
+// ── Liste görünümü filtreleri
+const listSearchInput = document.getElementById('list-search-input');
+const listStatusSel   = document.getElementById('list-filter-status');
+const listPaymentSel  = document.getElementById('list-filter-payment');
+const listSortSel     = document.getElementById('list-sort');
+
+let listSearchTimer = null;
+listSearchInput.addEventListener('input', () => {
+    clearTimeout(listSearchTimer);
+    listSearchTimer = setTimeout(() => { listSearch = listSearchInput.value; renderList(); }, 180);
+});
+listStatusSel.addEventListener('change', () => { listStatus = listStatusSel.value; renderList(); });
+listPaymentSel.addEventListener('change', () => { listPayment = listPaymentSel.value; renderList(); });
+listSortSel.addEventListener('change', () => { listSort = listSortSel.value; renderList(); });
+
+document.getElementById('list-clear-filters').addEventListener('click', () => {
+    listSearch = ''; listStatus = ''; listPayment = ''; listSort = 'shipment_asc';
+    listSearchInput.value = '';
+    listStatusSel.value = '';
+    listPaymentSel.value = '';
+    listSortSel.value = 'shipment_asc';
+    renderList();
 });
 
 document.getElementById('btn-show-overdue').addEventListener('click', () => {

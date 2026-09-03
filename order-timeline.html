@@ -94,13 +94,42 @@
         /* ── Liste görünüm ── */
         .timeline-row {
             display: grid;
-            grid-template-columns: 1.8fr 1fr 1fr 1fr 1fr 1fr 1fr;
+            grid-template-columns: 1.7fr 0.95fr 0.95fr 0.95fr 1.05fr 1.35fr 1.25fr;
             align-items: center;
             border-bottom: 1px solid var(--border-soft, #EFEAE0);
             padding: 10px 16px;
-            gap: 8px;
+            gap: 10px;
             transition: background 0.1s;
             font-family: Verdana, Geneva, sans-serif;
+        }
+        /* Etiket yığını — birbirine değmesin, taşarsa alt satıra insin */
+        .tag-stack {
+            display: flex; flex-wrap: wrap; align-items: center;
+            gap: 4px; min-width: 0;
+        }
+        .tag-stack .status-badge { max-width: 100%; }
+        .cell-muted { font-size: 10px; color: var(--ink-3, #968B7A); margin-top: 3px; }
+
+        /* ── Liste filtre çubuğu ── */
+        .list-filter-bar {
+            display: grid;
+            grid-template-columns: 1.6fr 1fr 1fr 1fr auto;
+            gap: 10px; align-items: center;
+            margin-bottom: 12px;
+        }
+        .list-filter-bar input, .list-filter-bar select { height: 38px; font-size: 12px; }
+        #list-search-input { padding-left: 2.4rem !important; }
+        .list-clear-btn {
+            height: 38px; padding: 0 14px; border-radius: 8px; cursor: pointer;
+            border: 1px solid var(--border, #E4DDCE);
+            background: var(--surface, #fff); color: var(--ink-2, #6B655B);
+            font-size: 12px; font-weight: 600; font-family: Verdana, Geneva, sans-serif;
+            display: flex; align-items: center; gap: 6px; white-space: nowrap;
+            transition: background .12s;
+        }
+        .list-clear-btn:hover { background: var(--surface-2, #FBF8F1); }
+        @media (max-width: 1100px) {
+            .list-filter-bar { grid-template-columns: 1fr 1fr; }
         }
         .timeline-row:hover { background: var(--surface-2, #FBF8F1); }
         .timeline-row.header {
@@ -361,14 +390,60 @@
 
         <!-- Liste Görünümü -->
         <div id="view-list" style="display:none;">
+
+            <!-- Liste filtreleri -->
+            <div class="list-filter-bar">
+                <div style="position:relative;">
+                    <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--ink-3,#968B7A);font-size:12px;z-index:1;pointer-events:none;"></i>
+                    <input type="text" id="list-search-input" placeholder="Firma veya sipariş no ara...">
+                </div>
+                <select id="list-filter-status">
+                    <option value="">Tüm Durum Etiketleri</option>
+                    <option value="Devam Ediyor">Devam Ediyor</option>
+                    <option value="Üretimde">Üretimde</option>
+                    <option value="Üretime Hazır">Üretime Hazır</option>
+                    <option value="Sevke Hazır">Sevke Hazır</option>
+                    <option value="Sevk Edildi">Sevk Edildi</option>
+                    <option value="Bakiye Bekliyor">Bakiye Bekliyor</option>
+                    <option value="Ödeme Tamamlandı">Ödeme Tamamlandı</option>
+                    <option value="Teslim Edildi">Teslim Edildi</option>
+                    <option value="İptal">İptal</option>
+                    <option value="Gecikme">Gecikme</option>
+                    <option value="Yeni Müşteri">Yeni Müşteri</option>
+                </select>
+                <select id="list-filter-payment">
+                    <option value="">Tüm Ödeme Durumları</option>
+                    <option value="paid">Ödendi</option>
+                    <option value="partial">Kısmi (Avans Alındı)</option>
+                    <option value="unpaid">Ödeme Bekliyor</option>
+                </select>
+                <select id="list-sort">
+                    <option value="shipment_asc">Sevk Tarihi ↑ (Eskiden Yeniye)</option>
+                    <option value="shipment_desc">Sevk Tarihi ↓ (Yeniden Eskiye)</option>
+                    <option value="due_asc">Vade Tarihi ↑</option>
+                    <option value="due_desc">Vade Tarihi ↓</option>
+                    <option value="order_desc">Sipariş Tarihi ↓ (En Yeni)</option>
+                    <option value="order_asc">Sipariş Tarihi ↑ (En Eski)</option>
+                    <option value="company_asc">Firma Adı (A→Z)</option>
+                </select>
+                <button type="button" id="list-clear-filters" class="list-clear-btn">
+                    <i class="fa-solid fa-eraser"></i> Temizle
+                </button>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <span style="font-size:11px;color:var(--ink-3,#968B7A);font-family:Verdana, Geneva, sans-serif;">Listelenen sipariş:</span>
+                <span id="list-count" style="font-size:12px;font-weight:700;color:var(--bronze,#B58858);font-family:Verdana, Geneva, sans-serif;">0 Sipariş</span>
+            </div>
+
             <div style="background:var(--surface,#fff);border:1px solid var(--border,#E4DDCE);border-radius:10px;overflow:hidden;">
                 <div class="timeline-row header">
                     <span>Müşteri / Sipariş No</span>
                     <span>Sipariş Tarihi</span>
                     <span>Sevkiyat Tarihi</span>
                     <span>Vade Tarihi</span>
-                    <span>Durum</span>
-                    <span>Üretim</span>
+                    <span>Vade Durumu</span>
+                    <span>Üretim / Sevkiyat</span>
                     <span>Ödeme</span>
                 </div>
                 <div id="list-body"></div>
