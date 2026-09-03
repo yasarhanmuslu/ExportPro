@@ -164,6 +164,19 @@
             border-top: 1px solid var(--border-soft);
         }
 
+        /* Katalog bölümü içindeki ham grup adı (ör. "Klozet Kapakları" → "ALFA KAPAK") */
+        .subgroup-row td {
+            background: transparent !important;
+            font-size: 10px !important;
+            font-weight: 600 !important;
+            letter-spacing: 0.06em;
+            color: var(--ink-3) !important;
+            padding: 6px 12px 4px 24px !important;
+            border-bottom: none !important;
+            opacity: 0.75;
+        }
+        .subgroup-row:hover td { background: transparent !important; }
+
         /* NOT: ".price-table td" (tür+sınıf) taban kuralı, tek sınıflı ".td-xxx" kurallarından
            daha yüksek özgüllüğe (specificity) sahip olduğu için renkleri eziyordu.
            Aşağıdaki kurallar "td.td-xxx" şeklinde yazılarak tabandan daha özgül hale getirildi. */

@@ -3,6 +3,7 @@ import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
 import { getAccessContext, guardModuleAccess, canEdit, applyEditLock } from './utils/permissions.js';
 import { showAlertDialog, showConfirmDialog } from './utils/dialogs.js';
+import { resolveCatalogSection, compareCatalogGroups, orderedCatalogSections } from './utils/catalogOrder.js';
 
 // ── Global State ──────────────────────────────────────────────
 let globalProducts = [];   // DB'den gelen price_list satırları (+ _displayName/_matched)
@@ -86,13 +87,23 @@ async function fetchUrunlerMap() {
 
 // Her price_list satırına canlı Ürün Kartları verisini iliştirir.
 // product_name veritabanında değişmez — sadece eşleşme yoksa yedek olarak kullanılır.
+// _section: ham group_name'in karşılık geldiği 2026 katalog başlığı (bkz. utils/catalogOrder.js).
 function enrichProducts() {
     globalProducts.forEach(p => {
         const match = urunlerMap.get(normCode(p.product_code));
         p._matched = !!match;
         p._displayName = match ? match.name : (p.product_name || '');
         p._renk = match ? (match.renk || '') : '';
+        p._section = resolveCatalogSection(p.group_name).section;
     });
+}
+
+// Listeyi katalog sırasına dizer: katalog bölümü → bölüm içi alt grup → ürün adı.
+function sortByCatalog() {
+    globalProducts.sort((a, b) =>
+        compareCatalogGroups(a.group_name, b.group_name) ||
+        (a._displayName || '').localeCompare(b._displayName || '', 'tr')
+    );
 }
 
 // ── Veri Çekme ────────────────────────────────────────────────
@@ -109,6 +120,7 @@ async function fetchProducts() {
         if (error) throw error;
         globalProducts = data || [];
         enrichProducts();
+        sortByCatalog();
 
         // Grup filtresini doldur
         populateGroupFilter();
@@ -120,18 +132,19 @@ async function fetchProducts() {
     }
 }
 
+// Filtre, ham gruplar yerine katalog başlıklarını katalog sırasıyla listeler.
 function populateGroupFilter() {
-    const groups = [...new Set(globalProducts.map(p => p.group_name).filter(Boolean))].sort();
+    const sections = orderedCatalogSections(globalProducts.map(p => p.group_name));
     const sel = document.getElementById('group-filter');
     const prevVal = sel.value;
-    sel.innerHTML = '<option value="">Tüm Gruplar</option>';
-    groups.forEach(g => {
+    sel.innerHTML = '<option value="">Tüm Bölümler</option>';
+    sections.forEach(s => {
         const opt = document.createElement('option');
-        opt.value = g;
-        opt.textContent = g;
+        opt.value = s;
+        opt.textContent = s;
         sel.appendChild(opt);
     });
-    if (groups.includes(prevVal)) sel.value = prevVal;
+    if (sections.includes(prevVal)) sel.value = prevVal;
 }
 
 // ── Sekme Geçişi ─────────────────────────────────────────────
@@ -202,7 +215,7 @@ function getFilteredProducts() {
     return globalProducts.filter(p => {
         const nameMatch = (p._displayName || '').toLowerCase().includes(searchVal);
         const codeMatch = (p.product_code || '').toLowerCase().includes(searchVal);
-        const groupMatch = !groupVal || p.group_name === groupVal;
+        const groupMatch = !groupVal || p._section === groupVal;
         return (nameMatch || codeMatch) && groupMatch;
     });
 }
@@ -220,17 +233,37 @@ function renderTable() {
         return;
     }
 
-    // Gruplu render
+    // Katalog bölümü başlığı + (birden fazla varsa) ham grup alt başlığı
+    const sectionGroupCount = new Map();   // katalog bölümü → farklı ham grup sayısı
+    filtered.forEach(p => {
+        const set = sectionGroupCount.get(p._section) || new Set();
+        set.add(p.group_name || '');
+        sectionGroupCount.set(p._section, set);
+    });
+
+    let lastSection = '__INIT__';
     let lastGroup = '__INIT__';
 
     filtered.forEach(p => {
-        // Grup başlık satırı
+        // Katalog bölümü başlık satırı
+        if (p._section !== lastSection) {
+            lastSection = p._section;
+            lastGroup = '__INIT__';
+            const str = document.createElement('tr');
+            str.className = 'group-row';
+            str.innerHTML = `<td colspan="10">${escapeHtml(p._section)}</td>`;
+            tbody.appendChild(str);
+        }
+
+        // Alt grup satırı — bölüm tek bir ham gruptan oluşuyorsa gereksiz, gösterilmez
         if (p.group_name !== lastGroup) {
             lastGroup = p.group_name;
-            const gtr = document.createElement('tr');
-            gtr.className = 'group-row';
-            gtr.innerHTML = `<td colspan="10">${escapeHtml(p.group_name || 'Diğer')}</td>`;
-            tbody.appendChild(gtr);
+            if ((sectionGroupCount.get(p._section)?.size || 0) > 1) {
+                const gtr = document.createElement('tr');
+                gtr.className = 'subgroup-row';
+                gtr.innerHTML = `<td colspan="10">${escapeHtml(p.group_name || 'Grupsuz')}</td>`;
+                tbody.appendChild(gtr);
+            }
         }
 
         const dovizListe = currentTab === 'eur' ? p.list_price_eur : p.list_price_usd;
@@ -514,17 +547,17 @@ async function exportExcel() {
 
     const dovizKol = currentTab === 'eur' ? 'EUR' : 'USD';
     const headers = [
-        'Ürün Kodu', 'Ürün Adı', 'Grup',
+        'Ürün Kodu', 'Ürün Adı', 'Katalog Bölümü', 'Grup',
         '2026 TL Liste', '2026 TL Net', `2026 TL Net (${dovizKol})`,
         `2022-3 ${dovizKol} Liste`, `2022-3 ${dovizKol} Net`, 'Fark (%)',
         'Eşleşme Durumu', ID_HEADER,
     ];
-    const PRIMARY_COLS = 3; // Ürün Kodu, Ürün Adı, Grup — koyu yeşil başlık
+    const PRIMARY_COLS = 4; // Ürün Kodu, Ürün Adı, Katalog Bölümü, Grup — koyu yeşil başlık
 
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Fiyat Robotu');
     ws.columns = [
-        { width: 16 }, { width: 34 }, { width: 16 }, { width: 13 }, { width: 13 },
+        { width: 16 }, { width: 34 }, { width: 30 }, { width: 22 }, { width: 13 }, { width: 13 },
         { width: 15 }, { width: 13 }, { width: 13 }, { width: 9 }, { width: 12 }, { width: 32 },
     ];
 
@@ -547,6 +580,7 @@ async function exportExcel() {
         const row = ws.addRow([
             p.product_code || '',
             p._displayName || '',
+            p._section || '',
             p.group_name || '',
             p.list_price_tl ?? null,
             tlNet !== null ? Number(tlNet.toFixed(2)) : null,
@@ -563,14 +597,14 @@ async function exportExcel() {
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL_ROW_BG } };
             cell.border = xlBorder();
             cell.alignment = { horizontal: 'left', vertical: 'middle' };
-            if ([4, 5, 6, 7, 8].includes(colNumber)) { cell.numFmt = '#,##0.00'; cell.alignment.horizontal = 'right'; }
-            if (colNumber === 9) { cell.numFmt = '0.0"%"'; cell.alignment.horizontal = 'right'; }
-            if (colNumber === 10) {
+            if ([5, 6, 7, 8, 9].includes(colNumber)) { cell.numFmt = '#,##0.00'; cell.alignment.horizontal = 'right'; }
+            if (colNumber === 10) { cell.numFmt = '0.0"%"'; cell.alignment.horizontal = 'right'; }
+            if (colNumber === 11) {
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: p._matched ? XL_OK_BG : XL_DANGER_BG } };
                 cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: p._matched ? XL_OK_FG : XL_DANGER_FG } };
                 cell.alignment.horizontal = 'center';
             }
-            if (colNumber === 11) { cell.alignment.horizontal = 'center'; }
+            if (colNumber === 12) { cell.alignment.horizontal = 'center'; }
         });
     });
 
