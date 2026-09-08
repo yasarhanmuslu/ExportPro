@@ -1356,6 +1356,24 @@ function pickExportStatusColor(tags) {
     return EXPORT_STATUS_COLORS['Devam Ediyor'];
 }
 
+// order_quantity serbest metin alanı: kullanıcı "3.060", "3060" ya da
+// "3.060,5" yazabiliyor (PDF içe aktarma tr-TR biçiminde dolduruyor).
+// parseFloat("3.060") = 3.06 olduğu için Excel'e yanlış adet yazılıyordu.
+// Nokta yalnızca tam binlik kalıbındaysa (3 haneli gruplar) ayraç sayılır.
+function parseQuantity(value) {
+    if (value === null || value === undefined) return NaN;
+    if (typeof value === 'number') return value;
+    let s = String(value).replace(/[\s\u00A0]/g, '');
+    if (!s) return NaN;
+    if (s.includes(',')) {
+        s = s.replace(/\./g, '').replace(',', '.');       // 3.060,5 → 3060.5
+    } else if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) {
+        s = s.replace(/\./g, '');                         // 3.060   → 3060
+    }
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : NaN;
+}
+
 async function exportOrdersToExcel() {
     if (globalOrders.length === 0) { await showAlertDialog('Aktarılacak sipariş verisi yok.', { variant: 'warn', title: 'Uyarı' }); return; }
     const XLSX = window.XLSX;
@@ -1399,7 +1417,7 @@ async function exportOrdersToExcel() {
         const compName = o.customers?.company_name || '';
         const country  = o.customers?.country || '';
         const tags     = (o.status_tags && o.status_tags.length > 0) ? o.status_tags : [o.order_status || ''];
-        const qty      = parseFloat(o.order_quantity);
+        const qty      = parseQuantity(o.order_quantity);
         aoa.push([
             toDate(o.order_date),
             o.order_number || '',
@@ -1485,7 +1503,7 @@ async function exportOrdersToExcel() {
             };
             if (dateCols.includes(c))  { style.numFmt = 'dd.mm.yyyy'; style.alignment.horizontal = 'center'; }
             if (moneyCols.includes(c)) { style.numFmt = '#,##0.00'; style.alignment.horizontal = 'right'; }
-            if (c === 15) { style.numFmt = '#,##0'; style.alignment.horizontal = 'right'; }
+            if (c === 15) { style.numFmt = '#,##0.##'; style.alignment.horizontal = 'right'; }
             if (c === 7)  { style.alignment.horizontal = 'center'; }
             if (c === 12 && isOverdue) { style.font = { sz: 10, bold: true, color: { rgb: '991B1B' } }; }
             if (c === 14) {

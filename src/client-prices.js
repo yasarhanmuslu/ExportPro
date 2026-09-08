@@ -286,6 +286,30 @@ function resolveProduct(text) {
     ) || null;
 }
 
+// Kayıtlı liste fiyatı boş/0 olan satırlarda liste fiyatını Fiyat Robotu'ndan
+// tamamlar. (Sipariş içe aktarımının erken sürümü bu alanı 0 bırakmıştı; ayrıca
+// elle eklenirken de atlanabiliyor.) Ekranda "0,00" yerine güncel katalog fiyatı
+// görünür, iskonto da bu listeye göre hesaplanır. Veritabanı DEĞİŞMEZ — kart
+// bir kez kaydedildiğinde tamamlanan değer kalıcı olur.
+function fillListPriceFromCatalog(row) {
+    if ((parseFloat(row.list_price) || 0) > 0) return row;
+    const cfg = PRICE_LISTS[row.currency || DEFAULT_CURRENCY];
+    if (!cfg) return row;
+
+    const prod = productForRow(row) || resolveProduct(row.product_name);
+    const listRow = prod ? priceListByCode.get(normCode(prod.stok_kodu)) : null;
+    const listPrice = listRow ? parseFloat(listRow[cfg.field]) : NaN;
+    if (!Number.isFinite(listPrice) || listPrice <= 0) return row;
+
+    row.list_price = listPrice;
+    row.list_price_from_catalog = true;
+    const net = parseFloat(row.net_price) || 0;
+    if ((parseFloat(row.discount_rate) || 0) <= 0 && net > 0) {
+        row.discount_rate = (listPrice - net) / listPrice * 100;
+    }
+    return row;
+}
+
 async function fetchClientPrices() {
     try {
         const { data, error } = await supabase
@@ -298,6 +322,7 @@ async function fetchClientPrices() {
         // Müşteri bazında grupla
         const grouped = {};
         (data || []).forEach(p => {
+            fillListPriceFromCatalog(p);
             const cid = p.customer_id;
             if (!grouped[cid]) {
                 grouped[cid] = {
@@ -416,7 +441,7 @@ function renderClientPriceCards(groups) {
                                 <td class="px-4 py-2">${thumb}</td>
                                 <td class="px-4 py-2.5 text-[#6B655B] font-mono text-[11px] cp-nowrap">${escapeHtml(displayCode(p))}</td>
                                 <td class="px-4 py-2.5 text-[#6B655B] font-medium">${escapeHtml(displayName(p))}</td>
-                                <td class="px-4 py-2.5 text-right text-[#6B655B] font-mono cp-nowrap">${formatMoney(p.list_price, group.currency)}</td>
+                                <td class="px-4 py-2.5 text-right text-[#6B655B] font-mono cp-nowrap"${p.list_price_from_catalog ? ` title="Fiyat Robotu&#39;ndaki ${escapeHtml(listLabelFor(group.currency))} fiyatı — kartta kayıtlı liste fiyatı yok."` : ''}>${formatMoney(p.list_price, group.currency)}${p.list_price_from_catalog ? '<span class="text-[#B5651D]" title="Fiyat Robotu&#39;ndan">*</span>' : ''}</td>
                                 <td class="px-4 py-2.5 text-center text-[#B26B33] font-mono font-bold cp-nowrap">% ${parseFloat(p.discount_rate||0).toFixed(2)}</td>
                                 <td class="px-4 py-2.5 text-right font-mono cp-nowrap ${hasV2 ? 'text-[#968B7A]' : 'text-[#2D4A3E] font-bold'}">${formatMoney(p.net_price, group.currency)}</td>
                                 <td class="px-4 py-2.5 text-right font-mono cp-nowrap ${hasV2 ? 'text-[#2D4A3E] font-bold' : 'text-[#968B7A]'}">${hasV2 ? formatMoney(p.net_price_2, group.currency) : '—'}</td>
