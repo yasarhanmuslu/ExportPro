@@ -53,6 +53,39 @@
         }
         .op-card:hover { border-color: #D9D0C2; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
 
+        /* ── Kartın kapsadığı dönem etiketi ── */
+        .scope-tag {
+            margin-left: 6px;
+            font-size: 8px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: none;
+            color: #968B7A;
+            background: #F6F3EC;
+            border: 1px solid #EFEAE0;
+            border-radius: 4px;
+            padding: 1px 5px;
+            white-space: nowrap;
+        }
+        .op-card .scope-tag { margin-left: 5px; }
+
+        /* ── Top Müşteriler para birimi sekmeleri ── */
+        .top-cur-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+        .top-cur-tab {
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            color: #968B7A;
+            background: #F6F3EC;
+            border: 1px solid #EFEAE0;
+            border-radius: 5px;
+            padding: 2px 7px;
+            cursor: pointer;
+            transition: background .15s, color .15s, border-color .15s;
+        }
+        .top-cur-tab:hover { border-color: #D9D0C2; }
+        .top-cur-tab.is-active { background: #2D4A3E; border-color: #2D4A3E; color: #fff; }
+
         /* ── Table compact ── */
         .dash-table { width: 100%; border-collapse: collapse; }
         .dash-table td { padding: 5px 6px; }
@@ -121,28 +154,28 @@
         <div class="grid grid-cols-4 gap-3 mb-3">
 
             <div class="c-card">
-                <div class="sec-label"><i class="fa-solid fa-chart-bar text-purple-400"></i> Toplam Ciro</div>
+                <div class="sec-label"><i class="fa-solid fa-chart-bar text-purple-400"></i> Toplam Ciro<span class="scope-tag" data-scope="year">—</span></div>
                 <div id="kpi-ciro-container" style="color:#1C1A17;">
                     <div class="text-[#968B7A] text-xs animate-pulse">Yükleniyor...</div>
                 </div>
             </div>
 
             <div class="c-card">
-                <div class="sec-label"><i class="fa-solid fa-circle-check text-[#3D6E50]"></i> Tahsil Edilen</div>
+                <div class="sec-label"><i class="fa-solid fa-circle-check text-[#3D6E50]"></i> Tahsil Edilen<span class="scope-tag" data-scope="year">—</span></div>
                 <div id="kpi-avans-container" style="color:#3D6E50;">
                     <div class="text-[#968B7A] text-xs">—</div>
                 </div>
             </div>
 
             <div class="c-card">
-                <div class="sec-label"><i class="fa-solid fa-clock text-[#B26B33]"></i> Vadeli Bakiye</div>
+                <div class="sec-label"><i class="fa-solid fa-clock text-[#B26B33]"></i> Vadeli Bakiye<span class="scope-tag" data-scope="all">—</span></div>
                 <div id="kpi-bakiye-container" style="color:#B26B33;">
                     <div class="text-[#968B7A] text-xs">—</div>
                 </div>
             </div>
 
             <div class="c-card">
-                <div class="sec-label"><i class="fa-solid fa-triangle-exclamation text-[#9F3D3D]"></i> Gecikmiş Borç</div>
+                <div class="sec-label"><i class="fa-solid fa-triangle-exclamation text-[#9F3D3D]"></i> Gecikmiş Borç<span class="scope-tag" data-scope="all">—</span></div>
                 <div id="kpi-pending-container" style="color:#9F3D3D;">
                     <div class="text-[#968B7A] text-xs">—</div>
                 </div>
@@ -159,7 +192,7 @@
                 </div>
                 <div>
                     <div id="op-active-orders" class="kpi-value-sm" style="color:#1C1A17">—</div>
-                    <div style="font-size:9px;color:#968B7A;letter-spacing:0.06em;">Aktif Sipariş</div>
+                    <div style="font-size:9px;color:#968B7A;letter-spacing:0.06em;">Aktif Sipariş<span class="scope-tag" data-scope="year">—</span></div>
                 </div>
             </a>
 
@@ -169,7 +202,7 @@
                 </div>
                 <div>
                     <div id="op-pending-quotes" class="kpi-value-sm" style="color:#1C1A17">—</div>
-                    <div style="font-size:9px;color:#968B7A;letter-spacing:0.06em;">Bekleyen Teklif</div>
+                    <div style="font-size:9px;color:#968B7A;letter-spacing:0.06em;">Bekleyen Teklif<span class="scope-tag" data-scope="all">—</span></div>
                 </div>
             </a>
 
@@ -179,7 +212,7 @@
                 </div>
                 <div>
                     <div id="op-open-complaints" class="kpi-value-sm" style="color:#1C1A17">—</div>
-                    <div style="font-size:9px;color:#968B7A;letter-spacing:0.06em;">Açık Şikayet</div>
+                    <div style="font-size:9px;color:#968B7A;letter-spacing:0.06em;">Açık Şikayet<span class="scope-tag" data-scope="all">—</span></div>
                 </div>
             </a>
 
@@ -189,7 +222,7 @@
                 </div>
                 <div>
                     <div id="op-delayed-ships" class="kpi-value-sm" style="color:#1C1A17">—</div>
-                    <div style="font-size:9px;color:#968B7A;letter-spacing:0.06em;">Geciken Sevkiyat</div>
+                    <div style="font-size:9px;color:#968B7A;letter-spacing:0.06em;">Geciken Sevkiyat<span class="scope-tag" data-scope="all">—</span></div>
                 </div>
             </a>
 
@@ -201,7 +234,7 @@
             <!-- Sol: Son Siparişler -->
             <div class="c-card">
                 <div class="sec-label">
-                    <i class="fa-solid fa-boxes-stacked text-[#2D4A3E]"></i> Son Siparişler
+                    <i class="fa-solid fa-boxes-stacked text-[#2D4A3E]"></i> Son Siparişler<span class="scope-tag" data-scope="year">—</span>
                     <a href="orders.html" style="margin-left:auto;font-size:9px;color:#B58858;text-decoration:none;letter-spacing:0.04em;">Tümü →</a>
                 </div>
                 <table class="dash-table">
@@ -214,7 +247,7 @@
             <!-- Sağ: Son Teklifler -->
             <div class="c-card">
                 <div class="sec-label">
-                    <i class="fa-solid fa-file-contract text-[#B58858]"></i> Son Teklifler
+                    <i class="fa-solid fa-file-contract text-[#B58858]"></i> Son Teklifler<span class="scope-tag" data-scope="all">—</span>
                     <a href="quotations.html" style="margin-left:auto;font-size:9px;color:#B58858;text-decoration:none;letter-spacing:0.04em;">Tümü →</a>
                 </div>
                 <table class="dash-table">
@@ -231,7 +264,7 @@
 
             <div class="c-card c-card-link" onclick="window.location.href='payments.html'">
                 <div class="sec-label">
-                    <i class="fa-solid fa-circle-dollar-to-slot text-[#B26B33]"></i> Ödeme Durumu
+                    <i class="fa-solid fa-circle-dollar-to-slot text-[#B26B33]"></i> Ödeme Durumu<span class="scope-tag" data-scope="all">—</span>
                     <span style="margin-left:auto;font-size:9px;color:#B58858;">Detay →</span>
                 </div>
                 <div id="payment-status-widget">
@@ -241,7 +274,7 @@
 
             <div class="c-card c-card-link" onclick="window.location.href='customer-score.html'">
                 <div class="sec-label">
-                    <i class="fa-solid fa-ranking-star text-[#B58858]"></i> Top Müşteriler
+                    <i class="fa-solid fa-ranking-star text-[#B58858]"></i> Top Müşteriler<span class="scope-tag" data-scope="all">—</span>
                     <span style="margin-left:auto;font-size:9px;color:#B58858;">Detay →</span>
                 </div>
                 <div id="top-customers-widget">
@@ -255,25 +288,25 @@
         <div class="grid grid-cols-4 gap-3 mb-3">
 
             <a href="profitability.html" class="c-card c-card-link" style="text-decoration:none;display:block;">
-                <div class="sec-label"><i class="fa-solid fa-chart-line text-[#2D4A3E]"></i> Karlılık</div>
+                <div class="sec-label"><i class="fa-solid fa-chart-line text-[#2D4A3E]"></i> Karlılık<span class="scope-tag" data-scope="all">—</span></div>
                 <div id="sec-profitability-val" style="font-family:Verdana, Geneva, sans-serif;font-size:16px;color:#2D4A3E;font-weight:500;">—</div>
                 <div style="font-size:9px;color:#968B7A;margin-top:3px;">Müşteri iskontoları · Detay →</div>
             </a>
 
             <a href="market-analysis.html" class="c-card c-card-link" style="text-decoration:none;display:block;">
-                <div class="sec-label"><i class="fa-solid fa-globe text-[#3F5C7A]"></i> Pazar Analizi</div>
+                <div class="sec-label"><i class="fa-solid fa-globe text-[#3F5C7A]"></i> Pazar Analizi<span class="scope-tag" data-scope="all">—</span></div>
                 <div id="sec-market-val" style="font-family:Verdana, Geneva, sans-serif;font-size:16px;color:#3F5C7A;font-weight:500;">—</div>
                 <div style="font-size:9px;color:#968B7A;margin-top:3px;">Ülke & Segment · Detay →</div>
             </a>
 
             <a href="complaints.html" class="c-card c-card-link" style="text-decoration:none;display:block;">
-                <div class="sec-label"><i class="fa-solid fa-triangle-exclamation text-[#9F3D3D]"></i> Şikayetler</div>
+                <div class="sec-label"><i class="fa-solid fa-triangle-exclamation text-[#9F3D3D]"></i> Şikayetler<span class="scope-tag" data-scope="all">—</span></div>
                 <div id="sec-complaints-val" style="font-family:Verdana, Geneva, sans-serif;font-size:16px;color:#9F3D3D;font-weight:500;">—</div>
                 <div style="font-size:9px;color:#968B7A;margin-top:3px;">Credit Notes · Detay →</div>
             </a>
 
             <a href="customers.html" class="c-card c-card-link" style="text-decoration:none;display:block;">
-                <div class="sec-label"><i class="fa-solid fa-users text-[#B58858]"></i> Müşteri Arşivi</div>
+                <div class="sec-label"><i class="fa-solid fa-users text-[#B58858]"></i> Müşteri Arşivi<span class="scope-tag" data-scope="all">—</span></div>
                 <div id="sec-customer-val" style="color:#1C1A17;">
                     <div class="text-xs text-[#968B7A] animate-pulse">Yükleniyor...</div>
                 </div>
@@ -286,12 +319,12 @@
         <div class="grid grid-cols-2 gap-3">
 
             <div class="c-card">
-                <div class="sec-label"><i class="fa-solid fa-chart-line text-[#2D4A3E]"></i> Aylık Sipariş Hacmi</div>
+                <div class="sec-label"><i class="fa-solid fa-chart-line text-[#2D4A3E]"></i> Aylık Sipariş Hacmi<span class="scope-tag" data-scope="year">—</span></div>
                 <div style="height:160px;position:relative;"><canvas id="chart-monthly-performance"></canvas></div>
             </div>
 
             <div class="c-card">
-                <div class="sec-label"><i class="fa-solid fa-chart-pie text-[#B58858]"></i> Döviz Dağılımı</div>
+                <div class="sec-label"><i class="fa-solid fa-chart-pie text-[#B58858]"></i> Döviz Dağılımı<span class="scope-tag" data-scope="year">—</span></div>
                 <div style="height:160px;position:relative;"><canvas id="chart-currency-distribution"></canvas></div>
             </div>
 
