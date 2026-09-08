@@ -60,7 +60,6 @@ async function loadAllDashboardData(selectedYear) {
             ordersRes,
             quotationsRes,
             complaintsRes,
-            shipmentsRes,
             customerScoreRes,
             profitabilityRes
         ] = await Promise.all([
@@ -75,9 +74,6 @@ async function loadAllDashboardData(selectedYear) {
             supabase.from('credit_notes')
                 .select('id, process_status, cn_date, customer_id')
                 .eq('user_id', uid),
-            supabase.from('shipments')
-                .select('id, estimated_date, actual_date, orders(order_date)')
-                .eq('user_id', uid),
             supabase.from('customers')
                 .select('id, company_name, country, status')
                 .eq('user_id', uid),
@@ -89,14 +85,13 @@ async function loadAllDashboardData(selectedYear) {
         const orders      = ordersRes.data      || [];
         const quotations  = quotationsRes.data   || [];
         const complaints  = complaintsRes.data   || [];
-        const shipments   = shipmentsRes.data    || [];
         const customers   = customerScoreRes.data || [];
         const prices      = profitabilityRes.data || [];
 
         const yearOrders = orders.filter(o => new Date(o.order_date).getFullYear() === selectedYear);
 
         renderFinanceKPIs(yearOrders, orders);
-        renderOperationalCards(yearOrders, quotations, complaints, shipments, orders);
+        renderOperationalCards(yearOrders, quotations, complaints, orders);
         renderRecentOrders(yearOrders.slice(0, 5));
         renderRecentQuotations(quotations.slice(0, 5));
         renderPaymentStatus(orders);
@@ -177,9 +172,21 @@ function renderFinanceKPIs(yearOrders, allOrders) {
 }
 
 // ── OPERASYONEL KARTLAR ────────────────────────────────────────────────────────
-function renderOperationalCards(yearOrders, quotations, complaints, shipments, orders) {
-    const today = new Date();
+// Bir siparişi "kapanmış" sayan etiketler — bunlardan biri varsa sevkiyat
+// beklenmiyor demektir.
+const CLOSED_TAGS = ['Sevk Edildi', 'Teslim Edildi', 'İptal'];
 
+// Sevk bekleyen siparişin bulunduğu aşama. Etiketler üst üste binebildiği için
+// (ör. "Devam Ediyor · Üretimde") sipariş TEK bir kovaya öncelik sırasıyla
+// yazılır; böylece dağılım toplamı kart sayısına eşit çıkar.
+const STAGE_PRIORITY = ['Sevke Hazır', 'Üretime Hazır', 'Üretimde', 'Devam Ediyor'];
+
+function shipmentStage(tags) {
+    for (const stage of STAGE_PRIORITY) { if (tags.includes(stage)) return stage; }
+    return 'Diğer';   // aşama etiketi işaretlenmemiş — kart bunu görünür kılsın
+}
+
+function renderOperationalCards(yearOrders, quotations, complaints, orders) {
     // Mevcut Sipariş: seçili yıla ait sipariş sayısı
     const activeOrders = yearOrders.length;
 
@@ -189,17 +196,29 @@ function renderOperationalCards(yearOrders, quotations, complaints, shipments, o
     // Açık şikayetler — tanım isOpenComplaint'te, complaints.js ile ortak
     const openComplaints = complaints.filter(isOpenComplaint).length;
 
-    // Geciken sevkiyatlar (estimated_date < today ve actual_date yok)
-    const delayedShipments = shipments.filter(s => {
-        if (s.actual_date) return false;
-        if (!s.estimated_date) return false;
-        return new Date(s.estimated_date) < today;
-    }).length;
+    // Sevk bekleyen siparişler: kapanış etiketlerinden hiçbirini taşımayanlar.
+    // (Eski "Geciken Sevkiyat" kartının yerini aldı — shipments tablosu etd/eta
+    //  takibi yapılmadığı için boş, modül de menüde değil.)
+    const pendingShipments = orders.filter(o => {
+        const tags = o.status_tags || [];
+        return !CLOSED_TAGS.some(t => tags.includes(t));
+    });
+
+    const stages = {};
+    pendingShipments.forEach(o => {
+        const st = shipmentStage(o.status_tags || []);
+        stages[st] = (stages[st] || 0) + 1;
+    });
+    const breakdown = [...STAGE_PRIORITY, 'Diğer']
+        .filter(st => stages[st])
+        .map(st => `${st} ${stages[st]}`)
+        .join(' · ');
 
     setEl('op-active-orders',   activeOrders);
     setEl('op-pending-quotes',  pendingQuotations);
     setEl('op-open-complaints', openComplaints);
-    setEl('op-delayed-ships',   delayedShipments);
+    setEl('op-pending-ships',   pendingShipments.length);
+    setEl('op-pending-ships-detail', breakdown || 'Bekleyen sipariş yok');
 }
 
 function setEl(id, val) {
