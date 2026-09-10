@@ -13,6 +13,17 @@ import {
 let globalCustomers = [];
 let globalClientPrices = []; // { customer_id, company_name, currency, products: [...] }
 let tempProducts = []; // Modal içi geçici ürün listesi
+
+// customer_prices.is_symbolic ("Bedelsiz / Numune") kolonu SQL 015 ile geliyor.
+// Script henüz çalıştırılmamış olabilir — o durumda alan payload'a KONULMAZ,
+// yoksa insert "column does not exist" ile patlar ve kayıt tamamen bozulur.
+let hasSymbolicColumn = false;
+
+// Müşteriye satılmış ama fiyat kartında karşılığı olmayan ürünler.
+// customerId -> { count, items:[{name, code, currency, qty, lastSale}] }
+// Amaç: bir firmaya yeni ürün satıldığında bunu fark etmek — kullanıcı bunu
+// tek tek takip etmekte zorlanıyordu (Satış & Fiyat Analizi'nde de aynı liste var).
+let missingByCustomer = new Map();
 let globalProductOptions = []; // urunler: { id, stok_kodu, stok_adi_1, stok_adi_2, resim_path }
 let productById = new Map();   // urunler.id       -> ürün
 let productByCode = new Map(); // normCode(kod)    -> ürün
@@ -162,11 +173,75 @@ document.addEventListener('DOMContentLoaded', async () => {
     ctx = await getAccessContext();
     if (!(await guardModuleAccess(ctx, 'client-prices'))) return;
     await renderNavbar('client-prices', ctx);
-    await Promise.all([fetchCustomers(), fetchProductOptions(), fetchPriceList()]);
+    await Promise.all([fetchCustomers(), fetchProductOptions(), fetchPriceList(), probeSymbolicColumn()]);
     await fetchClientPrices();
     initEventListeners();
     applyEditLock(ctx, 'client-prices');
+    await handleDeepLink();
+
+    // Eksik fiyat kartı kontrolü ilk çizimden SONRA yapılır: sipariş verisi
+    // ağır, sayfanın açılmasını bekletmesin. Bitince kartlar yeniden çizilir.
+    await refreshMissingBadges();
 });
+
+// SQL 015 çalıştırılmış mı? Bir kez yoklanır; kolon yoksa "Bedelsiz / Numune"
+// kutucuğu gizlenir ve hiçbir yazma işlemine bu alan eklenmez.
+async function probeSymbolicColumn() {
+    const { error } = await supabase.from('customer_prices').select('is_symbolic').limit(1);
+    hasSymbolicColumn = !error;
+    const wrap = document.getElementById('cp-temp-symbolic')?.closest('label');
+    if (wrap && !hasSymbolicColumn) {
+        wrap.style.display = 'none';
+        console.info('customer_prices.is_symbolic kolonu yok — supabase/sql/015_add_is_symbolic_to_customer_prices.sql çalıştırılmamış. "Bedelsiz / Numune" alanı gizlendi.');
+    }
+}
+
+// Satış & Fiyat Analizi'nden gelen derin bağlantı:
+//   client-prices.html?customer=<id>&currency=<cur>&code=<stok_kodu>&net=<fiyat>
+// O müşterinin kartını açar ve ürünü forma doldurur — modülü terk edip müşteriyi
+// ve ürünü elle aramaya gerek kalmaz.
+async function handleDeepLink() {
+    const q = new URLSearchParams(location.search);
+    const customerId = q.get('customer');
+    if (!customerId) return;
+
+    const hasCard = globalClientPrices.some(g => g.customer_id === customerId);
+    if (hasCard) {
+        openModalForEdit(customerId);
+    } else {
+        const customer = globalCustomers.find(c => c.id === customerId);
+        if (!customer) {
+            await showAlertDialog('Bağlantıdaki müşteri bulunamadı.', { variant: 'warn' });
+            return;
+        }
+        openModalForCreate();
+        document.getElementById('cp-customer-input').value = customerLabel(customer);
+        onCustomerChanged();
+    }
+
+    const currency = q.get('currency');
+    if (currency) {
+        document.getElementById('cp-currency-select').value = currency;
+        refreshCurrencySymbols();
+    }
+
+    const code = q.get('code');
+    const name = q.get('name');
+    if (code || name) {
+        const prod = code ? resolveProduct(code) : null;
+        document.getElementById('cp-temp-product').value = prod ? productPickerLabel(prod) : (code || name);
+        document.getElementById('cp-temp-product').dispatchEvent(new Event('change'));
+    }
+    const net = q.get('net');
+    if (net) {
+        document.getElementById('cp-temp-net').value = net;
+        document.getElementById('cp-autofill-hint').textContent =
+            `Net fiyat, siparişlerdeki gerçekleşen ortalama fiyattan (${net}) dolduruldu — anlaşılan fiyat farklıysa düzeltin.`;
+    }
+
+    // Adres çubuğunu temizle: sayfa yenilenince modal tekrar açılmasın.
+    history.replaceState(null, '', location.pathname);
+}
 
 // ─── VERİ ÇEKME ───────────────────────────────────────────────
 async function fetchCustomers() {
@@ -372,6 +447,113 @@ async function resolveThumbnails(rows) {
     });
 }
 
+// Bir kart satırı ya da sipariş kalemi için olası tüm kimlikler. Kart satırında
+// stok kodu kolonu yok (yalnızca product_id + ad), kalemde ise üçü de olabilir —
+// bu yüzden karşılaştırma tekil anahtarla değil, kesişimle yapılır.
+// Rozetleri yeniden hesaplayıp kartları tekrar çizer. Fiyat kartı her
+// değiştiğinde çağrılmalı: aksi hâlde kullanıcı eksik ürünü eklese bile rozet
+// ve uyarı penceresi eski listeyi göstermeye devam eder (sayfa yenilenene kadar).
+async function refreshMissingBadges() {
+    await computeMissingPriceCards();
+    applySearch();
+}
+
+// Kart başlığındaki "N ürün fiyatsız" rozeti. Tıklanınca eksik ürünleri listeler.
+function missingBadge(customerId) {
+    const m = missingByCustomer.get(customerId);
+    if (!m || !m.count) return '';
+    const preview = m.items.slice(0, 12)
+        .map(i => `• ${i.name}${i.code ? ` (${i.code})` : ''} — ${i.qty} ad. ${i.currency}`)
+        .join('&#10;');
+    const more = m.count > 12 ? `&#10;… ve ${m.count - 12} ürün daha` : '';
+    return `<span class="cp-missing-badge px-2 py-0.5 text-[11px] font-semibold rounded-full cursor-pointer"
+                  data-customerid="${customerId}"
+                  style="background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn);"
+                  title="Bu müşteriye satılmış ama fiyat kartında olmayan ürünler:&#10;${preview}${more}&#10;&#10;Listeyi görmek için tıklayın.">
+        <i class="fa-solid fa-circle-exclamation" style="font-size:9px;"></i> ${m.count} ürün fiyatsız
+    </span>`;
+}
+
+function identityKeys(row) {
+    const keys = [];
+    const prod = (row.product_id && productById.get(row.product_id))
+        || productByCode.get(normCode(row.product_code));
+    if (prod) {
+        keys.push('id:' + prod.id);
+        if (prod.stok_kodu) keys.push('code:' + normCode(prod.stok_kodu));
+    }
+    if (row.product_id) keys.push('id:' + row.product_id);
+    if (row.product_code) keys.push('code:' + normCode(row.product_code));
+    const nm = (row.product_name || '').trim().toLowerCase();
+    if (nm) keys.push('name:' + nm);
+    return keys;
+}
+
+// Satılmış ama kartta olmayan ürünleri hesaplar. Hata durumunda sessizce boş
+// döner — bu bir bilgilendirme rozeti, modülün çalışmasını engellememeli.
+async function computeMissingPriceCards() {
+    missingByCustomer = new Map();
+    try {
+        const { orders, items } = await fetchOrdersAndItems();
+        const orderMap = new Map(orders.map(o => [o.id, o]));
+
+        // Her kart için: para birimi + sahip olduğu ürün kimlikleri
+        const cardInfo = new Map();
+        globalClientPrices.forEach(g => {
+            const owned = new Set();
+            g.products.forEach(p => identityKeys(p).forEach(k => owned.add(k)));
+            cardInfo.set(g.customer_id, { currency: g.currency || DEFAULT_CURRENCY, owned });
+        });
+
+        items.forEach(it => {
+            const o = orderMap.get(it.order_id);
+            if (!o || !o.customer_id) return;
+            if ((o.payment_method || '') === EXCLUDED_PAYMENT) return;
+            if (Array.isArray(o.status_tags) && o.status_tags.includes(EXCLUDED_STATUS)) return;
+            const qty = parseFloat(it.quantity) || 0;
+            const price = parseFloat(it.unit_price) || 0;
+            if (qty <= 0 || price <= 0) return;
+            // 1 adetlik satırlar numune ya da yedek parçadır (Kluber Isoflex,
+            // Holzma Rubber, Level Sensor gibi makine sarf malzemeleri de bu
+            // tabloda). Bunlar için fiyat kartı açılmaz — Satış & Fiyat Analizi
+            // de varsayılan olarak gizliyor, iki ekran aynı sonucu vermeli.
+            if (qty === 1) return;
+
+            const currency = it.currency || o.currency || DEFAULT_CURRENCY;
+            const info = cardInfo.get(o.customer_id);
+            // Kart yoksa ya da kartın para birimi satıştan farklıysa bu ürün eksiktir.
+            if (info && info.currency === currency && identityKeys(it).some(k => info.owned.has(k))) return;
+
+            if (!missingByCustomer.has(o.customer_id)) missingByCustomer.set(o.customer_id, new Map());
+            const bucket = missingByCustomer.get(o.customer_id);
+            const prod = itemProduct(it);
+            const key = itemProductKey(it) + '|' + currency;
+            if (!bucket.has(key)) {
+                bucket.set(key, {
+                    name: prod ? (prod.stok_adi_1 || it.product_name) : (it.product_name || 'Bilinmeyen'),
+                    code: prod ? prod.stok_kodu : (it.product_code || ''),
+                    currency, qty: 0, lastSale: null,
+                });
+            }
+            const e = bucket.get(key);
+            e.qty += qty;
+            if (o.order_date && (!e.lastSale || o.order_date > e.lastSale)) e.lastSale = o.order_date;
+        });
+
+        // Map<Map> -> Map<{count, items}>
+        const out = new Map();
+        missingByCustomer.forEach((bucket, cid) => {
+            const list = [...bucket.values()].sort((a, b) =>
+                String(b.lastSale || '').localeCompare(String(a.lastSale || '')));
+            out.set(cid, { count: list.length, items: list });
+        });
+        missingByCustomer = out;
+    } catch (err) {
+        console.warn('Eksik fiyat kartı kontrolü yapılamadı:', err.message);
+        missingByCustomer = new Map();
+    }
+}
+
 // ─── KART / AKORDEON ─────────────────────────────────────────
 function renderClientPriceCards(groups) {
     const container = document.getElementById('cp-cards-container');
@@ -405,6 +587,7 @@ function renderClientPriceCards(groups) {
                     ${group.country ? `<span class="text-xs text-[#968B7A] uppercase tracking-widest">${escapeHtml(group.country)}</span>` : ''}
                     <span class="px-2 py-0.5 bg-[#E8EEEA] text-[#2D4A3E] text-[11px] font-semibold border border-indigo-900/50 rounded-full">${group.products.length} Ürün</span>
                     <span class="px-2 py-0.5 bg-[#FBEEE6] text-[#B5651D] text-[11px] font-semibold border border-[#E4DDCE] rounded-full">${escapeHtml(group.currency)} ${sym}</span>
+                    ${missingBadge(group.customer_id)}
                 </div>
                 <button class="btn-edit-cp text-xs bg-[#FBF8F1] hover:bg-[#FBF8F1] border border-[#E4DDCE] px-3 py-1.5 rounded-lg text-[#2D4A3E] transition-colors cursor-pointer" data-customerid="${group.customer_id}">
                     <i class="fa-solid fa-pen"></i> Düzenle
@@ -461,6 +644,7 @@ function renderClientPriceCards(groups) {
     container.querySelectorAll('.toggle-cp-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             if (e.target.closest('.btn-edit-cp')) return;
+            if (e.target.closest('.cp-missing-badge')) return;
             const uid = btn.getAttribute('data-uid');
             const content = document.getElementById(uid);
             const icon = btn.querySelector('.cp-chevron');
@@ -470,6 +654,39 @@ function renderClientPriceCards(groups) {
     });
 
     // Düzenle butonları
+    container.querySelectorAll('.cp-missing-badge').forEach(el => {
+        el.addEventListener('click', async e => {
+            e.stopPropagation();
+            const cid = el.getAttribute('data-customerid');
+            const m = missingByCustomer.get(cid);
+            if (!m) return;
+            const group = globalClientPrices.find(g => g.customer_id === cid);
+            const NL = String.fromCharCode(10);
+
+            const lines = m.items.map(i => {
+                const head = '• ' + i.name + (i.code ? '  (' + i.code + ')' : '');
+                const tail = '   ' + i.qty.toLocaleString('tr-TR') + ' adet · ' + i.currency
+                    + (i.lastSale ? ' · son satış ' + formatDate(i.lastSale) : '');
+                return head + NL + tail;
+            }).join(NL);
+
+            const msg = [
+                'Bu müşteriye satılmış ama fiyat kartında karşılığı olmayan ürünler:',
+                '',
+                lines,
+                '',
+                'Kartın para birimi: ' + (group ? group.currency : '—')
+                    + '. Farklı para biriminde satılan ürünler de burada görünür.',
+                'Eklemek için "Düzenle" ile kartı açın.',
+            ].join(NL);
+
+            await showAlertDialog(msg, {
+                title: (group ? group.company_name : 'Müşteri') + ' — ' + m.count + ' ürün fiyatsız',
+                variant: 'warn',
+            });
+        });
+    });
+
     container.querySelectorAll('.btn-edit-cp').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -589,7 +806,7 @@ function renderTempProducts() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td class="px-4 py-2 text-[#6B655B] font-mono text-[11px] cp-nowrap">${escapeHtml(displayCode(p))}</td>
-            <td class="px-4 py-2 text-[#6B655B] font-medium text-xs wrap-ok">${escapeHtml(displayName(p))}</td>
+            <td class="px-4 py-2 text-[#6B655B] font-medium text-xs wrap-ok">${escapeHtml(displayName(p))}${p.is_symbolic ? ' <span title="Bedelsiz / numune — fiyat istatistiklerine katılmaz" style="display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:9px;background:var(--surface-2);color:var(--ink-3);font-size:9px;font-weight:600;white-space:nowrap;"><i class="fa-solid fa-gift" style="font-size:8px;"></i> bedelsiz</span>' : ''}</td>
             <td class="px-4 py-2 text-right text-[#6B655B] font-mono text-xs cp-nowrap">${parseFloat(p.list_price||0).toFixed(2)} ${sym}</td>
             <td class="px-4 py-2 text-center text-[#B26B33] font-mono text-xs font-bold cp-nowrap">% ${parseFloat(p.discount_rate||0).toFixed(2)}</td>
             <td class="px-4 py-2 text-right font-mono text-xs cp-nowrap ${hasV2 ? 'text-[#968B7A]' : 'text-[#2D4A3E] font-bold'}">${parseFloat(p.net_price||0).toFixed(2)} ${sym}</td>
@@ -642,6 +859,9 @@ async function addOrUpdateProduct() {
         discount_rate: discountRate,
         price_date: priceDate,
         net_price_2_date: priceDate2,
+        // Bedelsiz/numune için girilmiş temsili tutar mı? Satış & Fiyat Analizi
+        // bu satırları fiyat istatistiklerinin dışında tutar (SQL 015).
+        is_symbolic: document.getElementById('cp-temp-symbolic').checked,
     };
 
     if (editIdx !== '') {
@@ -665,6 +885,7 @@ function loadProductToForm(idx) {
     refreshDiffDisplay();
     document.getElementById('cp-temp-date').value = p.price_date ? String(p.price_date).slice(0, 10) : '';
     document.getElementById('cp-temp-date2').value = p.net_price_2_date ? String(p.net_price_2_date).slice(0, 10) : '';
+    document.getElementById('cp-temp-symbolic').checked = p.is_symbolic === true;
     document.getElementById('cp-edit-product-idx').value = idx;
     document.getElementById('cp-product-form-title').textContent = 'Ürünü Güncelle';
     document.getElementById('btn-cancel-product-edit').classList.remove('hidden');
@@ -696,6 +917,7 @@ function resetProductForm() {
     ['cp-temp-product','cp-temp-list','cp-temp-net','cp-temp-net2','cp-temp-discount','cp-temp-diff'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('cp-temp-date').value = todayISO();
     document.getElementById('cp-temp-date2').value = '';
+    document.getElementById('cp-temp-symbolic').checked = false;
     document.getElementById('cp-edit-product-idx').value = '';
     document.getElementById('cp-product-form-title').textContent = '2. Ürün / Fiyat Ekle';
     document.getElementById('btn-cancel-product-edit').classList.add('hidden');
@@ -859,6 +1081,7 @@ async function saveClientPrices() {
             net_price_2: (p.net_price_2 === null || p.net_price_2 === undefined || p.net_price_2 === '')
                 ? null : (parseFloat(p.net_price_2) || null),
             discount_rate: parseFloat(p.discount_rate) || 0,
+            ...(hasSymbolicColumn ? { is_symbolic: p.is_symbolic === true } : {}),
             price_date: p.price_date || null,    // ürün bazlı; boşsa NULL
             net_price_2_date: p.net_price_2_date || null,
         }));
@@ -871,6 +1094,7 @@ async function saveClientPrices() {
 
         closeModal();
         await fetchClientPrices();
+        await refreshMissingBadges();
     } catch (err) {
         console.error("Fiyat kartı kaydedilemedi:", err.message);
         await showAlertDialog("Hata: " + err.message, { variant: 'danger' });
@@ -894,6 +1118,7 @@ async function deleteClientPrices() {
         logChange({ ctx, moduleId: 'client-prices', action: 'delete', summary: `Müşteri fiyat kartı silindi: ${customerName}` });
         closeModal();
         await fetchClientPrices();
+        await refreshMissingBadges();
     } catch (err) {
         console.error("Silme işlemi başarısız:", err.message);
         await showAlertDialog("Silme işlemi başarısız oldu: " + err.message, { variant: 'danger' });
@@ -1596,6 +1821,7 @@ async function saveImportSelection() {
 
         document.getElementById('cp-import-modal').classList.add('hidden');
         await fetchClientPrices();
+        await refreshMissingBadges();
         await showAlertDialog(`${selected.length} ürün fiyatı ${customerIds.length} müşteri kartına aktarıldı.`, { variant: 'success' });
     } catch (err) {
         console.error('İçe aktarma başarısız:', err.message);

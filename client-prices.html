@@ -243,7 +243,17 @@
                             <input type="date" id="cp-temp-date2">
                         </div>
                     </div>
-                    <p id="cp-autofill-hint" class="text-[10px] text-slate-500 mt-2"></p>
+                    <div class="flex items-center justify-between gap-3 mt-3 flex-wrap">
+                        <label for="cp-temp-symbolic"
+                               title="Bu satır gerçek bir pazarlık fiyatı değil, bedelsiz/numune verilen ürün için girilmiş temsili tutarsa işaretleyin. İşaretli satırlar Satış &amp; Fiyat Analizi'ndeki fiyat istatistiklerine katılmaz."
+                               style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ink-2);cursor:pointer;">
+                            <input type="checkbox" id="cp-temp-symbolic"
+                                   style="width:14px;height:14px;accent-color:#2D4A3E;cursor:pointer;flex:0 0 auto;">
+                            <i class="fa-solid fa-gift" style="font-size:10px;color:var(--ink-3);"></i>
+                            Bedelsiz / Numune — istatistiklere katılmasın
+                        </label>
+                        <p id="cp-autofill-hint" class="text-[10px] text-slate-500"></p>
+                    </div>
                 </div>
 
                 <!-- 3. Ürün Listesi -->

@@ -13,7 +13,7 @@ export const MODULES = [
     { id: 'credit-notes',     label: 'Credit Notes',            href: 'credit-notes.html' },
     { id: 'client-prices',    label: 'Müşteri Sabit Fiyatlar',  href: 'client-prices.html' },
     { id: 'prices',           label: 'Fiyat Robotu',            href: 'prices.html' },
-    { id: 'profitability',    label: 'Karlılık Analizi',        href: 'profitability.html' },
+    { id: 'profitability',    label: 'Satış & Fiyat Analizi',  href: 'profitability.html' },
     { id: 'complaints',       label: 'Şikayet Panosu',          href: 'complaints.html' },
     { id: 'payments',         label: 'Ödeme Takibi',            href: 'payments.html' },
     { id: 'customer-score',   label: 'Müşteri Skoru',           href: 'customer-score.html' },

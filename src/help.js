@@ -155,19 +155,23 @@ const pages = [
     },
     {
         id: 'profitability',
-        label: 'Karlılık Analizi',
-        icon: 'fa-chart-line',
+        label: 'Satış & Fiyat Analizi',
+        icon: 'fa-scale-balanced',
         href: 'profitability.html',
         color: '#1A6B5A',
-        short: 'Ürün ve müşteri bazlı kâr analizi',
+        short: 'Gerçekleşen satışlar ve fiyat sapmaları',
         desc: `
-            <p>Sipariş, ürün ve müşteri bazında gerçek kârlılığı hesaplayıp görselleştirdiğiniz analiz sayfasıdır.</p>
+            <p>Gerçekte ne sattığınızı ve anlaştığınız fiyatın ne kadar dışına çıkıldığını gösteren analiz sayfasıdır.
+            Sipariş kalemleri (gerçek satış) ile Müşteri Sabit Fiyatlar (anlaşılan fiyat) karşılaştırılır.</p>
+            <p><strong>Not:</strong> Bu sayfa kâr/marj hesaplamaz — sistemde ürün maliyeti tutulmuyor.
+            Maliyet verisi girildiği gün marj bölümü buraya eklenebilir.</p>
             <h4>Temel Özellikler</h4>
             <ul>
-                <li><strong>Kâr Marjı Tablosu:</strong> Her ürün veya müşteri için gelir, maliyet ve net kâr satır satır listelenir.</li>
-                <li><strong>Grafik Görünümü:</strong> Kârlılığı çubuk veya çizgi grafikleriyle karşılaştırın.</li>
-                <li><strong>Tarih Filtresi:</strong> Belirli dönem aralıklarını seçerek dönemsel kârlılık analizi yapın.</li>
-                <li><strong>Döviz Bazlı Hesaplama:</strong> Tüm hesaplamalar seçili para birimine göre yeniden hesaplanır.</li>
+                <li><strong>Gerçek Satış Performansı:</strong> Ürün bazında gerçekleşen adet ve ciro; her para birimi ayrı gruplanır, kur çevrimi yapılmaz.</li>
+                <li><strong>Fiyat Sapma Raporu:</strong> Anlaşılan fiyat ile fiili ortalama satış fiyatı arasındaki fark, para etkisiyle birlikte listelenir.</li>
+                <li><strong>Müşteriler Arası Tutarsızlık:</strong> Aynı ürün için farklı müşterilerle anlaşılan fiyatların aralığı.</li>
+                <li><strong>Filtreler:</strong> Yıl, para birimi ve "1 adetlik satırları hariç tut" (numune / yedek parça) seçenekleri.</li>
+                <li><strong>Hariç Tutulanlar:</strong> İptal edilmiş ve Bedelsiz siparişler hiçbir hesaba girmez.</li>
             </ul>
         `
     },

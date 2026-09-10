@@ -1,7 +1,7 @@
 import { supabase } from '../utils/supabaseClient.js';
 import { isOwner, canView } from '../utils/permissions.js';
 
-const APP_VERSION = 'V: 1.1.20';
+const APP_VERSION = 'V: 1.1.21';
 const ADMIN_TAB = { id: 'admin', label: 'Yönetici', icon: 'fa-user-shield', href: 'admin.html' };
 
 // MENU MODELI
@@ -33,7 +33,7 @@ const MENU = [
     {
         type: 'group', id: 'grp-bi', label: 'BI Raporları', icon: 'fa-chart-simple',
         children: [
-            { id: 'profitability',    label: 'Karlılık Analizi', icon: 'fa-chart-line',           href: 'profitability.html' },
+            { id: 'profitability',    label: 'Satış & Fiyat Analizi', icon: 'fa-scale-balanced', href: 'profitability.html' },
             { id: 'complaints',       label: 'Şikayet Panosu',   icon: 'fa-triangle-exclamation', href: 'complaints.html' },
             { id: 'payments',         label: 'Ödeme Takibi',     icon: 'fa-circle-dollar-to-slot',href: 'payments.html' },
             { id: 'customer-score',   label: 'Müşteri Skoru',    icon: 'fa-ranking-star',         href: 'customer-score.html' },
