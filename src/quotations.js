@@ -10,6 +10,7 @@ import {
     parseProformaPdf, findItemMismatches, formatMismatchList,
     resolveFonksiyonLabel, parseTurkishFloat,
 } from './utils/proformaPdf.js';
+import { createPriceFlags, flagPayload, flagDefaults } from './utils/priceFlags.js';
 
 // ── DURUM LİSTESİ ─────────────────────────────────────────────────────────────
 const STATUS_LIST = [
@@ -37,6 +38,14 @@ let currentQuotationId = null;
 let quotationItemsBuffer = [];
 let ctx = null;
 
+// Kalem "Fiyat Notu" işaretleri — Sipariş modülüyle ortak (utils/priceFlags.js).
+const priceFlags = createPriceFlags({
+    table: 'quotation_items',
+    supabase,
+    getBuffer: () => quotationItemsBuffer,
+    sqlHint: 'supabase/sql/020_add_free_flags_to_quotation_items.sql',
+});
+
 // ── INIT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
@@ -44,7 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     ctx = await getAccessContext();
     if (!(await guardModuleAccess(ctx, 'quotations'))) return;
     await renderNavbar('quotations', ctx);
-    await Promise.all([fetchCustomersData(), fetchQuotationsData(), fetchProductsData()]);
+    await Promise.all([fetchCustomersData(), fetchQuotationsData(), fetchProductsData(), priceFlags.probe()]);
     initEventListeners();
     applyEditLock(ctx, 'quotations');
 });
@@ -365,7 +374,8 @@ async function openModalForEdit(id) {
     quotationItemsBuffer = existingItems.map(item => ({
         id: item.id, product_id: item.product_id,
         product_name: item.product_name, product_code: item.product_code,
-        quantity: item.quantity, unit_price: item.unit_price, notes: item.notes
+        quantity: item.quantity, unit_price: item.unit_price, notes: item.notes,
+        ...flagDefaults(item),
     }));
 
     switchTab('general');
@@ -488,6 +498,8 @@ async function saveQuotationItems(quotationId, userId) {
             quantity: item.quantity || null,
             unit_price: item.unit_price || null,
             currency: document.getElementById('currency').value,
+            // Kolonlar SQL 020 ile geliyor; yoksa payload'a hiç girmez.
+            ...flagPayload(item, priceFlags.isEnabled()),
         };
         if (item.id) {
             const { error } = await supabase.from('quotation_items').update(itemPayload).eq('id', item.id);
@@ -641,6 +653,9 @@ async function handleSendToOrder() {
                 unit_price: item.unit_price || null,
                 currency,
                 notes: item.notes || null,
+                // İşaretler siparişe taşınır — aksi halde kullanıcı aynı
+                // satırları sipariş ekranında yeniden işaretlemek zorunda kalır.
+                ...flagPayload(item, priceFlags.isEnabled()),
             }));
 
         if (orderItems.length > 0) {
@@ -739,7 +754,7 @@ function renderItemsTable() {
     updateItemsColumnHeaders();
 
     if (quotationItemsBuffer.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#968B7A;padding:24px;font-size:13px;">Henüz teklif kalemi eklenmedi. "Satır Ekle" butonunu kullanın.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${priceFlags.isEnabled() ? 9 : 8}" style="text-align:center;color:#968B7A;padding:24px;font-size:13px;">Henüz teklif kalemi eklenmedi. "Satır Ekle" butonunu kullanın.</td></tr>`;
         updateItemsTotal();
         return;
     }
@@ -791,6 +806,7 @@ function renderItemsTable() {
             <td style="text-align:right;font-weight:600;font-size:13px;color:#2D4A3E;width:95px;" class="item-amount" data-idx="${idx}">
                 ${calcAmount(item.quantity, item.unit_price)}
             </td>
+            ${priceFlags.cell(item, idx)}
             <td style="text-align:center;width:40px;">
                 <button class="btn-remove-item" data-idx="${idx}" style="background:none;border:none;cursor:pointer;color:#9F3D3D;font-size:13px;padding:4px 8px;">
                     <i class="fa-solid fa-trash-can"></i>
@@ -850,6 +866,7 @@ function renderItemsTable() {
             updateItemAmount(tbody, idx); updateItemsTotal();
         });
     });
+    priceFlags.bind(tbody);
     tbody.querySelectorAll('.btn-remove-item').forEach(btn => {
         btn.addEventListener('click', e => {
             quotationItemsBuffer.splice(parseInt(e.currentTarget.dataset.idx), 1);
@@ -868,6 +885,7 @@ function calcAmount(qty, price) {
 function updateItemAmount(tbody, idx) {
     const cell = tbody.querySelector(`.item-amount[data-idx="${idx}"]`);
     if (cell) cell.textContent = calcAmount(quotationItemsBuffer[idx].quantity, quotationItemsBuffer[idx].unit_price);
+    priceFlags.refresh(tbody);
 }
 
 // Kalem toplamı ile genel toplam arasındaki fark, bilinen bir KDV oranına (%1/%8/%10/%18/%20)
@@ -903,7 +921,7 @@ function updateItemsTotal() {
 }
 
 function addItemRow() {
-    quotationItemsBuffer.push({ id: null, product_id: null, product_name: '', product_code: '', quantity: null, unit_price: null, notes: '' });
+    quotationItemsBuffer.push({ id: null, product_id: null, product_name: '', product_code: '', quantity: null, unit_price: null, notes: '', ...flagDefaults() });
     switchTab('items');
 }
 
@@ -1063,6 +1081,7 @@ async function handlePdfItemFileSelect(file) {
                 quantity: it.quantity,
                 unit_price: it.netPrice,
                 notes: null,
+                ...flagDefaults(),
                 // Yalnızca ekranda uyarı rozeti için; kayıt payload'ına girmez.
                 _pdfMismatch: mismatchByCode.get(it.code) || null,
             };

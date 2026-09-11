@@ -10,6 +10,7 @@ import {
     parseProformaPdf, findItemMismatches, formatMismatchList,
     resolveFonksiyonLabel, parseTurkishFloat,
 } from './utils/proformaPdf.js';
+import { createPriceFlags, flagPayload, flagDefaults } from './utils/priceFlags.js';
 
 // ── DURUM ETİKETLERİ ────────────────────────────────────────────────────────
 const STATUS_TAGS_LIST = [
@@ -73,7 +74,14 @@ let ctx = null;
 
 // SQL 016 çalıştırılmış mı? Kolonlar yoksa "Fiyat Notu" sütunu gizlenir ve
 // hiçbir yazma işlemine bu alanlar eklenmez (bkz. client-prices.js is_symbolic).
-let hasPriceFlagColumns = false;
+// Kalem "Fiyat Notu" işaretleri — Teklifler modülüyle ortak (utils/priceFlags.js).
+const priceFlags = createPriceFlags({
+    table: 'order_items',
+    supabase,
+    getBuffer: () => orderItemsBuffer,
+    sqlHint: 'supabase/sql/016_add_free_flags_to_order_items.sql',
+});
+
 // SQL 017 çalıştırılmış mı? Yoksa "Fatura Altı İndirim" satırı gizlenir.
 let hasDeductionColumn = false;
 
@@ -85,7 +93,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!(await guardModuleAccess(ctx, 'orders'))) return;
     await renderNavbar('orders', ctx);
     renderStatusTagCheckboxes();
-    await Promise.all([fetchCustomersData(), fetchOrdersData(), fetchProductsData(), probePriceFlagColumns(), probeDeductionColumn()]);
+    await Promise.all([fetchCustomersData(), fetchOrdersData(), fetchProductsData(), priceFlags.probe(), probeDeductionColumn()]);
     initEventListeners();
     applyEditLock(ctx, 'orders');
 });
@@ -117,22 +125,6 @@ async function fetchProductsData() {
     } catch (err) {
         console.error('Ürün listesi yüklenemedi:', err.message);
     }
-}
-
-// order_items.is_free / cn_adjusted kolonları var mı? Bir kez yoklanır.
-// Kolon yoksa modül eskisi gibi çalışır: sütun gizlenir, payload'a alan girmez.
-async function probePriceFlagColumns() {
-    const { error } = await supabase.from('order_items').select('is_free, cn_adjusted').limit(1);
-    hasPriceFlagColumns = !error;
-    if (!hasPriceFlagColumns) {
-        console.info('order_items.is_free/cn_adjusted kolonları yok — supabase/sql/016_add_free_flags_to_order_items.sql çalıştırılmamış. "Fiyat Notu" sütunu gizlendi.');
-    }
-    // Başlık ve alt toplam hücresi birlikte gizlenir; yalnız biri gizlenirse
-    // table-layout:fixed tabloda hayalet bir sütun kalır.
-    ['th-price-flags', 'tf-price-flags'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = hasPriceFlagColumns ? '' : 'none';
-    });
 }
 
 // orders.invoice_deduction kolonu var mı? Bir kez yoklanır.
@@ -570,7 +562,7 @@ async function openModalForEdit(id) {
         id: item.id, product_id: item.product_id,
         product_name: item.product_name, product_code: item.product_code,
         quantity: item.quantity, unit_price: item.unit_price, notes: item.notes,
-        is_free: item.is_free === true, cn_adjusted: item.cn_adjusted === true,
+        ...flagDefaults(item),
     }));
 
     switchTab('general');
@@ -764,10 +756,7 @@ async function saveOrderItems(orderId, userId) {
             currency: document.getElementById('currency').value,
             notes: item.notes || null,
             // Kolonlar SQL 016 ile geliyor; yoksa payload'a hiç girmez.
-            ...(hasPriceFlagColumns ? {
-                is_free:     item.is_free === true,
-                cn_adjusted: item.cn_adjusted === true,
-            } : {}),
+            ...flagPayload(item, priceFlags.isEnabled()),
         };
         if (item.id) {
             const { error } = await supabase.from('order_items').update(itemPayload).eq('id', item.id);
@@ -876,100 +865,13 @@ function updateItemsColumnHeaders() {
     if (amountTh) amountTh.textContent = `Tutar (${s})`;
 }
 
-// ── FİYAT NOTU İŞARETLERİ ────────────────────────────────────────────────────
-// Bedelsiz gönderim faturasal olarak 0 tutarla yapılamadığı için kalem, liste
-// fiyatının %99 iskontolusuyla girilir. Girilen tutar GERÇEKTİR (fatura ve kalem
-// toplamı ona göre oluşur) — bu yüzden işaret fiyat alanını ne sıfırlar ne de
-// kilitler. İşaret yalnızca "bu tutar bir pazarlık fiyatı değildir" der ve satırı
-// fiyat istatistiklerinin dışında bırakır (client-prices.js, profitability.js).
-//
-// İkinci işaret bunun devamı: bedelsiz kalemin tutarı bazen siparişin BAŞKA bir
-// kaleminden düşülür. Müşteri Sabit Fiyatlar'da gerçek fiyat korunduğu için
-// (bilinçli tercih) fark yalnız o sipariş kaleminde kalır; o satır da anlaşılan
-// fiyatı temsil etmez.
-const PRICE_FLAGS = [
-    {
-        field: 'is_free', cls: 'on-free', icon: 'fa-gift', label: 'BEDELSİZ', showPct: true,
-        title: "Bedelsiz gönderim — birim fiyat faturasal zorunluluk nedeniyle girilmiş temsili tutardır (liste fiyatının ~%1'i).\nTutar olduğu gibi kalır; satır fiyat istatistiklerine katılmaz.",
-    },
-    {
-        field: 'cn_adjusted', cls: 'on-cn', icon: 'fa-file-invoice-dollar', label: 'CN FİYATI',
-        title: "Fiyat bir Credit Note nedeniyle elle düzenlendi (ör. bedelsiz kalemin tutarı bu satırdan düşüldü).\nAnlaşılan fiyat değildir; satır fiyat istatistiklerine katılmaz.",
-    },
-];
-
-// Çipler olay delegasyonuyla dinlenir: hücre, fiyat yazılırken yeniden çiziliyor
-// (discountPct tazelensin diye) — tek tek bağlanan dinleyiciler o çizimde
-// kaybolurdu. tbody her render'da korunduğu için bağlama YALNIZ BİR KEZ yapılır;
-// aksi halde dinleyiciler üst üste binip tek tıkta iki kez toggle ederdi.
-function bindPriceFlagDelegation(tbody) {
-    if (tbody.dataset.flagsBound === '1') return;
-    tbody.dataset.flagsBound = '1';
-
-    const toggleFlag = el => {
-        const idx = parseInt(el.dataset.idx);
-        const field = el.dataset.flag;
-        if (!orderItemsBuffer[idx]) return;
-        orderItemsBuffer[idx][field] = !orderItemsBuffer[idx][field];
-        refreshPriceFlagCells(tbody);
-    };
-    tbody.addEventListener('click', e => {
-        const chip = e.target.closest('.flag-chip');
-        if (chip) toggleFlag(chip);
-    });
-    tbody.addEventListener('keydown', e => {
-        const chip = e.target.closest('.flag-chip');
-        if (chip && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggleFlag(chip); }
-    });
-}
-
-function priceFlagsCell(item, idx) {
-    if (!hasPriceFlagColumns) return '';
-    return `<td style="width:188px;">
-                <div class="flag-cell" data-idx="${idx}">${flagChips(item, idx)}</div>
-            </td>`;
-}
-
-function flagChips(item, idx) {
-    return PRICE_FLAGS.map(f => {
-        const on = item[f.field] === true;
-        // İskonto yüzdesi işaretli çipin başlığına eklenir. Çipin İÇİNE yazılınca
-        // sütunun en geniş hali ~234px oluyor ve işaretsiz satırlarda (çipler 163px)
-        // sağda 59px ölü alan kalıyordu.
-        const tip = f.title + (on && f.showPct ? discountPct(item) : '');
-        return `<span class="flag-chip${on ? ' ' + f.cls : ''}" data-flag="${f.field}" data-idx="${idx}" title="${escapeHtml(tip)}" role="button" tabindex="0">
-                    <i class="fa-solid ${on ? f.icon : 'fa-plus'}"></i>${f.label}
-                </span>`;
-    }).join('');
-}
-
-// İşaretli satırda, aynı siparişteki aynı ürünün normal fiyatına göre iskonto
-// yüzdesi — yanlış tuşlanmış temsili tutarı yakalamak için. Çipin başlığına
-// (tooltip) eklenir. Referans satır yoksa hiç üretilmez: liste fiyatı bu
-// ekranda tutulmuyor, tek referans aynı siparişteki normal fiyatlı satır.
-function discountPct(item) {
-    const price = parseFloat(item.unit_price) || 0;
-    if (price <= 0 || !item.product_code) return '';
-    const ref = orderItemsBuffer.reduce((max, o) => {
-        if (o === item || o.product_code !== item.product_code) return max;
-        if (o.is_free || o.cn_adjusted) return max;
-        return Math.max(max, parseFloat(o.unit_price) || 0);
-    }, 0);
-    if (ref <= price) return '';
-    const pct = (1 - price / ref) * 100;
-    const fmt = n => n.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-    return `
-
-Aynı siparişteki aynı ürünün normal fiyatı ${ref.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} — bu satır %${fmt(pct)} iskontolu.`;
-}
-
 function renderItemsTable() {
     const tbody = document.getElementById('items-table-body');
     tbody.innerHTML = '';
     updateItemsColumnHeaders();
 
     if (orderItemsBuffer.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${hasPriceFlagColumns ? 9 : 8}" style="text-align:center;color:#968B7A;padding:24px;font-size:13px;">Henüz sipariş kalemi eklenmedi. "Satır Ekle" butonunu kullanın.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${priceFlags.isEnabled() ? 9 : 8}" style="text-align:center;color:#968B7A;padding:24px;font-size:13px;">Henüz sipariş kalemi eklenmedi. "Satır Ekle" butonunu kullanın.</td></tr>`;
         updateItemsTotal();
         return;
     }
@@ -1021,7 +923,7 @@ function renderItemsTable() {
             <td style="text-align:right;font-weight:600;font-size:13px;color:#2D4A3E;width:95px;" class="item-amount" data-idx="${idx}">
                 ${calcAmount(item.quantity, item.unit_price)}
             </td>
-            ${priceFlagsCell(item, idx)}
+            ${priceFlags.cell(item, idx)}
             <td style="text-align:center;width:40px;">
                 <button class="btn-remove-item" data-idx="${idx}" style="background:none;border:none;cursor:pointer;color:#9F3D3D;font-size:13px;padding:4px 8px;">
                     <i class="fa-solid fa-trash-can"></i>
@@ -1081,7 +983,7 @@ function renderItemsTable() {
             updateItemAmount(tbody, idx); updateItemsTotal();
         });
     });
-    bindPriceFlagDelegation(tbody);
+    priceFlags.bind(tbody);
     tbody.querySelectorAll('.btn-remove-item').forEach(btn => {
         btn.addEventListener('click', e => {
             orderItemsBuffer.splice(parseInt(e.currentTarget.dataset.idx), 1);
@@ -1100,18 +1002,7 @@ function calcAmount(qty, price) {
 function updateItemAmount(tbody, idx) {
     const cell = tbody.querySelector(`.item-amount[data-idx="${idx}"]`);
     if (cell) cell.textContent = calcAmount(orderItemsBuffer[idx].quantity, orderItemsBuffer[idx].unit_price);
-    refreshPriceFlagCells(tbody);
-}
-
-// Bir satırın fiyatı değişince referans olarak kullanıldığı DİĞER satırların
-// iskonto yüzdesi de bayatlar — hepsi birden tazelenir. Tablo yeniden çizilmez,
-// kullanıcı yazarken odak kaybolmasın.
-function refreshPriceFlagCells(tbody) {
-    tbody.querySelectorAll('.flag-cell').forEach(cell => {
-        const idx = parseInt(cell.dataset.idx);
-        const item = orderItemsBuffer[idx];
-        if (item) cell.innerHTML = flagChips(item, idx);
-    });
+    priceFlags.refresh(tbody);
 }
 
 // Kalem toplamı ile genel toplam arasındaki fark, bilinen bir KDV oranına (%1/%8/%10/%18/%20)
@@ -1222,7 +1113,7 @@ function updateCnDeductionSuggestion(itemsTotal, orderTotal, deduction) {
 }
 
 function addItemRow() {
-    orderItemsBuffer.push({ id: null, product_id: null, product_name: '', product_code: '', quantity: null, unit_price: null, notes: '', is_free: false, cn_adjusted: false });
+    orderItemsBuffer.push({ id: null, product_id: null, product_name: '', product_code: '', quantity: null, unit_price: null, notes: '', ...flagDefaults() });
     switchTab('items');
 }
 
@@ -2009,8 +1900,7 @@ async function handlePdfItemFileSelect(file) {
                 quantity: it.quantity,
                 unit_price: it.netPrice,
                 notes: null,
-                is_free: false,
-                cn_adjusted: false,
+                ...flagDefaults(),
                 // Yalnızca ekranda uyarı rozeti için; kayıt payload'ına girmez.
                 _pdfMismatch: mismatchByCode.get(it.code) || null,
             };
