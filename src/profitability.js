@@ -163,8 +163,12 @@ async function loadAllData() {
             // undefined olur, sorgu hata vermez.
             fetchAll('customer_prices',
                 '*, customers!fk_customer_prices_customer ( id, company_name, country )'),
-            fetchAll('orders', 'id, order_number, customer_id, order_date, currency, total_amount, payment_method, status_tags'),
-            fetchAll('order_items', 'order_id, product_id, product_name, product_code, quantity, unit_price, currency'),
+            // orders da '*': invoice_deduction kolonu SQL 017 ile geliyor,
+            // henüz çalıştırılmamış olabilir.
+            fetchAll('orders', '*'),
+            // order_items da '*': is_free / cn_adjusted kolonları SQL 016 ile
+            // geliyor, henüz çalıştırılmamış olabilir.
+            fetchAll('order_items', '*'),
             fetchAll('urunler', 'id, stok_kodu, stok_adi_1'),
             fetchAll('customers', 'id, company_name, country'),
         ]);
@@ -316,6 +320,12 @@ function buildItemView() {
         if (!label.linked) unlinked++;
         if (label.ambiguous) ambiguous++;
 
+        // SQL 016 işaretleri: bedelsiz gönderim ya da bedelsiz kalemin tutarının
+        // düşüldüğü satır. Tutar gerçektir (fatura ona göre kesilmiştir) — bu
+        // yüzden ciro ve adet toplamlarında KALIR. Ama pazarlık fiyatı değildir,
+        // bu yüzden fiyat sapma raporuna girmez (bkz. buildDeviations).
+        const priceless = it.is_free === true || it.cn_adjusted === true;
+
         items.push({
             key: productKey(productIndex, it),
             keys: identityKeys(productIndex, it),
@@ -327,6 +337,9 @@ function buildItemView() {
             qty,
             unitPrice: price,
             revenue: qty * price,
+            priceless,
+            isFree: it.is_free === true,
+            cnAdjusted: it.cn_adjusted === true,
         });
     });
 
@@ -488,6 +501,9 @@ function buildReconciliation(itemView) {
         qty: parseFloat(it.quantity) || 0,
         unitPrice: parseFloat(it.unit_price) || 0,
         revenue: lineAmount(it),
+        priceless: it.is_free === true || it.cn_adjusted === true,
+        isFree: it.is_free === true,
+        cnAdjusted: it.cn_adjusted === true,
     });
 
     // Gösterilen ciro: bölüm 1'in topladığı rakamın aynısı.
@@ -528,6 +544,7 @@ function buildReconciliation(itemView) {
         let itemsSame = 0, itemsOther = 0, singles = 0;
         const mismatched = [];
         const vatOrders = [];
+        const deductionOrders = [];   // fatura altı indirim uygulanmış (SQL 017)
         const otherCurLines = [];
         const singleLines = [];
         r3.forEach(o => {
@@ -546,7 +563,11 @@ function buildReconciliation(itemView) {
             const tot = parseFloat(o.total_amount) || 0;
             if (Math.abs(orderItemsTotal - tot) > 0.5) {
                 const ratio = orderItemsTotal > 0 ? tot / orderItemsTotal : 0;
-                if (Math.abs(ratio - (1 + VAT_RATE)) <= VAT_TOLERANCE) vatOrders.push(o);
+                const deduction = parseFloat(o.invoice_deduction) || 0;
+                // Fatura altı indirim girilmişse fark AÇIKLANMIŞTIR: kalem
+                // fiyatlarına dokunulmadan CN tutarı faturadan düşülmüştür.
+                if (deduction > 0 && Math.abs(orderItemsTotal - deduction - tot) <= 0.5) deductionOrders.push(o);
+                else if (Math.abs(ratio - (1 + VAT_RATE)) <= VAT_TOLERANCE) vatOrders.push(o);
                 else mismatched.push(o);
             }
         });
@@ -566,6 +587,15 @@ function buildReconciliation(itemView) {
             });
         }
 
+        const deductionDelta = sumDiff(deductionOrders);
+        if (deductionOrders.length) {
+            running += deductionDelta;
+            steps.push({
+                t: `${deductionOrders.length} siparişte fatura altı indirim uygulanmış`,
+                v: deductionDelta, orders: deductionOrders, withItemsTotal: true,
+            });
+        }
+
         const mismatchDelta = sumDiff(mismatched);
         if (mismatched.length) {
             running += mismatchDelta;
@@ -576,7 +606,7 @@ function buildReconciliation(itemView) {
         }
 
         // Kalan bakiye (yuvarlama). Normalde sıfır olmalı.
-        const delta = (itemsSame + itemsOther) - sumTot(r3) - vatDelta - mismatchDelta;
+        const delta = (itemsSame + itemsOther) - sumTot(r3) - vatDelta - deductionDelta - mismatchDelta;
         if (Math.abs(delta) > 0.005) {
             running += delta;
             steps.push({ t: 'Diğer küçük farklar', v: delta });
@@ -688,7 +718,14 @@ function buildDeviations(itemView, cardView) {
     const noCard = new Map();   // fiyat kartı hiç yok
     const beforeCard = new Map(); // satış, kartın başlangıç tarihinden önce
 
+    let excluded = 0;
+
     itemView.items.forEach(it => {
+        // Bedelsiz / CN nedeniyle düzenlenmiş kalemler anlaşılan fiyatla
+        // karşılaştırılamaz: tutarları bilerek temsilidir, karşılaştırıldığında
+        // %96-99'luk sahte sapma üretirler.
+        if (it.priceless) { excluded++; return; }
+
         const k = `${it.customerId}|${it.key}|${it.currency}`;
         const card = findCard(it);
 
@@ -755,7 +792,7 @@ function buildDeviations(itemView, cardView) {
     const noCardList = [...noCard.values()].sort((a, b) => b.revenue - a.revenue);
     const beforeList = [...beforeCard.values()].sort((a, b) => b.revenue - a.revenue);
 
-    return { rows, noCard: noCardList, beforeCard: beforeList };
+    return { rows, noCard: noCardList, beforeCard: beforeList, excluded };
 }
 
 function renderDeviations(itemView, cardView) {
@@ -764,7 +801,7 @@ function renderDeviations(itemView, cardView) {
     const summary = document.getElementById('dev-summary');
     if (!body) return;
 
-    const { rows, noCard, beforeCard } = buildDeviations(itemView, cardView);
+    const { rows, noCard, beforeCard, excluded } = buildDeviations(itemView, cardView);
     if (badge) badge.textContent = `${rows.length} sapma`;
 
     // Para birimi başına net etki özeti
@@ -791,8 +828,15 @@ function renderDeviations(itemView, cardView) {
             </div>`;
         })() : '';
 
-        summary.innerHTML = (totals.size || noCardChip)
-            ? `<div style="display:flex;flex-wrap:wrap;gap:8px;">` + noCardChip +
+        // Elenen işaretli kalemler sessizce kaybolmasın — raporun neyi
+        // kapsamadığı ekranda yazsın.
+        const flaggedChip = excluded ? `<div title="Bedelsiz gönderim ya da fiyatı bir Credit Note nedeniyle düzenlenmiş kalemler. Tutarları temsilidir; anlaşılan fiyatla karşılaştırılmazlar. Ciro toplamlarında yer almaya devam ederler." style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:8px;background:var(--surface-2);border:1px solid var(--border-soft);color:var(--ink-3);font-size:11px;font-weight:600;">
+                <i class="fa-solid fa-gift" style="font-size:10px;"></i>
+                ${excluded} kalem işaretli olduğu için sapma dışı
+            </div>` : '';
+
+        summary.innerHTML = (totals.size || noCardChip || flaggedChip)
+            ? `<div style="display:flex;flex-wrap:wrap;gap:8px;">` + noCardChip + flaggedChip +
               sortCurrencies([...totals.keys()]).map(cur => {
                   const t = totals.get(cur);
                   return `<div style="display:flex;align-items:baseline;gap:8px;padding:7px 12px;border-radius:8px;background:var(--surface-2);border:1px solid var(--border-soft);">
@@ -1186,10 +1230,21 @@ function linesTable(lines, currency, { showProduct = true, showCustomer = true }
             ${showCustomer ? `<td>${escHtml(ref.customer)}</td>` : ''}
             ${showProduct ? `<td>${escHtml(l.label.name)}${l.label.code ? `<div class="prow-sub">${escHtml(l.label.code)}</div>` : ''}</td>` : ''}
             <td class="num">${l.qty.toLocaleString('tr-TR')}</td>
-            <td class="num">${fmtMoney(l.unitPrice, currency)}</td>
+            <td class="num">${fmtMoney(l.unitPrice, currency)}${linePriceFlag(l)}</td>
             <td class="num" style="font-weight:600;">${fmtMoney(l.revenue, currency)}</td>
         </tr>`;
     }));
+}
+
+// Ciro tablosunda işaretli satır: rakam doğru ama pazarlık fiyatı değil.
+// Ürünün "ort." fiyatını aşağı çekmesinin sebebi burada görünsün.
+function linePriceFlag(l) {
+    if (!l.priceless) return '';
+    const txt = l.isFree ? 'bedelsiz' : 'CN fiyatı';
+    const tip = l.isFree
+        ? 'Bedelsiz gönderim — birim fiyat temsilidir, fiyat sapma raporuna katılmaz.'
+        : 'Fiyat bir Credit Note nedeniyle düzenlenmiş — fiyat sapma raporuna katılmaz.';
+    return `<div class="prow-sub" title="${escHtml(tip)}" style="color:var(--ink-3);">${txt}</div>`;
 }
 
 // Sipariş listesi — mutabakat adımlarının arkasındaki siparişler.

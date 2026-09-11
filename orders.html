@@ -119,10 +119,25 @@
         .tag-cb-wrap:checked + .tag-cb-label { border-color:#2D4A3E; background:#2D4A3E; color:#fff; }
 
         /* Items table */
-        .items-table { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12px; }
+        /* min-width: dar ekranda sütunlar sıkışıp okunmaz hale gelmesin — sarmalayıcı
+           (overflow-x:auto) yatay kaydırma versin. */
+        .items-table { width:100%; min-width:1198px; table-layout:fixed; border-collapse:collapse; font-size:12px; }
         .items-table th { padding:8px 10px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#968B7A; border-bottom:1px solid #E4DDCE; text-align:left; }
         .items-table td { padding:6px 8px; border-bottom:1px solid #F0EDE4; vertical-align:top; }
         .items-table input, .items-table select { height:34px !important; font-size:12px !important; }
+
+        /* Kalem fiyat notu — bedelsiz / CN sebebiyle düzenlenmiş fiyat işaretleri.
+           Girilen tutar gerçektir (fatura ona göre kesilir); işaret yalnızca o
+           tutarın pazarlık fiyatı OLMADIĞINI söyler ve fiyat istatistiklerinden
+           çıkarır. Bu yüzden fiyat alanı pasifleştirilmez. */
+        .flag-cell { display:flex; flex-wrap:wrap; gap:3px; align-items:center; padding-top:9px; }
+        .flag-chip { display:inline-flex; align-items:center; gap:4px; padding:3px 6px; border-radius:10px;
+                     border:1px solid #E4DDCE; background:#fff; color:#968B7A; font-size:9.5px; font-weight:700;
+                     letter-spacing:0; cursor:pointer; user-select:none; white-space:nowrap; transition:all .12s; }
+        .flag-chip:hover { border-color:#D6D2C9; background:#F6F3EC; }
+        .flag-chip i { font-size:9px; }
+        .flag-chip.on-free { border-color:#2D4A3E; background:#E8F0EA; color:#2D4A3E; }
+        .flag-chip.on-cn   { border-color:#B26B33; background:#FDF6E7; color:#8A4F20; }
 
         /* Customer dropdown */
         .customer-dropdown-item { padding:9px 14px; cursor:pointer; font-size:13px; border-bottom:1px solid #F0EDE4; transition:background .1s; }
@@ -232,7 +247,7 @@
 <!-- MODAL: Sipariş Giriş / Düzenleme                   -->
 <!-- ═══════════════════════════════════════════════════ -->
 <div id="order-modal" class="modal-backdrop hidden">
-    <div class="modal-content" style="max-width:78rem;">
+    <div class="modal-content" style="max-width:min(100rem, calc(100vw - 3rem));">
         <div class="modal-head">
             <div class="modal-title">
                 <i class="fa-solid fa-cart-plus" style="color:#2D4A3E;"></i>
@@ -400,11 +415,12 @@
                                 <th style="text-align:right;width:100px;">Adet</th>
                                 <th style="text-align:right;width:100px;" id="th-unit-price">Birim Fiyat</th>
                                 <th style="text-align:right;width:95px;" id="th-amount">Tutar</th>
+                                <th style="width:188px;" id="th-price-flags">Fiyat Notu</th>
                                 <th style="text-align:center;width:40px;">Sil</th>
                             </tr>
                         </thead>
                         <tbody id="items-table-body">
-                            <tr><td colspan="8" style="text-align:center;color:#968B7A;padding:24px;font-size:13px;">Henüz sipariş kalemi eklenmedi.</td></tr>
+                            <tr><td colspan="9" style="text-align:center;color:#968B7A;padding:24px;font-size:13px;">Henüz sipariş kalemi eklenmedi.</td></tr>
                         </tbody>
                         <tfoot>
                             <tr style="border-top:2px solid #E4DDCE;background:#F6F3EC;">
@@ -412,11 +428,24 @@
                                 <td style="text-align:right;font-weight:700;font-size:14px;color:#2D4A3E;padding:10px 14px;" id="items-qty-total">0</td>
                                 <td></td>
                                 <td style="text-align:right;font-weight:700;font-size:14px;color:#2D4A3E;padding:10px 14px;" id="items-total">0,00</td>
+                                <td id="tf-price-flags"></td>
                                 <td></td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
+                <!-- Fatura altı indirim — kalem fiyatlarına dokunmadan, CN tutarının
+                     faturanın altından toplu düşüldüğü durumlar. Kalem toplamı ile
+                     sipariş tutarı arasındaki kasıtlı farkı açıklar. -->
+                <div id="deduction-row" class="hidden" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px;background:#F6F3EC;border:1px solid #E4DDCE;border-radius:6px;padding:9px 12px;">
+                    <label for="invoice_deduction" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;white-space:nowrap;">
+                        <i class="fa-solid fa-scissors" style="margin-right:5px;"></i>Fatura Altı İndirim
+                    </label>
+                    <input type="text" id="invoice_deduction" placeholder="0,00" style="width:120px;height:32px;font-size:12px;text-align:right;">
+                    <input type="text" id="invoice_deduction_note" placeholder="Sebep (ör. CN 62 mahsubu)" style="flex:1;min-width:180px;height:32px;font-size:12px;">
+                    <button type="button" id="btn-apply-cn-deduction" class="hidden" style="height:32px;padding:0 10px;background:#fff;border:1px solid #B26B33;border-radius:6px;color:#8A4F20;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;"></button>
+                </div>
+                <div id="deduction-equation" class="hidden" style="margin-top:6px;font-size:11.5px;color:#6B655B;padding:0 2px;"></div>
                 <div id="items-total-warning" class="hidden" style="margin-top:8px;font-size:12px;font-weight:600;color:#854d0e;background:#fef9c3;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;"></div>
             </div>
 

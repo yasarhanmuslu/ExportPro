@@ -1453,6 +1453,8 @@ function toggleAllCards() {
 //
 // Hariç tutulanlar:
 //   • payment_method = 'Bedelsiz'  → bedelsiz gönderim, fiyat temsili değil
+//   • order_items.is_free          → kalem bazında bedelsiz (SQL 016)
+//   • order_items.cn_adjusted      → fiyatı CN nedeniyle düzenlenmiş kalem
 //   • status_tags içinde 'İptal'   → iptal sipariş
 //   • unit_price boş veya <= 0     → fiyatsız kalem
 //
@@ -1471,8 +1473,10 @@ async function fetchOrdersAndItems() {
         supabase.from('orders')
             .select('id, customer_id, order_date, currency, payment_method, status_tags')
             .eq('user_id', ctx.ownerId),
+        // '*' bilinçli: is_free / cn_adjusted kolonları SQL 016 ile geliyor, henüz
+        // çalıştırılmamış olabilir — kolon adı tek tek yazılsa sorgu hata verirdi.
         supabase.from('order_items')
-            .select('order_id, product_id, product_name, product_code, quantity, unit_price, currency')
+            .select('*')
             .eq('user_id', ctx.ownerId),
     ]);
     if (ordersRes.error) throw ordersRes.error;
@@ -1503,6 +1507,9 @@ function deriveFromOrders(orders, items) {
         if (!o) return;
         if ((o.payment_method || '') === EXCLUDED_PAYMENT) return;
         if (Array.isArray(o.status_tags) && o.status_tags.includes(EXCLUDED_STATUS)) return;
+        // Kalem bazında işaretlenmiş temsili fiyatlar: bedelsiz gönderim ya da
+        // bedelsiz kalemin tutarının düşüldüğü satır. İkisi de pazarlık fiyatı değil.
+        if (it.is_free === true || it.cn_adjusted === true) return;
 
         const price = parseFloat(it.unit_price);
         if (!price || price <= 0) return;
