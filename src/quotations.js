@@ -11,6 +11,7 @@ import {
     resolveFonksiyonLabel, parseTurkishFloat,
 } from './utils/proformaPdf.js';
 import { createPriceFlags, flagPayload, flagDefaults } from './utils/priceFlags.js';
+import { createInvoiceDeduction, fmtAmount } from './utils/invoiceDeduction.js';
 
 // ── DURUM LİSTESİ ─────────────────────────────────────────────────────────────
 const STATUS_LIST = [
@@ -46,6 +47,15 @@ const priceFlags = createPriceFlags({
     sqlHint: 'supabase/sql/020_add_free_flags_to_quotation_items.sql',
 });
 
+// Fatura altı indirim — Sipariş modülüyle ortak (utils/invoiceDeduction.js).
+const deduction = createInvoiceDeduction({
+    table: 'quotations',
+    supabase,
+    parseAmount: parseTurkishFloat,
+    docLabel: 'teklif',
+    sqlHint: 'supabase/sql/021_add_invoice_deduction_to_quotations.sql',
+});
+
 // ── INIT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireAuth();
@@ -53,7 +63,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     ctx = await getAccessContext();
     if (!(await guardModuleAccess(ctx, 'quotations'))) return;
     await renderNavbar('quotations', ctx);
-    await Promise.all([fetchCustomersData(), fetchQuotationsData(), fetchProductsData(), priceFlags.probe()]);
+    await Promise.all([fetchCustomersData(), fetchQuotationsData(), fetchProductsData(), priceFlags.probe(), deduction.probe()]);
     initEventListeners();
     applyEditLock(ctx, 'quotations');
 });
@@ -327,6 +337,7 @@ function openModalForCreate() {
     const convBtn = document.getElementById('btn-send-to-order');
     convBtn.classList.add('hidden'); convBtn.style.display = 'none';
 
+    deduction.reset();
     currentQuotationId = null;
     quotationItemsBuffer = [];
     switchTab('general');
@@ -369,6 +380,8 @@ async function openModalForEdit(id) {
     } else {
         convBtn.classList.remove('hidden'); convBtn.style.display = 'flex';
     }
+
+    deduction.fill(q);
 
     const existingItems = await fetchQuotationItems(id);
     quotationItemsBuffer = existingItems.map(item => ({
@@ -429,6 +442,8 @@ async function handleQuotationSubmit(e) {
         order_type:       document.getElementById('order_type').value || null,
         currency:         document.getElementById('currency').value,
         total_amount,
+        // Kolonlar SQL 021 ile geliyor; yoksa payload'a hiç girmez.
+        ...deduction.payload(),
         order_quantity:   document.getElementById('order_quantity').value || null,
         payment_method:   document.getElementById('payment_method').value || null,
         status:           document.getElementById('q_status').value || 'Bekliyor',
@@ -629,6 +644,9 @@ async function handleSendToOrder() {
             order_status:       'Yeni Müşteri',
             status_tags:        ['Yeni Müşteri'],
             order_quantity:     manualQuantity || (totalQty > 0 ? String(totalQty) : null),
+            // Fatura altı indirim siparişe taşınır — total_amount zaten indirim
+            // sonrası; alan olmadan sipariş ekranı aynı uyarıyı baştan verirdi.
+            ...deduction.payload(),
             order_notes:        `Teklif ${quotationNumber || q.id} üzerinden oluşturuldu.${notes ? ' ' + notes : ''}`.trim(),
         };
 
@@ -905,16 +923,23 @@ function vatMismatchHint(itemsTotal, targetTotal) {
 function updateItemsTotal() {
     const total = quotationItemsBuffer.reduce((s, i) =>
         s + ((parseFloat(i.quantity) || 0) * (parseFloat(i.unit_price) || 0)), 0);
-    document.getElementById('items-total').textContent = total.toLocaleString('tr-TR', { minimumFractionDigits: 2 });
+    document.getElementById('items-total').textContent = fmtAmount(total);
 
     const qtyTotal = quotationItemsBuffer.reduce((s, i) => s + (parseFloat(i.quantity) || 0), 0);
     document.getElementById('items-qty-total').textContent = qtyTotal.toLocaleString('tr-TR');
 
     const qTotal = parseTurkishFloat(document.getElementById('total_amount').value);
+    const { warning, deduction: ded } = deduction.render({
+        itemsTotal: total,
+        docTotal: qTotal,
+        currency: document.getElementById('currency').value,
+    });
+
     const warn = document.getElementById('items-total-warning');
-    if (qTotal > 0 && Math.abs(total - qTotal) > 0.01) {
+    if (warning) {
         warn.classList.remove('hidden');
-        warn.textContent = `⚠ Kalem toplamı (${total.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}) teklif tutarından (${qTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}) farklı!${vatMismatchHint(total, qTotal)}`;
+        // İndirim girilmişse fark zaten açıklanmıştır; KDV ipucunu tekrarlama.
+        warn.textContent = warning + (ded > 0 ? '' : vatMismatchHint(total, qTotal));
     } else {
         warn.classList.add('hidden');
     }
@@ -1119,11 +1144,14 @@ function initEventListeners() {
     document.getElementById('filter-quotation-currency').addEventListener('change', applyFilters);
     document.getElementById('filter-quotation-status').addEventListener('change', applyFilters);
     document.getElementById('btn-add-item-row').addEventListener('click', addItemRow);
+    document.getElementById('currency').addEventListener('change', updateItemsTotal);
     document.getElementById('currency').addEventListener('change', updateItemsColumnHeaders);
     document.getElementById('tab-general').addEventListener('click', () => switchTab('general'));
     document.getElementById('tab-items').addEventListener('click', () => switchTab('items'));
 
     document.getElementById('total_amount').addEventListener('input', updateItemsTotal);
+    // Fatura altı indirim — girildikçe denklem ve uyarı yeniden hesaplanır.
+    document.getElementById('invoice_deduction').addEventListener('input', updateItemsTotal);
 
     // PDF'den kalem içe aktarma
     const pdfItemInput = document.getElementById('pdf-item-import-input');

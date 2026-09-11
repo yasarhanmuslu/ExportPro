@@ -11,6 +11,7 @@ import {
     resolveFonksiyonLabel, parseTurkishFloat,
 } from './utils/proformaPdf.js';
 import { createPriceFlags, flagPayload, flagDefaults } from './utils/priceFlags.js';
+import { createInvoiceDeduction, fmtAmount } from './utils/invoiceDeduction.js';
 
 // ── DURUM ETİKETLERİ ────────────────────────────────────────────────────────
 const STATUS_TAGS_LIST = [
@@ -82,8 +83,14 @@ const priceFlags = createPriceFlags({
     sqlHint: 'supabase/sql/016_add_free_flags_to_order_items.sql',
 });
 
-// SQL 017 çalıştırılmış mı? Yoksa "Fatura Altı İndirim" satırı gizlenir.
-let hasDeductionColumn = false;
+// Fatura altı indirim — Teklifler modülüyle ortak (utils/invoiceDeduction.js).
+const deduction = createInvoiceDeduction({
+    table: 'orders',
+    supabase,
+    parseAmount: parseTurkishFloat,
+    docLabel: 'sipariş',
+    sqlHint: 'supabase/sql/017_add_invoice_deduction_to_orders.sql',
+});
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -93,7 +100,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!(await guardModuleAccess(ctx, 'orders'))) return;
     await renderNavbar('orders', ctx);
     renderStatusTagCheckboxes();
-    await Promise.all([fetchCustomersData(), fetchOrdersData(), fetchProductsData(), priceFlags.probe(), probeDeductionColumn()]);
+    await Promise.all([fetchCustomersData(), fetchOrdersData(), fetchProductsData(), priceFlags.probe(), deduction.probe()]);
     initEventListeners();
     applyEditLock(ctx, 'orders');
 });
@@ -125,17 +132,6 @@ async function fetchProductsData() {
     } catch (err) {
         console.error('Ürün listesi yüklenemedi:', err.message);
     }
-}
-
-// orders.invoice_deduction kolonu var mı? Bir kez yoklanır.
-async function probeDeductionColumn() {
-    const { error } = await supabase.from('orders').select('invoice_deduction').limit(1);
-    hasDeductionColumn = !error;
-    if (!hasDeductionColumn) {
-        console.info('orders.invoice_deduction kolonu yok — supabase/sql/017_add_invoice_deduction_to_orders.sql çalıştırılmamış. "Fatura Altı İndirim" alanı gizlendi.');
-        return;
-    }
-    document.getElementById('deduction-row')?.classList.remove('hidden');
 }
 
 // Siparişe bağlı Credit Note özeti: order_id -> { count, byCurrency, freeQty, notes[] }
@@ -503,8 +499,7 @@ function openModalForCreate() {
     const delBtn = document.getElementById('btn-delete-order');
     delBtn.classList.add('hidden'); delBtn.style.display = 'none';
     setSelectedTags(['Devam Ediyor']);
-    document.getElementById('invoice_deduction').value = '';
-    document.getElementById('invoice_deduction_note').value = '';
+    deduction.reset();
     currentOrderId  = null;
     orderItemsBuffer = [];
     switchTab('general');
@@ -540,10 +535,7 @@ async function openModalForEdit(id) {
     document.getElementById('order_quantity').value    = order.order_quantity || '';
     document.getElementById('payment_method').value   = order.payment_method || '';
     document.getElementById('order_notes').value       = order.order_notes || '';
-    const ded = parseFloat(order.invoice_deduction || 0);
-    document.getElementById('invoice_deduction').value =
-        ded > 0 ? ded.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) : '';
-    document.getElementById('invoice_deduction_note').value = order.invoice_deduction_note || '';
+    deduction.fill(order);
 
     // Status tags
     const tags = (order.status_tags && order.status_tags.length > 0)
@@ -654,10 +646,7 @@ async function handleOrderSubmit(e) {
         order_quantity:  document.getElementById('order_quantity').value || null,
         order_notes:     document.getElementById('order_notes').value || null,
         // Kolonlar SQL 017 ile geliyor; yoksa payload'a hiç girmez.
-        ...(hasDeductionColumn ? {
-            invoice_deduction:      currentDeduction(),
-            invoice_deduction_note: document.getElementById('invoice_deduction_note').value.trim() || null,
-        } : {}),
+        ...deduction.payload(),
     };
 
     try {
@@ -1019,74 +1008,45 @@ function vatMismatchHint(itemsTotal, targetTotal) {
     return '';
 }
 
-// Fatura altı indirim — kullanıcının girdiği tutar. total_amount ZATEN indirim
-// sonrasıdır; bu alan yalnızca kalem toplamı ile arasındaki farkı açıklar,
-// hiçbir tutarı yeniden hesaplamaz (bkz. SQL 017).
-function currentDeduction() {
-    if (!hasDeductionColumn) return 0;
-    const v = parseTurkishFloat(document.getElementById('invoice_deduction').value);
-    return isFinite(v) && v > 0 ? v : 0;
-}
-
-function fmtTL(n) {
-    return (n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 });
-}
-
 function updateItemsTotal() {
     const total = orderItemsBuffer.reduce((s, i) =>
         s + ((parseFloat(i.quantity) || 0) * (parseFloat(i.unit_price) || 0)), 0);
-    document.getElementById('items-total').textContent = fmtTL(total);
+    document.getElementById('items-total').textContent = fmtAmount(total);
 
     const qtyTotal = orderItemsBuffer.reduce((s, i) => s + (parseFloat(i.quantity) || 0), 0);
     document.getElementById('items-qty-total').textContent = qtyTotal.toLocaleString('tr-TR');
 
     const orderTotal = parseTurkishFloat(document.getElementById('total_amount').value);
-    const deduction  = currentDeduction();
-    const expected   = total - deduction;   // kalem toplamı eksi fatura altı indirim
-    const warn       = document.getElementById('items-total-warning');
-    const eq         = document.getElementById('deduction-equation');
-    const sym        = { EUR: '€', USD: '$', TRY: '₺', GBP: '£' };
-    const cur        = sym[document.getElementById('currency').value] || '';
+    const { ok, warning, deduction: ded } = deduction.render({
+        itemsTotal: total,
+        docTotal: orderTotal,
+        currency: document.getElementById('currency').value,
+    });
 
-    // Denklem şeridi yalnız indirim girildiğinde görünür — normal siparişte
-    // ekranı kalabalıklaştırmasın.
-    if (eq) {
-        if (deduction > 0) {
-            const ok = orderTotal > 0 && Math.abs(expected - orderTotal) <= 0.01;
-            eq.classList.remove('hidden');
-            eq.innerHTML = `Kalem toplamı <strong>${fmtTL(total)}</strong> &minus; fatura altı indirim <strong>${fmtTL(deduction)}</strong> = <strong>${fmtTL(expected)} ${cur}</strong>`
-                + (orderTotal > 0
-                    ? (ok
-                        ? ` <span style="color:#166534;font-weight:700;"><i class="fa-solid fa-check"></i> sipariş tutarıyla uyuşuyor</span>`
-                        : ` <span style="color:#9F3D3D;font-weight:700;">— sipariş tutarı ${fmtTL(orderTotal)} ${cur}</span>`)
-                    : '');
-        } else {
-            eq.classList.add('hidden');
-            eq.innerHTML = '';
-        }
-    }
-
-    if (orderTotal > 0 && Math.abs(expected - orderTotal) > 0.01) {
+    const warn = document.getElementById('items-total-warning');
+    if (warning) {
         warn.classList.remove('hidden');
-        const dedTxt = deduction > 0 ? ` (fatura altı indirim ${fmtTL(deduction)} düşüldükten sonra ${fmtTL(expected)})` : '';
-        warn.textContent = `⚠ Kalem toplamı (${fmtTL(total)})${dedTxt} sipariş tutarından (${fmtTL(orderTotal)}) farklı!`
-            + (deduction > 0 ? '' : vatMismatchHint(total, orderTotal) + deductionHint(total, orderTotal));
+        // İndirim girilmişse fark zaten açıklanmıştır; KDV/CN ipuçlarını
+        // tekrarlamanın anlamı yok.
+        warn.textContent = warning
+            + (ded > 0 ? '' : vatMismatchHint(total, orderTotal) + deductionHint(total, orderTotal));
     } else {
         warn.classList.add('hidden');
     }
 
-    updateCnDeductionSuggestion(total, orderTotal, deduction);
+    updateCnDeductionSuggestion(total, orderTotal, ded);
+    return ok;
 }
 
 // Fark, bu siparişe işlenmiş Credit Note tutarına eşitse sebebi muhtemelen
 // fatura altı mahsuptur — uyarı bunu söylesin, kullanıcı hata aramasın.
 function deductionHint(itemsTotal, orderTotal) {
-    if (!hasDeductionColumn) return '';
+    if (!deduction.isEnabled()) return '';
     const gap = itemsTotal - orderTotal;
     if (gap <= 0.01) return '';
     const cnMoney = cnMoneyForCurrentOrder();
     if (cnMoney > 0 && Math.abs(gap - cnMoney) <= 0.5) {
-        return ` Bu fark, siparişe işlenmiş Credit Note tutarına (${fmtTL(cnMoney)}) eşit — fatura altı indirim olabilir.`;
+        return ` Bu fark, siparişe işlenmiş Credit Note tutarına (${fmtAmount(cnMoney)}) eşit — fatura altı indirim olabilir.`;
     }
     return ' Fatura altından düşülen bir tutar varsa aşağıdaki alana yazın.';
 }
@@ -1100,16 +1060,18 @@ function cnMoneyForCurrentOrder() {
 }
 
 // "CN tutarını uygula" butonu: fark tam olarak CN tutarıysa tek tıkla doldur.
-function updateCnDeductionSuggestion(itemsTotal, orderTotal, deduction) {
+// Parametre adı bilerek `current`: modül seviyesindeki `deduction` nesnesini
+// gölgelememesi gerekiyor.
+function updateCnDeductionSuggestion(itemsTotal, orderTotal, current) {
     const btn = document.getElementById('btn-apply-cn-deduction');
     if (!btn) return;
     const cnMoney = cnMoneyForCurrentOrder();
     const gap = itemsTotal - orderTotal;
-    const applies = hasDeductionColumn && cnMoney > 0 && orderTotal > 0
+    const applies = deduction.isEnabled() && cnMoney > 0 && orderTotal > 0
         && Math.abs(gap - cnMoney) <= 0.5
-        && Math.abs(deduction - cnMoney) > 0.01;
+        && Math.abs(current - cnMoney) > 0.01;
     btn.classList.toggle('hidden', !applies);
-    if (applies) btn.textContent = `CN tutarını uygula (${fmtTL(cnMoney)})`;
+    if (applies) btn.textContent = `CN tutarını uygula (${fmtAmount(cnMoney)})`;
 }
 
 function addItemRow() {
@@ -1670,9 +1632,8 @@ function initEventListeners() {
     document.getElementById('btn-apply-cn-deduction').addEventListener('click', () => {
         const cnMoney = cnMoneyForCurrentOrder();
         if (cnMoney <= 0) return;
-        document.getElementById('invoice_deduction').value = fmtTL(cnMoney);
-        const note = document.getElementById('invoice_deduction_note');
-        if (!note.value.trim()) note.value = 'CN mahsubu (fatura altı)';
+        deduction.set(cnMoney);
+        deduction.setNote('CN mahsubu (fatura altı)');
         updateItemsTotal();
     });
     document.getElementById('tab-general').addEventListener('click', () => switchTab('general'));

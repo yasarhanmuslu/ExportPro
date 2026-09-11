@@ -345,6 +345,17 @@
                         </tfoot>
                     </table>
                 </div>
+                <!-- Fatura altı indirim — kalem fiyatlarına dokunmadan toplamdan
+                     toplu düşüm. Kalem toplamı ile teklif tutarı arasındaki
+                     kasıtlı farkı açıklar; siparişe dönüşümde taşınır. -->
+                <div id="deduction-row" class="hidden" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px;background:#F6F3EC;border:1px solid #E4DDCE;border-radius:6px;padding:9px 12px;">
+                    <label for="invoice_deduction" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#968B7A;white-space:nowrap;">
+                        <i class="fa-solid fa-scissors" style="margin-right:5px;"></i>Fatura Altı İndirim
+                    </label>
+                    <input type="text" id="invoice_deduction" placeholder="0,00" style="width:120px;height:32px;font-size:12px;text-align:right;">
+                    <input type="text" id="invoice_deduction_note" placeholder="Sebep (ör. CN mahsubu)" style="flex:1;min-width:180px;height:32px;font-size:12px;">
+                </div>
+                <div id="deduction-equation" class="hidden" style="margin-top:6px;font-size:11.5px;color:#6B655B;padding:0 2px;"></div>
                 <div id="items-total-warning" class="hidden" style="margin-top:8px;font-size:12px;font-weight:600;color:#854d0e;background:#fef9c3;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;"></div>
             </div>
 
