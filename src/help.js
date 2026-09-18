@@ -4,6 +4,41 @@ import { requireAuth } from './auth/auth.js';
 // ── Sayfa açıklamaları ────────────────────────────────────────────────────────
 const pages = [
     {
+        id: 'general',
+        label: 'Genel Kurallar',
+        icon: 'fa-book-open',
+        href: null,
+        color: '#5A4A3A',
+        short: 'Tüm modüllerde geçerli temel kurallar',
+        desc: `
+            <p>Aşağıdaki kurallar uygulamanın tamamında geçerlidir. Bir rakam beklediğiniz gibi çıkmıyorsa önce buraya bakın.</p>
+            <h4>Para birimleri</h4>
+            <ul>
+                <li>Siparişler EUR, USD, TRY ya da GBP olabilir. Farklı para birimleri <strong>asla toplanmaz</strong>; her toplam para birimi bazında ayrı gösterilir.</li>
+                <li>Kur çevrimi yalnızca Fiyat Robotu'nda (TCMB kuru) ve ihraç kayıtlı satışların fatura/tahsilat kaydında yapılır.</li>
+            </ul>
+            <h4>İptal ve bedelsiz siparişler</h4>
+            <ul>
+                <li><strong>İptal</strong> etiketli siparişler ciroya, alacağa ve analizlere girmez.</li>
+                <li><strong>Bedelsiz</strong> ödeme şekilli siparişler faturasal zorunluluk nedeniyle temsili tutarlıdır; tahsil edilmez, ciro ve fiyat istatistiklerine girmez.</li>
+                <li>Normal bir siparişin içindeki tek bir bedelsiz kalem, kalemde <em>BEDELSİZ</em> işaretiyle ayrılır.</li>
+            </ul>
+            <h4>Tarihler ve yıllar</h4>
+            <ul>
+                <li>Bir siparişin "yılı" <strong>sipariş tarihine</strong> göre belirlenir, sipariş numarasına göre değil (ör. 2026-02 numaralı ama 25.12.2025 tarihli sipariş 2025 siparişidir).</li>
+                <li>Alacak ve vade ise <strong>fatura tarihine</strong> göre işler (bkz. Ödeme Takibi).</li>
+                <li>Kartlardaki <em>2026</em> / <em>Tüm yıllar</em> etiketi, o rakamın hangi dönemi kapsadığını gösterir.</li>
+            </ul>
+            <h4>Otomatik güncellenen alanlar</h4>
+            <ul>
+                <li>Siparişin Tahsil Edilen / Kalan Bakiye tutarları ve "Bakiye Bekliyor", "Ödeme Tamamlandı", "Gecikme" etiketleri tahsilatlardan otomatik hesaplanır.</li>
+                <li>Müşteri durumu teklif ve siparişle otomatik ilerler: Pasif → Potansiyel → Aktif.</li>
+            </ul>
+            <h4>Yetkiler</h4>
+            <p>Her kullanıcı yalnızca yetkisi olan modülleri görür. Görüntüleme yetkisinde kayıt değiştirilemez. Yetkiler Yönetici ekranından verilir; tüm değişiklikler kayıt altına alınır.</p>
+        `
+    },
+    {
         id: 'dashboard',
         label: 'Dashboard',
         icon: 'fa-chart-pie',
@@ -14,7 +49,7 @@ const pages = [
             <p>Uygulamanın ana kontrol panelidir. Buradan tüm operasyonun anlık durumunu bir bakışta görebilirsiniz.</p>
             <h4>Görebilecekleriniz</h4>
             <ul>
-                <li><strong>Finans kartları:</strong> Toplam Ciro, Tahsil Edilen, Vadeli Bakiye, Gecikmiş Borç (ayrıntısı aşağıda).</li>
+                <li><strong>Finans kartları:</strong> Sipariş Cirosu (altında Faturalanan), Tahsil Edilen, Vadeli Bakiye, Gecikmiş Borç (ayrıntısı aşağıda).</li>
                 <li><strong>Bakiye Köprüsü:</strong> Dört kartın birbirine nasıl bağlandığını gösteren mutabakat tablosu.</li>
                 <li><strong>Operasyon kartları:</strong> Aktif sipariş, bekleyen teklif, açık şikayet, sevk bekleyen sipariş.</li>
                 <li><strong>Grafikler:</strong> Aylık sipariş hacmi ve döviz dağılımı.</li>
@@ -84,101 +119,53 @@ const pages = [
                 <li>İptal ve bedelsiz siparişler ne ciroya ne alacağa girer.</li>
             </ul>
             <h4>Nasıl Kullanılır?</h4>
-            <p>Sol menüden doğrudan ilgili sayfaya geçmek için KPI kartlarına veya grafiklere tıklayabilirsiniz. Döviz kurları otomatik olarak güncellenir; piyasa açıkken yeşil, kapalıyken gri nokta görürsünüz.</p>
+            <p>Operasyon kartları, Ödeme Durumu, Top Müşteriler ve alttaki modül kartları tıklanınca ilgili modülü açar; "Tümü →" bağlantıları tam listeye götürür. Döviz kurları TCMB'den alınır; bandın sağında son kur tarihi yazar.</p>
         `
     },
     {
-        id: 'orders',
-        label: 'Siparişler',
-        icon: 'fa-boxes-stacked',
-        href: 'orders.html',
-        color: '#3B5998',
-        short: 'Sipariş takibi ve yönetimi',
+        id: 'order-timeline',
+        label: 'Takip Takvimi',
+        icon: 'fa-calendar-check',
+        href: 'order-timeline.html',
+        color: '#3B6E8C',
+        short: 'Sevk ve vade tarihleri takvimde',
         desc: `
-            <p>Tüm ihracat siparişlerinizi oluşturabileceğiniz, düzenleyebileceğiniz ve takip edebileceğiniz merkezi sayfadır.</p>
-            <h4>Temel Özellikler</h4>
+            <p>Siparişlerin <strong>sevk</strong> ve <strong>vade</strong> tarihlerini takvim ya da liste hâlinde gösterir. Günlük işlerin "bugün ne sevk ediliyor, hangi ödemenin vadesi geliyor?" sorusuna cevap verir.</p>
+            <h4>Görünümler</h4>
             <ul>
-                <li><strong>Sipariş Listesi:</strong> Müşteri, ürün, miktar, tutar, durum ve tarih bilgileriyle tüm siparişler.</li>
-                <li><strong>Durum Filtreleme:</strong> Bekleyen, onaylanan, sevk edilen ve iptal edilen siparişleri filtreleyin.</li>
-                <li><strong>Yeni Sipariş:</strong> "+ Yeni Sipariş" düğmesiyle form açılır; müşteri, ürün ve miktar girin.</li>
-                <li><strong>Düzenleme / Silme:</strong> Satıra tıklayarak sipariş detaylarını güncelleyin veya silin.</li>
+                <li><strong>Takvim:</strong> Aylık görünüm. 🚢 sevk tarihi, 📅 vade tarihi, 📌 elle eklenen not. Güne tıklayarak not ekleyebilir, düzenleyebilir, silebilirsiniz.</li>
+                <li><strong>Liste:</strong> Durum etiketi, ödeme durumu (Ödendi / Kısmi / Ödeme Bekliyor) filtreleri ve sevk, vade, sipariş tarihi ya da firma adına göre sıralama.</li>
+                <li><strong>Hızlı filtreler:</strong> Tümü · Aktif · Geciken · Bu Ay.</li>
             </ul>
-            <h4>Nasıl Kullanılır?</h4>
-            <p>Üst arama çubuğunu kullanarak müşteri adı veya sipariş numarasına göre hızlıca arama yapabilirsiniz. Sütun başlıklarına tıklayarak sıralama değiştirebilirsiniz.</p>
-        `
-    },
-    {
-        id: 'quotations',
-        label: 'Teklifler',
-        icon: 'fa-file-contract',
-        href: 'quotations.html',
-        color: '#7C4F2A',
-        short: 'Müşteri tekliflerini hazırlayın ve yönetin',
-        desc: `
-            <p>Müşterilerinize gönderilecek fiyat tekliflerini hazırlayıp kayıt altına aldığınız sayfadır.</p>
-            <h4>Temel Özellikler</h4>
-            <ul>
-                <li><strong>Teklif Listesi:</strong> Tüm teklifleri müşteri, tutar, para birimi ve duruma göre görüntüleyin.</li>
-                <li><strong>Yeni Teklif:</strong> Müşteri seçimi, ürün ekleme ve fiyat girişiyle hızlı teklif oluşturun.</li>
-                <li><strong>Durum Takibi:</strong> Taslak, gönderildi, kabul edildi, reddedildi gibi aşamaları takip edin.</li>
-                <li><strong>Siparişe Dönüştürme:</strong> Kabul edilen teklifler tek tıkla siparişe dönüştürülebilir.</li>
-            </ul>
-            <h4>İpucu</h4>
-            <p>Teklif listesinde "Kabul" durumundaki kayıtlar için "Siparişe Dönüştür" seçeneği belirir; bu sayede veri tekrarı olmadan siparişler sayfasına aktarım yapılır.</p>
+            <h4>Geciken siparişler</h4>
+            <p>Üstteki kırmızı uyarı, vadesi geçmiş ve bakiyesi açık siparişleri sayar. Kural Ödeme Takibi ile aynıdır: iptal, bedelsiz ve <em>manuel takipteki</em> siparişler geciken sayılmaz.</p>
         `
     },
     {
         id: 'customers',
-        label: 'Müşteriler',
-        icon: 'fa-users',
+        label: 'Müşteri Kartları',
+        icon: 'fa-id-card',
         href: 'customers.html',
         color: '#1A6B5A',
-        short: 'Müşteri kayıtları ve iletişim bilgileri',
+        short: 'Müşteri arşivi ve iletişim bilgileri',
         desc: `
-            <p>Tüm müşteri firmaların kayıtlarını tuttuğunuz ve yönettiğiniz sayfadır.</p>
-            <h4>Temel Özellikler</h4>
+            <p>Tüm müşteri ve aday firmaların kaydını tuttuğunuz arşivdir. Diğer modüllerin (sipariş, teklif, fiyat kartı, credit note) müşteri listesi buradan gelir.</p>
+            <h4>Kart sekmeleri</h4>
             <ul>
-                <li><strong>Müşteri Listesi:</strong> Firma adı, ülke, sektör ve iletişim bilgileriyle tam liste.</li>
-                <li><strong>Yeni Müşteri:</strong> Firma adı, adres, vergi no ve iletişim bilgilerini ekleyin.</li>
-                <li><strong>Detay Sayfası:</strong> Müşteriye ait tüm siparişleri, teklifleri ve ödemeleri tek pencereden görün.</li>
-                <li><strong>Arama ve Filtreleme:</strong> Ülke veya sektöre göre hızlı filtreleme.</li>
+                <li><strong>Genel Bilgiler:</strong> Ülke, firma adı, müşteri tipi (Distribütör, Toptancı, Bayi …), durum, web sitesi, iki yetkili. Bölge ülkeden otomatik belirlenir.</li>
+                <li><strong>Ticari &amp; Risk:</strong> Para birimi, teslim şekli (Incoterms), ödeme koşulu, edinme kaynağı, müşteri sorumlusu, vergi no, iletişim dili, risk skoru, kredi limiti, yıllık hedef hacim, ilgilenilen ürün grupları.</li>
+                <li><strong>Geçmiş Notlar:</strong> Tarihli görüşme notları. Günlük Arama Listesi'nden eklenen notlar da buraya düşer.</li>
             </ul>
-        `
-    },
-    {
-        id: 'prices',
-        label: 'Fiyat Robotu',
-        icon: 'fa-calculator',
-        href: 'prices.html',
-        color: '#8B5E2A',
-        short: 'Otomatik fiyat hesaplama ve maliyet analizi',
-        desc: `
-            <p>Ürün bazında maliyet, kur ve kâr marjı hesaplamalarını otomatikleştiren akıllı fiyatlama aracıdır.</p>
-            <h4>Temel Özellikler</h4>
+            <h4>Müşteri durumu</h4>
             <ul>
-                <li><strong>Maliyet Girişi:</strong> Ham madde, işçilik ve genel gider bileşenlerini girin.</li>
-                <li><strong>Kur Entegrasyonu:</strong> Güncel döviz kurlarıyla TRY bazlı maliyetleri otomatik hesaplar.</li>
-                <li><strong>Kâr Marjı Ayarı:</strong> İstediğiniz marjı yüzde olarak girerek önerilen satış fiyatını görün.</li>
-                <li><strong>Kaydetme:</strong> Hesaplanan fiyatları ürün kartına veya teklife aktarın.</li>
+                <li><strong>Aktif · Pasif · Potansiyel · Kara Liste.</strong></li>
+                <li>Otomatik geçişler: Pasif bir müşteriye teklif hazırlanınca <em>Potansiyel</em>, Potansiyel bir müşterinin teklifi siparişe dönünce <em>Aktif</em> olur.</li>
             </ul>
-            <h4>Nasıl Kullanılır?</h4>
-            <p>Ürün seçin → bileşen maliyetlerini girin → hedef kâr marjını belirleyin → "Hesapla" düğmesine basın. Sonucu doğrudan teklif oluştururken kullanabilirsiniz.</p>
-        `
-    },
-    {
-        id: 'credit-notes',
-        label: 'Credit Notes',
-        icon: 'fa-file-invoice',
-        href: 'credit-notes.html',
-        color: '#9F3D3D',
-        short: 'İade ve alacak notlarını yönetin',
-        desc: `
-            <p>Müşterilere kesilen iade belgelerini (credit note) takip ettiğiniz sayfadır.</p>
-            <h4>Temel Özellikler</h4>
+            <h4>Diğer</h4>
             <ul>
-                <li><strong>Credit Note Listesi:</strong> Tüm alacak notlarını tarih, müşteri ve tutara göre listeleyin.</li>
-                <li><strong>Yeni Not Oluşturma:</strong> İlgili sipariş veya fatura seçilerek otomatik tutar hesaplaması yapılır.</li>
-                <li><strong>Durum Takibi:</strong> Bekleyen ve takas edilmiş credit note'ları ayrı ayrı görüntüleyin.</li>
+                <li><strong>Filtreler:</strong> Bölge, ülke, müşteri grubu, durum, sorumlu.</li>
+                <li><strong>İçe Aktar:</strong> Excel'den toplu giriş; aynı firma varsa güncellenir, yoksa eklenir.</li>
+                <li><strong>Excel'e Aktar:</strong> Filtrelenmiş listeyi indirir.</li>
             </ul>
         `
     },
@@ -188,73 +175,170 @@ const pages = [
         icon: 'fa-box',
         href: 'products.html',
         color: '#2D4A3E',
-        short: 'Ürün kataloğu ve teknik bilgiler',
+        short: 'Ürün ana verisi',
         desc: `
-            <p>Firmanızın ihraç ettiği tüm ürünlerin teknik ve ticari bilgilerini tuttuğunuz ürün kataloğudur.</p>
-            <h4>Temel Özellikler</h4>
+            <p>Tüm ürünlerin ana veri merkezidir. Sipariş, teklif, fiyat kartı ve Fiyat Robotu ürün adlarını buradan alır.</p>
+            <h4>Kartta neler var?</h4>
             <ul>
-                <li><strong>Ürün Listesi:</strong> SKU, ürün adı, birim, birim fiyat ve HS kodu bilgileriyle tam katalog.</li>
-                <li><strong>Ürün Ekleme:</strong> Yeni ürün formunda teknik özellikler, görseller ve barkod bilgisi girin.</li>
-                <li><strong>Arama:</strong> Ürün adı veya SKU ile anlık arama yapın.</li>
-                <li><strong>Kart Görünümü:</strong> Ürünleri görsel kart formatında veya liste formatında görüntüleyin.</li>
+                <li><strong>Kimlik:</strong> Stok kodu, seri adı, Türkçe ve İngilizce stok adı, ürün görseli (JPG/PNG, en fazla 8 MB).</li>
+                <li><strong>Sınıflandırma:</strong> Birim, paketleme, ürün grubu, ürün türü.</li>
+                <li><strong>Özellikler:</strong> Üç fonksiyon özelliği, boyut, renk, kalite, net ağırlık.</li>
+                <li><strong>Palet bilgisi:</strong> Net/brüt ağırlık, palet adedi, ölçüler, palet cinsi.</li>
+                <li><strong>Geçmiş:</strong> Kartta yapılan değişikliklerin kaydı.</li>
+            </ul>
+            <h4>İpuçları</h4>
+            <ul>
+                <li>Listede kırmızı <strong>"Kod"</strong> rozeti, stok kodu ile renk/seri gibi özelliklerin birbirini tutmadığını gösterir; kartı kontrol edin.</li>
+                <li>İçe Aktar ile Excel/CSV'den toplu güncelleme yapılır. "Mevcut tüm ürünleri sil" seçeneği geri alınamaz.</li>
             </ul>
         `
     },
     {
-        id: 'order-timeline',
-        label: 'Takip Takvimi',
-        icon: 'fa-calendar-check',
-        href: 'order-timeline.html',
-        color: '#3B6E8C',
-        short: 'Siparişlerin zaman çizelgesinde takibi',
+        id: 'pallet-defs',
+        label: 'Palet Tanımları',
+        icon: 'fa-pallet',
+        href: 'pallet-definitions.html',
+        color: '#6B5A2D',
+        short: 'Yüklemeye hazır palet reçeteleri',
         desc: `
-            <p>Siparişlerin üretim, sevkiyat ve teslimat aşamalarını takvim görünümünde izlediğiniz sayfadır.</p>
-            <h4>Temel Özellikler</h4>
+            <p>Ürünlerden oluşan, taşımaya hazır palet tanımlarını tutar. Yükleme Planlayıcı bu tanımlarla çalışır.</p>
+            <h4>Bir palet tanımında</h4>
             <ul>
-                <li><strong>Gantt Takvimi:</strong> Her siparişin başlangıç ve bitiş tarihlerini görsel çubuklar halinde görün.</li>
-                <li><strong>Aşama Renkleri:</strong> Üretim, yükleme ve teslimat aşamaları renk kodlarıyla ayrıştırılmıştır.</li>
-                <li><strong>Gecikme Uyarısı:</strong> Bugünün tarihini geçen görevler kırmızıyla işaretlenir.</li>
-                <li><strong>Ay Navigasyonu:</strong> İleri/geri düğmeleriyle aylara göre gezinin.</li>
+                <li><strong>Ölçüler:</strong> En × Boy × Yükseklik (cm).</li>
+                <li><strong>Palet cinsi:</strong> EUR1 (dara 25 kg), EUR3 (dara 35 kg), Non-Euro, Diğer.</li>
+                <li><strong>İstif:</strong> İstiflenebilir mi ve hangi katmanda durabileceği (1 = en dayanıklı / alt, 3 = en hafif / üst).</li>
+                <li><strong>İçerik:</strong> Ürün Kartları'ndan ürün ve adet. Ürün ağırlığı + dara = toplam ağırlık otomatik hesaplanır; gerekirse elle değiştirilebilir ("Elle değiştirildi" işareti çıkar).</li>
             </ul>
         `
     },
     {
-        id: 'profitability',
-        label: 'Satış & Fiyat Analizi',
-        icon: 'fa-scale-balanced',
-        href: 'profitability.html',
-        color: '#1A6B5A',
-        short: 'Gerçekleşen satışlar ve fiyat sapmaları',
+        id: 'call-rotation',
+        label: 'Günlük Arama Listesi',
+        icon: 'fa-phone-volume',
+        href: 'call-rotation.html',
+        color: '#3F5C7A',
+        short: 'Bugün aranacak 5 müşteri',
         desc: `
-            <p>Gerçekte ne sattığınızı ve anlaştığınız fiyatın ne kadar dışına çıkıldığını gösteren analiz sayfasıdır.
-            Sipariş kalemleri (gerçek satış) ile Müşteri Sabit Fiyatlar (anlaşılan fiyat) karşılaştırılır.</p>
-            <p><strong>Not:</strong> Bu sayfa kâr/marj hesaplamaz — sistemde ürün maliyeti tutulmuyor.
-            Maliyet verisi girildiği gün marj bölümü buraya eklenebilir.</p>
-            <h4>Temel Özellikler</h4>
+            <p>Her temsilciye, kendi portföyünden (Müşteri Kartları'ndaki <em>Müşteri Sorumlusu</em>) seçtiği bölgede, <strong>en uzun süredir aranmamış 3 Pasif + 2 Aktif</strong> müşteriyi günlük yapılacaklar listesi olarak sunar.</p>
+            <h4>Nasıl çalışır?</h4>
             <ul>
-                <li><strong>Gerçek Satış Performansı:</strong> Ürün bazında gerçekleşen adet ve ciro; her para birimi ayrı gruplanır, kur çevrimi yapılmaz.</li>
-                <li><strong>Fiyat Sapma Raporu:</strong> Anlaşılan fiyat ile fiili ortalama satış fiyatı arasındaki fark, para etkisiyle birlikte listelenir.</li>
-                <li><strong>Müşteriler Arası Tutarsızlık:</strong> Aynı ürün için farklı müşterilerle anlaşılan fiyatların aralığı.</li>
-                <li><strong>Filtreler:</strong> Yıl, para birimi ve "1 adetlik satırları hariç tut" (numune / yedek parça) seçenekleri.</li>
-                <li><strong>Hariç Tutulanlar:</strong> İptal edilmiş ve Bedelsiz siparişler hiçbir hesaba girmez.</li>
+                <li>Önce bölge seçin. Liste gün boyunca aynı kalır; sayfayı yenilemek listeyi değiştirmez.</li>
+                <li>Görüşmeden sonra "Yeni Not Ekle" ile not girin. Bugün not eklenen müşteri <em>Bugün Arandı</em> (ya da <em>Bugün Mesaj Gönderildi</em>) rozetini alır ve gün sonuna kadar listede kalır. Not, müşteri kartının <em>Geçmiş Notlar</em> sekmesine yazılır.</li>
+                <li>Yönetici tüm temsilcilerin listelerini birlikte görür; her müşterinin sorumlusu ayrıca yazılır.</li>
+                <li>"Müşteri Kartı" düğmesi ilgili kartı doğrudan notlar sekmesinde açar.</li>
             </ul>
         `
     },
     {
-        id: 'complaints',
-        label: 'Şikayet Panosu',
-        icon: 'fa-triangle-exclamation',
-        href: 'complaints.html',
-        color: '#9F5A2A',
-        short: 'Müşteri şikayetlerini takip edin',
+        id: 'orders',
+        label: 'Siparişler',
+        icon: 'fa-boxes-stacked',
+        href: 'orders.html',
+        color: '#3B5998',
+        short: 'Sipariş girişi ve takibi',
         desc: `
-            <p>Müşterilerden gelen şikayetleri, iade taleplerini ve kalite sorunlarını kayıt altında tuttuğunuz panodur.</p>
-            <h4>Temel Özellikler</h4>
+            <p>Tüm siparişlerin girildiği ve takip edildiği ana modüldür. Dashboard, Ödeme Takibi, Takip Takvimi ve analiz ekranları bu veriyi kullanır.</p>
+            <h4>Sipariş formu</h4>
             <ul>
-                <li><strong>Şikayet Listesi:</strong> Müşteri, ürün, şikayet türü ve öncelik seviyesiyle kayıtlar.</li>
-                <li><strong>Durum Yönetimi:</strong> Açık, incelemede ve kapandı durumlarına geçiş yapın.</li>
-                <li><strong>Öncelik Sınıflandırması:</strong> Düşük, orta, yüksek ve kritik öncelik seviyelerini atayın.</li>
-                <li><strong>Not Ekleme:</strong> Her şikayete çözüm notları ve aksiyon adımları ekleyin.</li>
+                <li><strong>Temel bilgiler:</strong> Müşteri, sipariş no, İDEVİT ve İDEAL sipariş numaraları, sipariş türü (İhracat / İhraç Kayıt / KDV), sipariş, sevk ve vade tarihleri.</li>
+                <li><strong>Finansal:</strong> Para birimi, toplam tutar, ödeme şekli (Peşin, T/T, Mal Mukabili, Bedelsiz, 30–120 Gün Vade).</li>
+                <li><strong>Tahsil Edilen / Kalan Bakiye:</strong> Elle girilmez; <em>Ödeme Takibi</em>'ndeki tahsilatlardan otomatik hesaplanır.</li>
+                <li><strong>Kalemler:</strong> Ürün, kod, renk, fonksiyon, adet, birim fiyat. "PDF'den İçe Aktar" ile proforma PDF'i okunur (RENK / DELİK / SERİ sütunları kontrol edilir).</li>
+                <li><strong>Fatura Altı İndirim:</strong> Kalem toplamından düşülen indirim; sipariş toplamı buna göre oluşur.</li>
+                <li><strong>Fiyat Notu işaretleri:</strong> <em>BEDELSİZ</em> (faturasal zorunlulukla girilen temsili fiyat) ve <em>CN FİYATI</em> (Credit Note nedeniyle düzenlenmiş fiyat). İşaretli satırlar fiyat istatistiklerine girmez.</li>
+            </ul>
+            <h4>Durum etiketleri</h4>
+            <ul>
+                <li>Bir siparişe birden fazla etiket verilebilir: Devam Ediyor, Üretime Hazır, Üretimde, Sevke Hazır, Sevk Edildi, Teslim Edildi, İptal, Yeni Müşteri.</li>
+                <li><strong>Otomatik etiketler:</strong> "Bakiye Bekliyor" / "Ödeme Tamamlandı" tahsilata göre, "Gecikme" vade geçince eklenir ve ödeme gelince kalkar.</li>
+                <li>Kartta <strong>Credit Note</strong> etiketi, o siparişe uygulanacak CN olduğunu gösterir; tıklayınca Credit Notes'ta açılır.</li>
+            </ul>
+            <h4>Diğer</h4>
+            <ul>
+                <li><strong>Filtreler:</strong> Para birimi, durum etiketi, sevk ayı; sevk tarihine göre sıralama.</li>
+                <li><strong>Excel Import / Dışa Aktar:</strong> Toplu giriş ve liste çıktısı. Import, tahsilat tutarlarını değiştirmez.</li>
+                <li><strong>Silme:</strong> Onay penceresi siparişe bağlı kayıtları (fatura, tahsilat, CN) listeler.</li>
+            </ul>
+        `
+    },
+    {
+        id: 'quotations',
+        label: 'Teklifler',
+        icon: 'fa-file-contract',
+        href: 'quotations.html',
+        color: '#7C4F2A',
+        short: 'Teklif hazırlama ve siparişe aktarım',
+        desc: `
+            <p>Müşteri tekliflerinin hazırlandığı ve takip edildiği modüldür. Form yapısı Siparişler ile aynıdır (kalemler, PDF'den içe aktarma, fatura altı indirim, fiyat notu işaretleri).</p>
+            <h4>Teklif durumları</h4>
+            <ul>
+                <li><strong>Bekliyor · Kabul · Red</strong> — elle seçilir.</li>
+                <li><strong>Süresi Doldu</strong> — geçerlilik tarihi geçmiş ve hâlâ "Bekliyor" olan teklifler otomatik bu şekilde gösterilir.</li>
+                <li><strong>Sipariş Dönüştü</strong> — "Siparişe Gönder" ile otomatik verilir.</li>
+            </ul>
+            <h4>Siparişe gönderme</h4>
+            <p>Teklif formundaki <strong>Siparişe Gönder</strong> düğmesi teklifi, kalemleriyle birlikte yeni bir siparişe aktarır; veri tekrar girilmez.</p>
+            <h4>Müşteri durumuna etkisi</h4>
+            <ul>
+                <li>Pasif bir müşteriye teklif hazırlanınca müşteri <em>Potansiyel</em> olur.</li>
+                <li>Potansiyel bir müşterinin teklifi siparişe dönünce müşteri <em>Aktif</em> olur.</li>
+            </ul>
+        `
+    },
+    {
+        id: 'client-prices',
+        label: 'Müşteri Sabit Fiyatlar',
+        icon: 'fa-tags',
+        href: 'client-prices.html',
+        color: '#7C3AED',
+        short: 'Müşterilerle anlaşılmış fiyatlar',
+        desc: `
+            <p>Her müşteriyle anlaşılmış ürün fiyatlarının listesidir. Liste bilinçli olarak <strong>elle</strong> tutulur; Satış &amp; Fiyat Analizi gerçek satışları bu fiyatlarla karşılaştırır.</p>
+            <h4>Fiyat kartı</h4>
+            <ul>
+                <li>Her müşterinin tek bir kartı ve kartın tek bir <strong>para birimi</strong> vardır.</li>
+                <li>Satırlar: stok kodu, ürün adı, liste fiyatı (Fiyat Robotu'ndan otomatik), iskonto %, <strong>Net v.1</strong> ve <strong>Net v.2</strong> (eski ve güncel net fiyat, tarihleriyle), fark %.</li>
+                <li><strong>Bedelsiz / Numune</strong> işaretli satırlar istatistiklere katılmaz.</li>
+                <li>Ürün adları TR ya da EN gösterilebilir.</li>
+            </ul>
+            <h4>Araçlar</h4>
+            <ul>
+                <li><strong>Siparişlerden Getir:</strong> Sipariş kalemlerinden müşteri + ürün + para birimi bazında net fiyatları türetir. Bir üründe birden fazla fiyat varsa satır sarı işaretlenir, doğru fiyatı listeden seçersiniz. İptal ve bedelsiz siparişler hariçtir.</li>
+                <li><strong>Karşılaştır:</strong> Seçilen müşterilerin aynı ürünlerdeki güncel net fiyatlarını yan yana gösterir.</li>
+                <li>Müşteriye satılmış ama kartında olmayan ürünler kartta uyarı olarak görünür.</li>
+            </ul>
+        `
+    },
+    {
+        id: 'credit-notes',
+        label: 'Credit Notes',
+        icon: 'fa-file-invoice',
+        href: 'credit-notes.html',
+        color: '#9F3D3D',
+        short: 'Şikayet alacak dekontları',
+        desc: `
+            <p>Müşteri şikayetlerinde verilen alacak dekontlarını (Credit Note) ve bunların <strong>hangi siparişte uygulandığını</strong> takip eder. Amacı, verilmiş bir kararın siparişe işlenmeyi unutulmamasıdır.</p>
+            <h4>Bir Credit Note'ta</h4>
+            <ul>
+                <li><strong>Başlık:</strong> CN no, belge tarihi, müşteri, para birimi, uygulanacak sipariş, süreç durumu.</li>
+                <li><strong>Kalemler:</strong> Ürün, ürün ID / müşteri referansı, karar, hata kategorisi, adet, birim fiyat, telafi şekli (<em>Mahsup</em> = tutar düşülecek, <em>Bedelsiz</em> = ürün gönderilecek).</li>
+            </ul>
+            <h4>Kararlar</h4>
+            <ul>
+                <li><strong>Alacak yazılanlar:</strong> Onaylandı, Onaylandı - Kırık, %50 İskonto - Tolerans.</li>
+                <li><strong>Alacak yazılmayanlar:</strong> Reddedildi, Reddedildi - Kırık, Reddedildi - Tolerans, Resim Bekleniliyor.</li>
+                <li><strong>%50 tolerans:</strong> Belgedeki birim fiyat zaten yarıya indirilmiş fiyattır; tutar ayrıca yarıya bölünmez. Satırdaki "½" düğmesi fiyatı tek tıkla yarıya indirir.</li>
+            </ul>
+            <h4>Süreç durumu</h4>
+            <ul>
+                <li><strong>İncelemede</strong> → <strong>Belge Gönderildi</strong> (karar verildi, henüz siparişe işlenmedi) → <strong>Siparişe İşlendi</strong>. Ayrıca <strong>İptal</strong>.</li>
+                <li>Üstteki "Siparişe İşlenmeyi Bekleyenler" paneli, sipariş bazında gruplanmış bekleyen mahsup tutarını ve bedelsiz ürün adedini gösterir.</li>
+            </ul>
+            <h4>Veri girişi</h4>
+            <ul>
+                <li><strong>Belgeden Aktar:</strong> Word (.docx) Credit Note belgesini okuyup formu doldurur.</li>
+                <li><strong>Excel'den Toplu Aktar:</strong> CREDIT NOTE TAKIP.xlsx dosyası.</li>
+                <li>Aynı ürün ID daha önce başka bir CN'de işlenmişse uyarı verilir.</li>
             </ul>
         `
     },
@@ -288,21 +372,75 @@ const pages = [
         `
     },
     {
-        id: 'shipments',
-        label: 'Sevkiyat',
-        icon: 'fa-ship',
-        href: 'shipments.html',
-        color: '#1A4A6B',
-        short: 'Yük ve konteyner sevkiyat takibi',
+        id: 'prices',
+        label: 'Fiyat Robotu',
+        icon: 'fa-calculator',
+        href: 'prices.html',
+        color: '#8B5E2A',
+        short: 'Liste fiyatları ve iskonto hesabı',
         desc: `
-            <p>İhracat sevkiyatlarınızı, konteyner bilgilerini ve lojistik aşamalarını yönettiğiniz sayfadır.</p>
-            <h4>Temel Özellikler</h4>
+            <p>Güncel <strong>2026 TL</strong> liste fiyatlarını <strong>2022-3 EUR/USD</strong> döviz listeleriyle karşılaştırır ve anlık iskonto hesabı yapar. Maliyet ya da kâr marjı hesaplamaz.</p>
+            <h4>Nasıl hesaplar?</h4>
             <ul>
-                <li><strong>Sevkiyat Listesi:</strong> Konteyner no, gemi adı, yükleme ve tahmini varış tarihleriyle tam liste.</li>
-                <li><strong>Aşama Takibi:</strong> Hazırlanıyor → Yüklendi → Yolda → Teslim Edildi aşamalarını güncelleyin.</li>
-                <li><strong>Belge Takibi:</strong> Konşimento, sigorta ve gümrük belgelerinin durumunu işaretleyin.</li>
-                <li><strong>Harita / Rota:</strong> Varış limanı bilgisiyle rota bilgisini görün.</li>
+                <li><strong>TL iskonto zinciri:</strong> Liste × (1 − i1) × (1 − i2) × (1 − i3) × (1 − i4) = TL net.</li>
+                <li>TL net, güncel TCMB kuruyla EUR'ya (ya da USD'ye) çevrilir.</li>
+                <li><strong>Euro fiyat iskontosu:</strong> 2022-3 EUR liste × (1 − iskonto) = EUR net.</li>
+                <li><strong>Fark (TL/EUR):</strong> İki net fiyat arasındaki fark; hangi listenin müşteri için daha avantajlı olduğunu gösterir.</li>
+                <li>Üstteki düğmelerle TL–EURO ya da TL–USD karşılaştırmasına geçilir.</li>
             </ul>
+            <h4>Diğer</h4>
+            <ul>
+                <li>Ürünler katalog sırasına göre gruplanır; grup filtresi vardır.</li>
+                <li>Ürün adları Ürün Kartları'ndan gelir; kodu Ürün Kartları'nda olmayan ürün uyarı verir.</li>
+                <li><strong>Listeyi Aktar / İçe Aktar:</strong> Excel'e indirip düzeltip geri yükleyin. "Kayıt ID" doluysa satır güncellenir, boşsa yeni ürün eklenir.</li>
+                <li>Müşteri Sabit Fiyatlar'daki liste fiyatları bu tablodan otomatik doldurulur.</li>
+            </ul>
+        `
+    },
+    {
+        id: 'profitability',
+        label: 'Satış & Fiyat Analizi',
+        icon: 'fa-scale-balanced',
+        href: 'profitability.html',
+        color: '#1A6B5A',
+        short: 'Gerçekleşen satışlar ve fiyat sapmaları',
+        desc: `
+            <p>Gerçekte ne sattığınızı ve anlaştığınız fiyatın ne kadar dışına çıkıldığını gösterir. Sipariş kalemleri (gerçek satış) ile Müşteri Sabit Fiyatlar (anlaşılan fiyat) karşılaştırılır.</p>
+            <p><strong>Not:</strong> Bu sayfa kâr/marj hesaplamaz; sistemde ürün maliyeti tutulmuyor.</p>
+            <h4>Bölümler</h4>
+            <ul>
+                <li><strong>Gerçek Satış Performansı:</strong> Ürün bazında gerçekleşen adet ve ciro; her para birimi ayrı gruplanır, kur çevrimi yapılmaz.</li>
+                <li><strong>Fiyat Sapma Raporu:</strong> Anlaşılan fiyat ile fiili ortalama satış fiyatı arasındaki fark ve para etkisi.</li>
+                <li><strong>Müşteriler Arası Tutarsızlık:</strong> Aynı ürün için farklı müşterilerle anlaşılan fiyatların aralığı.</li>
+            </ul>
+            <h4>Filtreler ve kapsam</h4>
+            <ul>
+                <li>Yıl, para birimi ve "1 adetlik satırları hariç tut" (numune / yedek parça).</li>
+                <li>İptal ve bedelsiz siparişler ile <em>BEDELSİZ</em> / <em>CN FİYATI</em> işaretli kalemler hesaba girmez.</li>
+            </ul>
+        `
+    },
+    {
+        id: 'complaints',
+        label: 'Şikayet Panosu',
+        icon: 'fa-triangle-exclamation',
+        href: 'complaints.html',
+        color: '#9F5A2A',
+        short: 'Credit Note verisinden şikayet analizi',
+        desc: `
+            <p>Şikayetleri ürün, müşteri, karar ve zaman bazında analiz eder. Veri <strong>Credit Notes</strong> modülünden gelir; bu ekran salt okunurdur, kayıt Credit Notes'ta girilir.</p>
+            <h4>Görebilecekleriniz</h4>
+            <ul>
+                <li><strong>Kartlar:</strong> Toplam şikayet (kalem sayısı), kabul edilen ve oranı, reddedilen ve oranı, siparişe işlenmemiş CN'ler.</li>
+                <li><strong>Ürün Bazında Şikayet:</strong> Ürüne tıklayınca tüm şikayet kalemleri açılır.</li>
+                <li><strong>Müşteri Bazında Şikayet:</strong> En çok şikayet eden müşteri üstte; kabul/red ve ilk/son tarih.</li>
+                <li><strong>Karar Dağılımı</strong> ve <strong>Aylık Şikayet Trendi</strong> grafikleri.</li>
+            </ul>
+            <h4>Filtreler</h4>
+            <p>Tarih aralığı, müşteri, ürün kodu, karar ve hata kategorisi.</p>
+            <h4>Hata Kataloğu</h4>
+            <p>Kalite kontrolün kullandığı 12 hata kategorisinin tanımları (ve varsa örnek görselleri). Credit Note kalemlerinde bu kategoriler seçilir.</p>
+            <p><strong>Açık şikayet</strong> (Dashboard'da da): siparişe işlenmemiş ve iptal edilmemiş Credit Note.</p>
         `
     },
     {
@@ -311,16 +449,19 @@ const pages = [
         icon: 'fa-ranking-star',
         href: 'customer-score.html',
         color: '#6B3A8C',
-        short: 'Müşteri değerlendirme ve puanlama sistemi',
+        short: 'Müşteri puanlama (revize edilecek)',
         desc: `
-            <p>Müşterilerinizi sipariş hacmi, ödeme düzeni ve şikayet oranı gibi kriterlere göre otomatik puanlayan analiz sayfasıdır.</p>
-            <h4>Temel Özellikler</h4>
+            <p>Müşterileri dört kritere göre 100 üzerinden puanlar ve A / B / C sınıfına ayırır.</p>
+            <h4>Mevcut puanlama</h4>
             <ul>
-                <li><strong>Skor Tablosu:</strong> Her müşteri için toplam puan ve kategori (Altın / Gümüş / Bronz) görünümü.</li>
-                <li><strong>Kriter Ağırlıkları:</strong> Puanlama kriterlerini ve ağırlıklarını özelleştirin.</li>
-                <li><strong>Tarih Filtresi:</strong> Seçilen dönem için skor hesaplar; yıllık, çeyreklik karşılaştırmalar yapın.</li>
-                <li><strong>Detay Modalı:</strong> Müşteriye tıklayarak kriter bazında puan dağılımını görün.</li>
+                <li><strong>Sipariş hacmi (30):</strong> Müşterinin toplam sipariş tutarının en yüksek müşteriye oranı.</li>
+                <li><strong>Ödeme düzeni (30):</strong> Vadesi geçmiş sipariş yoksa 30, 1 ise 20, 2 ise 10, 3 ve üzeri 0. Gecikme kuralı Ödeme Takibi ile aynıdır.</li>
+                <li><strong>Şikayet (20):</strong> Credit Note sayısı; 0 ise 20, her CN'de 5 puan düşer.</li>
+                <li><strong>İskonto (20):</strong> Fiyat kartındaki ortalama iskonto; %10'un altı 20, %30 ve üzeri 5.</li>
+                <li><strong>Sınıf:</strong> 75 ve üzeri A (Stratejik), 50–74 B (Geliştirilecek), 50 altı C (Riskli / Az Kârlı).</li>
             </ul>
+            <h4>Bilinen sınırlamalar</h4>
+            <p>Model gözden geçirilecek. Şu an: hacim puanında para birimleri ayrılmadan karşılaştırılıyor (TL tutarlı müşteriler öne geçiyor), şikayet sayısı sipariş hacmine oranlanmıyor, hiç siparişi olmayan müşteriler de puan alıyor. Sonuçları bu gözle yorumlayın.</p>
         `
     },
     {
@@ -329,16 +470,11 @@ const pages = [
         icon: 'fa-boxes-stacked',
         href: 'product-analysis.html',
         color: '#2D4A3E',
-        short: 'Ürün performansı ve satış analizi',
+        short: 'Yapım aşamasında',
         desc: `
-            <p>Hangi ürünlerin ne kadar sattığını, hangi ürünlerin kârlılığını ve trend eğilimlerini analiz ettiğiniz sayfadır.</p>
-            <h4>Temel Özellikler</h4>
-            <ul>
-                <li><strong>Ürün Bazlı Gelir:</strong> Her ürünün toplam satış tutarını ve birim satış adedini görün.</li>
-                <li><strong>En Çok Satanlar:</strong> Dönem bazında en fazla sipariş alan ürünler sıralanır.</li>
-                <li><strong>Kâr Marjı:</strong> Ürün başına ortalama kâr marjı hesaplanarak gösterilir.</li>
-                <li><strong>Dönem Karşılaştırması:</strong> Farklı dönemlerdeki performansı yan yana karşılaştırın.</li>
-            </ul>
+            <p>Son 12 ayın sipariş kalemlerinden ürün bazlı satış analizi (en çok satan ürünler, grup bazlı dağılım, müşteri–ürün matrisi) göstermesi planlanan ekrandır.</p>
+            <h4>Durum</h4>
+            <p><strong>Yapım aşamasında</strong> — ekran şu an veri göstermiyor. Ürün bazında satış rakamları için <em>Satış &amp; Fiyat Analizi › Gerçek Satış Performansı</em> bölümünü kullanın.</p>
         `
     },
     {
@@ -347,16 +483,61 @@ const pages = [
         icon: 'fa-globe',
         href: 'market-analysis.html',
         color: '#2A6B5A',
-        short: 'Ülke ve bölge bazlı ihracat analizi',
+        short: 'Ülke bazlı ihracat görünümü',
         desc: `
-            <p>İhracat yaptığınız ülkeleri ve bölgeleri analiz ederek pazar çeşitlendirme stratejinizi destekleyen sayfadır.</p>
-            <h4>Temel Özellikler</h4>
+            <p>Müşteri, sipariş ve credit note verilerinden ülke bazlı bir görünüm çıkarır.</p>
+            <h4>Görebilecekleriniz</h4>
             <ul>
-                <li><strong>Ülke Haritası:</strong> İhracat yaptığınız ülkeler dünya haritası üzerinde görselleştirilir.</li>
-                <li><strong>Ülke Sıralaması:</strong> En fazla satış yapılan ülkeler hacim ve tutara göre sıralanır.</li>
-                <li><strong>Bölge Dağılımı:</strong> AB, MENA, Asya gibi bölgelere göre satış dağılımını inceleyin.</li>
-                <li><strong>Trend Analizi:</strong> Ülke bazında büyüme veya daralma eğilimlerini grafiklerle takip edin.</li>
+                <li><strong>Kartlar:</strong> İhracat yapılan ülke sayısı, en yüksek cirolu ülke, en yüksek şikayet oranlı ülke, bu yıl yeni eklenen ülkeler.</li>
+                <li><strong>Ülke Performans Tablosu:</strong> Ülke başına müşteri, sipariş, ciro, şikayet, şikayet oranı ve yıllık büyüme.</li>
+                <li><strong>Grafikler:</strong> İlk 15 ülke ve seçilen ülkenin son 3 yıllık aylık trendi.</li>
             </ul>
+            <h4>Bilinen sınırlama</h4>
+            <p>Ciro tutarları şu an <strong>para birimi ayrılmadan</strong> toplanıyor ve "USD" etiketiyle gösteriliyor (EUR, USD ve TL siparişler aynı toplamda). Ülke sıralamasını kaba bir fikir olarak kullanın; tutarlar için Dashboard ve Satış &amp; Fiyat Analizi esas alınır. Modül gözden geçirilecek.</p>
+        `
+    },
+    {
+        id: 'loading-planner',
+        label: 'Yükleme Planlayıcı',
+        icon: 'fa-truck-ramp-box',
+        href: 'loading-planner.html',
+        color: '#4A5A6B',
+        short: '3D tır / konteyner yükleme planı',
+        desc: `
+            <p>Palet Tanımları'ndaki paletleri seçip taşıyıcı aracı belirlediğinizde 3 boyutlu yükleme planını otomatik çıkarır.</p>
+            <h4>Adımlar</h4>
+            <ol>
+                <li><strong>Araç seçin:</strong> Standart Tenteli Tır, Mega Tenteli Tır, 40' HQ, 20' DC, 10 Teker Kamyon ya da ölçüleri elle girilen özel araç.</li>
+                <li><strong>Operasyonel payı girin:</strong> Sağ, sol, ön ve arkada bırakılacak boşluk (cm).</li>
+                <li><strong>Paletleri ve adetlerini seçin.</strong></li>
+                <li><strong>Hesaplama türünü seçin:</strong>
+                    <ul>
+                        <li><em>Kusursuz Denge Hesabı</em> — ağırlık merkezini dengeler ve boşluğu azaltır.</li>
+                        <li><em>En Az Boşluk Hesabı</em> — ağırlığı dikkate almaz, yalnızca hacim doluluğunu en üste çıkarır.</li>
+                    </ul>
+                </li>
+            </ol>
+            <p>Sonuçta doluluk ve ağırlık özetleri ile ağır / orta / hafif renkli 3D görünüm çıkar. Sığmayan paletler ayrıca listelenir.</p>
+            <p>İstif kuralları (istiflenebilir mi, hangi katman) Palet Tanımları'ndan gelir.</p>
+        `
+    },
+    {
+        id: 'admin',
+        label: 'Yönetici',
+        icon: 'fa-user-shield',
+        href: 'admin.html',
+        color: '#1C1A17',
+        short: 'Kullanıcı yetkileri ve değişiklik kaydı',
+        desc: `
+            <p>Yalnızca hesap sahibinin görebildiği yönetim ekranıdır.</p>
+            <h4>Kullanıcılar ve yetkiler</h4>
+            <ul>
+                <li>Her kullanıcıya modül bazında <strong>Görüntüle</strong> ya da <strong>Düzenle</strong> yetkisi verilir. Yetkisi olmayan modül menüde görünmez.</li>
+                <li>Değişiklikler "Yetkileri Kaydet" ile kaydedilir.</li>
+                <li>Örnek: Ödeme Takibi'ni kullanacak bir kişiye yalnızca <em>Ödeme Takibi: Düzenle</em> yetkisi yeterlidir; sipariş bakiyeleri otomatik güncellenir.</li>
+            </ul>
+            <h4>Değişiklik kaydı</h4>
+            <p>Kullanıcıların yaptığı her ekleme, güncelleme ve silme (kim, ne zaman, hangi modülde) listelenir; modüle göre filtrelenebilir.</p>
         `
     }
 ];
@@ -388,6 +569,7 @@ window.showPage = function(index) {
             <div class="help-content" style="font-family:Verdana, Geneva, sans-serif;font-size:14px;line-height:1.75;color:var(--ink-2,#6B655B);">
                 ${p.desc}
             </div>
+            ${p.href ? `
             <div style="margin-top:32px;">
                 <a href="${p.href}" style="
                     display:inline-flex;align-items:center;gap:8px;
@@ -400,6 +582,7 @@ window.showPage = function(index) {
                     ${p.label} sayfasını aç
                 </a>
             </div>
+            ` : ''}
         </div>
     `;
 
@@ -407,6 +590,7 @@ window.showPage = function(index) {
         h.style.cssText = `font-family:Verdana, Geneva, sans-serif;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:${p.color};font-weight:600;margin:24px 0 10px;`;
     });
     detail.querySelectorAll('.help-content p').forEach(el => { el.style.cssText = 'margin:0 0 14px;'; });
+    detail.querySelectorAll('.help-content ol').forEach(el => { el.style.cssText = 'margin:0 0 14px;padding-left:22px;list-style:decimal;display:flex;flex-direction:column;gap:6px;'; });
     detail.querySelectorAll('.help-content ul').forEach(el => { el.style.cssText = 'margin:0 0 14px;padding-left:20px;display:flex;flex-direction:column;gap:6px;'; });
     detail.querySelectorAll('.help-content strong').forEach(el => { el.style.cssText = 'color:var(--ink-1,#1C1A17);font-weight:600;'; });
 };
