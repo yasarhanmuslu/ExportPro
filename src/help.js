@@ -24,12 +24,33 @@ const pages = [
 
             <h4>Finans kartları neyi gösterir?</h4>
             <ul>
-                <li><strong>Toplam Ciro (seçili yıl):</strong> Seçili yılda <em>sipariş tarihi</em> olan siparişlerin toplam tutarı. İptal ve bedelsiz siparişler dahil değildir.</li>
+                <li><strong>Sipariş Cirosu (seçili yıl):</strong> Seçili yılda <em>sipariş tarihi</em> olan siparişlerin toplam tutarı. İptal ve bedelsiz siparişler dahil değildir. Kartın altındaki <strong>Faturalanan</strong> satırı aynı yılda <em>fatura tarihi</em> olan faturaların toplamıdır (2026 ve sonrası; fark aşağıda).</li>
                 <li><strong>Tahsil Edilen (seçili yıl):</strong> Aynı siparişlere bugüne kadar yapılan tahsilatların toplamı (tahsilat hangi yıl gelmiş olursa olsun).</li>
                 <li><strong>Vadeli Bakiye (tüm yıllar):</strong> <em>Faturası kesilmiş</em>, açık ve vadesi henüz gelmemiş alacaklar.</li>
                 <li><strong>Gecikmiş Borç (tüm yıllar):</strong> <em>Faturası kesilmiş</em>, açık ve vadesi geçmiş alacaklar.</li>
             </ul>
             <p>Vadeli Bakiye ve Gecikmiş Borç, Ödeme Takibi modülüyle aynı hesaptan gelir: <strong>alacak faturayla doğar</strong>, vade fatura tarihinden işler.</p>
+
+            <h4>Sipariş Cirosu ile Faturalanan arasındaki fark</h4>
+            <p>İkisi farklı soruları cevaplar:</p>
+            <table class="help-table" style="width:100%;border-collapse:collapse;font-size:12px;margin:6px 0 10px;">
+                <thead><tr>
+                    <th style="text-align:left;padding:4px 6px;border-bottom:1px solid #EFEAE0;"></th>
+                    <th style="text-align:left;padding:4px 6px;border-bottom:1px solid #EFEAE0;">Sipariş Cirosu (ana rakam)</th>
+                    <th style="text-align:left;padding:4px 6px;border-bottom:1px solid #EFEAE0;">Faturalanan (alt satır)</th>
+                </tr></thead>
+                <tbody>
+                    <tr><td style="padding:4px 6px;font-weight:600;">Neyi ölçer?</td><td style="padding:4px 6px;">Bu yıl ne kadar <strong>iş aldık</strong> (satış performansı)</td><td style="padding:4px 6px;">Bu yıl ne kadar <strong>mal gönderip faturaladık</strong> (muhasebe cirosuna yakın)</td></tr>
+                    <tr><td style="padding:4px 6px;font-weight:600;">Hangi tarihe bakar?</td><td style="padding:4px 6px;">Sipariş tarihi</td><td style="padding:4px 6px;">Fatura tarihi</td></tr>
+                    <tr><td style="padding:4px 6px;font-weight:600;">Faturası kesilmemiş siparişler</td><td style="padding:4px 6px;">Dahil</td><td style="padding:4px 6px;">Dahil değil</td></tr>
+                    <tr><td style="padding:4px 6px;font-weight:600;">Yıl sonu siparişleri</td><td style="padding:4px 6px;">Siparişin alındığı yılda sayılır</td><td style="padding:4px 6px;">Faturanın kesildiği yılda sayılır</td></tr>
+                    <tr><td style="padding:4px 6px;font-weight:600;">Muhasebe rakamıyla</td><td style="padding:4px 6px;">Tutmaz (amaç bu değil)</td><td style="padding:4px 6px;">Büyük ölçüde tutar</td></tr>
+                    <tr><td style="padding:4px 6px;font-weight:600;">Geçmiş yıllar</td><td style="padding:4px 6px;">Tam — tüm siparişler sistemde</td><td style="padding:4px 6px;">Gösterilmez — faturalar sisteme 2026'da aktarıldı, önceki yıllar eksik</td></tr>
+                    <tr><td style="padding:4px 6px;font-weight:600;">Veri girişine bağımlılık</td><td style="padding:4px 6px;">Sipariş girilince hemen yansır</td><td style="padding:4px 6px;">Fatura Ödeme Takibi'ne girilmezse görünmez</td></tr>
+                </tbody>
+            </table>
+            <p><strong>Örnek:</strong> Paffoni 2026-02 siparişi 25.12.2025'te alındı, faturası 02.07.2026'da kesildi. Sipariş Cirosu'nda <em>2025</em>'te, Faturalanan'da <em>2026</em>'da görünür. Vadesi fatura tarihinden işlediği için (31.08.2026) Gecikmiş Borç kartında yer alır.</p>
+            <p>Ana rakam olarak Sipariş Cirosu kullanılır: verisi tüm yıllar için eksiksizdir ve Tahsil Edilen kartıyla aynı siparişleri kapsar. Kesin muhasebe cirosu için muhasebe programı esas alınır.</p>
 
             <h4>Neden "Ciro − Tahsil" ≠ "Vadeli + Gecikmiş"?</h4>
             <p>Çünkü iki kart grubu farklı şeyleri ölçer:</p>

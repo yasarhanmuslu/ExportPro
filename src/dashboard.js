@@ -103,6 +103,7 @@ async function loadAllDashboardData(selectedYear) {
         const recv = receivables.items.filter(i => !manualIds.has(i.orderId));
 
         renderFinanceKPIs(yearOrders, orders, recv);
+        renderInvoicedRevenue(orders, invoices, selectedYear, invoicesRes.error);
         renderBalanceBridge(orders, receivables, manualIds, selectedYear);
         renderOperationalCards(yearOrders, quotations, complaints, orders);
         renderRecentOrders(yearOrders.slice(0, 5));
@@ -170,6 +171,36 @@ function renderFinanceKPIs(yearOrders, allOrders, recv) {
     fillKPI('kpi-pending-container', pendingPay, 'text-[#9F3D3D]');
 }
 
+// ── FATURALANAN (Sipariş Cirosu kartının alt satırı) ─────────────────────────
+// Sipariş Cirosu = sipariş tarihine göre (bu yıl ne kadar iş aldık).
+// Faturalanan   = fatura tarihine göre (bu yıl ne kadar mal gönderip faturaladık).
+// Faturalar sisteme 2026'da aktarıldı; önceki yıllar eksik olduğu için gösterilmez.
+const FIRST_FULL_INVOICE_YEAR = 2026;
+
+function renderInvoicedRevenue(orders, invoices, selectedYear, invoicesError) {
+    const el = document.getElementById('kpi-ciro-invoiced');
+    if (!el) return;
+    if (invoicesError || selectedYear < FIRST_FULL_INVOICE_YEAR) { el.style.display = 'none'; return; }
+
+    const orderById = new Map(orders.map(o => [o.id, o]));
+    const byCur = {};
+    invoices.forEach(inv => {
+        const o = orderById.get(inv.order_id);
+        if (!o || !isRevenueOrder(o)) return;
+        if (String(inv.invoice_date || '').slice(0, 4) !== String(selectedYear)) return;
+        // İhraç kayıtlı faturada tutar TL; sipariş para birimi karşılığı kullanılır
+        const cur = o.currency || 'EUR';
+        byCur[cur] = round2((byCur[cur] || 0) + (Number(inv.amount_order_currency ?? inv.amount) || 0));
+    });
+
+    const order = ['EUR', 'USD', 'TRY', 'GBP'];
+    const parts = Object.keys(byCur)
+        .sort((a, b) => (order.indexOf(a) + 1 || 9) - (order.indexOf(b) + 1 || 9))
+        .map(c => `<span style="white-space:nowrap;font-family:monospace;color:#6B655B;">${money(byCur[c])} ${sym(c)}</span>`);
+    el.innerHTML = `<span style="font-weight:600;letter-spacing:0.06em;text-transform:uppercase;">Faturalanan (fatura tarihine göre):</span> ${parts.join(' · ') || '—'}`;
+    el.style.display = '';
+}
+
 // ── BAKİYE KÖPRÜSÜ ────────────────────────────────────────────────────────────
 // Üstteki dört kart farklı kapsamlardadır: Ciro / Tahsil seçili yılın siparişleri,
 // Vadeli / Gecikmiş ise TÜM yılların FATURALANMIŞ alacakları (manuel takip hariç).
@@ -218,7 +249,7 @@ function renderBalanceBridge(orders, receivables, manualIds, selectedYear) {
     const any = key => currencies.some(c => Math.abs(b[c][key] || 0) > 0.05);
     const Y = selectedYear;
     const rows = [
-        { key: 'ciro',       label: `Toplam Ciro (${Y} siparişleri)`, style: 'strong' },
+        { key: 'ciro',       label: `Sipariş Cirosu (${Y} siparişleri)`, style: 'strong' },
         { key: 'tahsil',     label: '− Tahsil Edilen', color: '#3D6E50' },
         { key: 'acik',       label: `= ${Y} siparişlerinin açık bakiyesi`, style: 'total' },
         { key: 'yVadeli',    label: 'Faturalandı, vadesi gelmedi → Vadeli Bakiye', color: '#B26B33', indent: true },
