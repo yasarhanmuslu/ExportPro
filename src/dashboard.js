@@ -2,6 +2,7 @@ import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
 import { getAccessContext } from './utils/permissions.js';
+import { buildReceivables, isCancelled, isFreeShipment, round2 } from './utils/receivables.js';
 
 let monthlyChartInstance = null;
 let currencyChartInstance = null;
@@ -61,7 +62,8 @@ async function loadAllDashboardData(selectedYear) {
             quotationsRes,
             complaintsRes,
             customerScoreRes,
-            profitabilityRes
+            profitabilityRes,
+            invoicesRes
         ] = await Promise.all([
             supabase.from('orders')
                 .select('*, customers!fk_orders_customer(company_name, country)')
@@ -79,7 +81,10 @@ async function loadAllDashboardData(selectedYear) {
                 .eq('user_id', uid),
             supabase.from('customer_prices')
                 .select('customer_id, discount_rate, customers!fk_customer_prices_customer(company_name)')
-                .eq('user_id', uid)
+                .eq('user_id', uid),
+            // Alacak faturayla doğar — açık / gecikmiş bakiye Ödeme Takibi ile aynı hesaptan gelsin.
+            // Yetkisi olmayan kullanıcıda boş döner; hesap o zaman sipariş vadesiyle yapılır.
+            supabase.from('order_invoices').select('*').eq('user_id', uid)
         ]);
 
         const orders      = ordersRes.data      || [];
@@ -90,11 +95,19 @@ async function loadAllDashboardData(selectedYear) {
 
         const yearOrders = orders.filter(o => new Date(o.order_date).getFullYear() === selectedYear);
 
-        renderFinanceKPIs(yearOrders, orders);
+        // Ödeme Takibi ile aynı alacak hesabı: faturalanmış açık kalemler; iptal, bedelsiz ve
+        // manuel takipteki (ödeme tarihi belli olmayan) siparişler vade rakamlarına girmez.
+        const invoices = invoicesRes.error ? [] : (invoicesRes.data || []);
+        const manualIds = new Set(orders.filter(o => o.manual_tracking).map(o => o.id));
+        const receivables = buildReceivables({ orders, invoices, customers });
+        const recv = receivables.items.filter(i => !manualIds.has(i.orderId));
+
+        renderFinanceKPIs(yearOrders, orders, recv);
+        renderBalanceBridge(orders, receivables, manualIds, selectedYear);
         renderOperationalCards(yearOrders, quotations, complaints, orders);
         renderRecentOrders(yearOrders.slice(0, 5));
         renderRecentQuotations(quotations.slice(0, 5));
-        renderPaymentStatus(orders);
+        renderPaymentStatus(orders, recv);
         renderTopCustomers(orders, customers);
         renderSecondaryModules(orders, complaints, prices, customers);
     	renderCustomerSummary(customers);
@@ -106,9 +119,13 @@ async function loadAllDashboardData(selectedYear) {
 }
 
 // ── FİNANS KPI ────────────────────────────────────────────────────────────────
-function renderFinanceKPIs(yearOrders, allOrders) {
+// Ciro / Tahsil: iptal ve bedelsiz siparişler hariç — ikisi de gerçek satış/tahsilat değil
+// (bedelsizde "tahsil" temsili tutarın kapatılmasıdır). Ödeme Takibi ile aynı kapsam.
+const isRevenueOrder = o => !isCancelled(o) && !isFreeShipment(o);
+
+function renderFinanceKPIs(yearOrders, allOrders, recv) {
     const summary = {};
-    yearOrders.forEach(order => {
+    yearOrders.filter(isRevenueOrder).forEach(order => {
         const curr = order.currency || 'EUR';
         if (!summary[curr]) summary[curr] = { total: 0, advance: 0, remaining: 0 };
         summary[curr].total     += parseFloat(order.total_amount)    || 0;
@@ -116,30 +133,12 @@ function renderFinanceKPIs(yearOrders, allOrders) {
         summary[curr].remaining += parseFloat(order.remaining_balance) || 0;
     });
 
-    const today = new Date(); today.setHours(0,0,0,0);
-
-    // Vadeli Bakiye: TÜM yıllar, vade tarihi bugün veya ileride olan açık bakiyeler
-    const vadeBakiye = {};
-    allOrders.forEach(o => {
-        const bal = parseFloat(o.remaining_balance) || 0;
-        if (bal <= 0) return;
-        const due = o.due_date ? new Date(o.due_date + 'T00:00:00') : null;
-        if (!due || due >= today) {
-            const c = o.currency || 'EUR';
-            vadeBakiye[c] = (vadeBakiye[c] || 0) + bal;
-        }
-    });
-
-    // Gecikmiş Borç: TÜM yıllar, vade tarihi geçmiş ve bakiye > 0
-    const pendingPay = {};
-    allOrders.forEach(o => {
-        const bal = parseFloat(o.remaining_balance) || 0;
-        if (bal <= 0) return;
-        const due = o.due_date ? new Date(o.due_date + 'T00:00:00') : null;
-        if (due && due < today) {
-            const c = o.currency || 'EUR';
-            pendingPay[c] = (pendingPay[c] || 0) + bal;
-        }
+    // Vadeli Bakiye / Gecikmiş Borç: TÜM yıllar, Ödeme Takibi'nin alacak kalemlerinden
+    // (fatura vadesi; henüz faturalanmamış, iptal, bedelsiz ve manuel takip hariç).
+    const vadeBakiye = {}, pendingPay = {};
+    recv.forEach(i => {
+        const target = i.overdueDays > 0 ? pendingPay : vadeBakiye;
+        target[i.currency] = (target[i.currency] || 0) + i.open;
     });
 
     const currencySymbols = { 'EUR': '€', 'USD': '$', 'TRY': '₺', 'GBP': '£' };
@@ -169,6 +168,108 @@ function renderFinanceKPIs(yearOrders, allOrders) {
     fillKPI('kpi-avans-container',   avansData,  'text-[#3D6E50]');
     fillKPI('kpi-bakiye-container',  vadeBakiye, 'text-[#B26B33]');
     fillKPI('kpi-pending-container', pendingPay, 'text-[#9F3D3D]');
+}
+
+// ── BAKİYE KÖPRÜSÜ ────────────────────────────────────────────────────────────
+// Üstteki dört kart farklı kapsamlardadır: Ciro / Tahsil seçili yılın siparişleri,
+// Vadeli / Gecikmiş ise TÜM yılların FATURALANMIŞ alacakları (manuel takip hariç).
+// Bu tablo "Ciro − Tahsil" farkını parçalarına ayırıp kartlarla bağlar. Para birimleri ayrı.
+function renderBalanceBridge(orders, receivables, manualIds, selectedYear) {
+    const el = document.getElementById('balance-bridge-body');
+    if (!el) return;
+
+    const orderById = new Map(orders.map(o => [o.id, o]));
+    const inYear = id => new Date(orderById.get(id)?.order_date).getFullYear() === selectedYear;
+    const b = {};
+    const add = (cur, key, v) => {
+        const c = cur || 'EUR';
+        if (!b[c]) b[c] = {};
+        b[c][key] = round2((b[c][key] || 0) + v);
+    };
+
+    orders.filter(o => isRevenueOrder(o) && new Date(o.order_date).getFullYear() === selectedYear).forEach(o => {
+        add(o.currency, 'ciro', parseFloat(o.total_amount) || 0);
+        add(o.currency, 'tahsil', parseFloat(o.advance_payment) || 0);
+    });
+    receivables.items.forEach(i => {
+        const scope = inYear(i.orderId) ? 'y' : 'o';
+        const kind = manualIds.has(i.orderId) ? 'Manuel' : (i.overdueDays > 0 ? 'Gecikmis' : 'Vadeli');
+        add(i.currency, scope + kind, i.open);
+    });
+    receivables.pending.forEach(i => {
+        const scope = inYear(i.orderId) ? 'y' : 'o';
+        add(i.currency, scope + (manualIds.has(i.orderId) ? 'Manuel' : 'Faturasiz'), i.open);
+    });
+
+    const order = ['EUR', 'USD', 'TRY', 'GBP'];
+    const currencies = Object.keys(b).sort((x, y) => (order.indexOf(x) + 1 || 9) - (order.indexOf(y) + 1 || 9));
+    if (!currencies.length) { el.innerHTML = `<div class="text-[#968B7A] text-xs">Veri yok</div>`; return; }
+
+    currencies.forEach(c => {
+        const d = b[c];
+        d.acik = round2((d.ciro || 0) - (d.tahsil || 0));
+        // Fazla ödeme (müşteri avansı) ve yuvarlama: açık bakiyenin kalemlere dağılmayan kısmı
+        d.yFark = round2(d.acik - (d.yVadeli || 0) - (d.yGecikmis || 0) - (d.yFaturasiz || 0) - (d.yManuel || 0));
+        d.kartVadeli = round2((d.yVadeli || 0) + (d.oVadeli || 0));
+        d.kartGecikmis = round2((d.yGecikmis || 0) + (d.oGecikmis || 0));
+        d.manuelToplam = round2((d.yManuel || 0) + (d.oManuel || 0));
+    });
+
+    const any = key => currencies.some(c => Math.abs(b[c][key] || 0) > 0.05);
+    const Y = selectedYear;
+    const rows = [
+        { key: 'ciro',       label: `Toplam Ciro (${Y} siparişleri)`, style: 'strong' },
+        { key: 'tahsil',     label: '− Tahsil Edilen', color: '#3D6E50' },
+        { key: 'acik',       label: `= ${Y} siparişlerinin açık bakiyesi`, style: 'total' },
+        { key: 'yVadeli',    label: 'Faturalandı, vadesi gelmedi → Vadeli Bakiye', color: '#B26B33', indent: true },
+        { key: 'yGecikmis',  label: 'Faturalandı, vadesi geçti → Gecikmiş Borç', color: '#9F3D3D', indent: true },
+        { key: 'yFaturasiz', label: 'Henüz faturalanmadı (sevk bekliyor) — alacak değil', color: '#6B655B', indent: true },
+        { key: 'yManuel',    label: 'Manuel takipte (ödeme tarihi belirsiz)', color: '#3F5C7A', indent: true },
+        { key: 'yFark',      label: 'Fazla ödeme / yuvarlama', color: '#968B7A', indent: true, optional: true },
+        { key: 'sep',        label: `Sipariş tarihi diğer yıllarda olan açıklar (kartlara dahil)`, style: 'section' },
+        { key: 'oVadeli',    label: 'Vadesi gelmedi → Vadeli Bakiye', color: '#B26B33', indent: true, optional: true },
+        { key: 'oGecikmis',  label: 'Vadesi geçti → Gecikmiş Borç', color: '#9F3D3D', indent: true },
+        { key: 'oFaturasiz', label: 'Henüz faturalanmadı', color: '#6B655B', indent: true, optional: true },
+        { key: 'oManuel',    label: 'Manuel takipte', color: '#3F5C7A', indent: true },
+        { key: 'sep2',       label: 'Kartlardaki tutarlar (tüm yıllar)', style: 'section' },
+        { key: 'kartVadeli',   label: 'Vadeli Bakiye kartı', color: '#B26B33', style: 'strong' },
+        { key: 'kartGecikmis', label: 'Gecikmiş Borç kartı', color: '#9F3D3D', style: 'strong' },
+        { key: 'manuelToplam', label: 'Manuel takip toplamı (kartlarda YOK → Ödeme Takibi › Manuel Alacaklar)', color: '#3F5C7A', style: 'strong' },
+    ].filter(r => !r.optional || any(r.key));
+
+    const cell = (c, r) => {
+        const v = b[c][r.key] || 0;
+        if (Math.abs(v) <= 0.005) return `<span style="color:#C9C1B3;">—</span>`;
+        return `${money(v)} <span style="font-size:10px;">${sym(c)}</span>`;
+    };
+    // Ağaç işaretleri gizlenen satırlara göre: grubun son girintili satırı └
+    rows.forEach((r, idx) => {
+        if (r.indent) r.label = (rows[idx + 1]?.indent ? '├ ' : '└ ') + r.label;
+    });
+    const tr = r => {
+        if (r.style === 'section') {
+            return `<tr><td colspan="${currencies.length + 1}" style="padding:8px 6px 3px;font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#968B7A;border-top:1px solid #EFEAE0;">${r.label}</td></tr>`;
+        }
+        const weight = r.style === 'strong' || r.style === 'total' ? 600 : 400;
+        const border = r.style === 'total' ? 'border-top:1px solid #1C1A17;' : '';
+        return `<tr>
+            <td style="padding:3px 6px;font-size:11px;color:${r.color || '#1C1A17'};font-weight:${weight};${border}${r.indent ? 'padding-left:18px;' : ''}">${r.label}</td>
+            ${currencies.map(c => `<td style="padding:3px 6px;text-align:right;font-family:monospace;font-size:12px;white-space:nowrap;color:${r.color || '#1C1A17'};font-weight:${weight};${border}">${cell(c, r)}</td>`).join('')}
+        </tr>`;
+    };
+
+    el.innerHTML = `
+        <table style="width:100%;border-collapse:collapse;">
+            <thead><tr>
+                <th></th>
+                ${currencies.map(c => `<th style="padding:2px 6px;text-align:right;font-size:10px;color:#968B7A;font-weight:600;">${c}</th>`).join('')}
+            </tr></thead>
+            <tbody>${rows.map(tr).join('')}</tbody>
+        </table>
+        <div style="font-size:10px;color:#968B7A;margin-top:6px;">
+            İptal ve bedelsiz siparişler ciroya da alacağa da girmez. Para birimleri hiçbir satırda toplanmaz.
+            Ayrıntı: Yardım &amp; Kılavuz › Dashboard.
+        </div>`;
 }
 
 // ── OPERASYONEL KARTLAR ────────────────────────────────────────────────────────
@@ -277,25 +378,22 @@ function renderRecentQuotations(quotations) {
 // ── ÖDEME DURUMU ──────────────────────────────────────────────────────────────
 // Açık bakiye TÜM yılları kapsar (vade yıla bağlanamaz). Tutarlar para birimine
 // göre AYRI tutulur — EUR/USD/TRY toplamak anlamsız bir sayı üretir.
-function renderPaymentStatus(orders) {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+function renderPaymentStatus(orders, recv) {
+    // Açık / gecikmiş tutarlar Ödeme Takibi'nin alacak kalemlerinden (bkz. loadAllDashboardData).
     const byCurrency = {};
-    let paidCount = 0, openCount = 0;
-
-    orders.forEach(o => {
-        const bal   = parseFloat(o.remaining_balance || 0);
-        const total = parseFloat(o.total_amount || 0);
-        if (bal <= 0 && total > 0) { paidCount++; return; }
-        if (bal <= 0) return;
-
-        openCount++;
-        const c = o.currency || 'EUR';
-        if (!byCurrency[c]) byCurrency[c] = { open: 0, overdue: 0, count: 0 };
-        byCurrency[c].open += bal;
-        byCurrency[c].count++;
-        const due = o.due_date ? new Date(o.due_date + 'T00:00:00') : null;
-        if (due && due < today) byCurrency[c].overdue += bal;
+    const openOrders = new Set();
+    recv.forEach(i => {
+        const c = i.currency || 'EUR';
+        if (!byCurrency[c]) byCurrency[c] = { open: 0, overdue: 0, orders: new Set() };
+        byCurrency[c].open += i.open;
+        if (i.overdueDays > 0) byCurrency[c].overdue += i.open;
+        byCurrency[c].orders.add(i.orderId);
+        openOrders.add(i.orderId);
     });
+    Object.values(byCurrency).forEach(d => { d.count = d.orders.size; });
+    const openCount = openOrders.size;
+    const paidCount = orders.filter(o => !isCancelled(o) && (parseFloat(o.total_amount) || 0) > 0
+        && (parseFloat(o.remaining_balance) || 0) <= 0.05).length;
 
     const el = document.getElementById('payment-status-widget');
     if (!el) return;

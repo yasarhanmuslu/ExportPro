@@ -14,9 +14,53 @@ const pages = [
             <p>Uygulamanın ana kontrol panelidir. Buradan tüm operasyonun anlık durumunu bir bakışta görebilirsiniz.</p>
             <h4>Görebilecekleriniz</h4>
             <ul>
-                <li><strong>KPI Kartları:</strong> Toplam sipariş sayısı, açık teklifler, tahsilat durumu ve aktif müşteri sayısı.</li>
-                <li><strong>Aylık Gelir Grafiği:</strong> Geçmiş aylara ait gelir trendini görsel olarak izleyin.</li>
-                <li><strong>Döviz Kuru Bandı:</strong> Güncel USD/TRY ve EUR/TRY kurları canlı olarak güncellenir.</li>
+                <li><strong>Finans kartları:</strong> Toplam Ciro, Tahsil Edilen, Vadeli Bakiye, Gecikmiş Borç (ayrıntısı aşağıda).</li>
+                <li><strong>Bakiye Köprüsü:</strong> Dört kartın birbirine nasıl bağlandığını gösteren mutabakat tablosu.</li>
+                <li><strong>Operasyon kartları:</strong> Aktif sipariş, bekleyen teklif, açık şikayet, sevk bekleyen sipariş.</li>
+                <li><strong>Grafikler:</strong> Aylık sipariş hacmi ve döviz dağılımı.</li>
+                <li><strong>Döviz Kuru Bandı:</strong> Güncel USD/TRY ve EUR/TRY kurları.</li>
+            </ul>
+            <p>Her kartın başlığındaki etiket (<em>2026</em> ya da <em>Tüm yıllar</em>) o kartın hangi dönemi gösterdiğini söyler. Yıl seçici yalnızca yıl etiketli kartları değiştirir.</p>
+
+            <h4>Finans kartları neyi gösterir?</h4>
+            <ul>
+                <li><strong>Toplam Ciro (seçili yıl):</strong> Seçili yılda <em>sipariş tarihi</em> olan siparişlerin toplam tutarı. İptal ve bedelsiz siparişler dahil değildir.</li>
+                <li><strong>Tahsil Edilen (seçili yıl):</strong> Aynı siparişlere bugüne kadar yapılan tahsilatların toplamı (tahsilat hangi yıl gelmiş olursa olsun).</li>
+                <li><strong>Vadeli Bakiye (tüm yıllar):</strong> <em>Faturası kesilmiş</em>, açık ve vadesi henüz gelmemiş alacaklar.</li>
+                <li><strong>Gecikmiş Borç (tüm yıllar):</strong> <em>Faturası kesilmiş</em>, açık ve vadesi geçmiş alacaklar.</li>
+            </ul>
+            <p>Vadeli Bakiye ve Gecikmiş Borç, Ödeme Takibi modülüyle aynı hesaptan gelir: <strong>alacak faturayla doğar</strong>, vade fatura tarihinden işler.</p>
+
+            <h4>Neden "Ciro − Tahsil" ≠ "Vadeli + Gecikmiş"?</h4>
+            <p>Çünkü iki kart grubu farklı şeyleri ölçer:</p>
+            <ol>
+                <li><strong>Dönem farkı:</strong> Ciro/Tahsil sadece <em>sipariş tarihi</em> seçili yılda olan siparişlerdir (sipariş numarası değil); Vadeli/Gecikmiş ise diğer yıllardan kalan açıkları da içerir.</li>
+                <li><strong>Faturalanmamış siparişler:</strong> Henüz sevk edilip faturalanmamış siparişin kalan tutarı ciroda vardır ama <em>alacak değildir</em>; Vadeli/Gecikmiş kartlarına girmez.</li>
+                <li><strong>Manuel takip:</strong> Ödemesinin ne zaman geleceği belli olmayan siparişler (Ödeme Takibi › Manuel Alacaklar) vade uyarısı üretmez; Vadeli/Gecikmiş kartlarına bilerek dahil edilmez.</li>
+                <li><strong>Fazla ödeme / yuvarlama:</strong> Müşterinin fazla ödemesi (avans) bir sonraki siparişe mahsup edilene kadar küçük farklar oluşturabilir.</li>
+            </ol>
+            <p><strong>Örnek (EUR, 2026, 18.09.2026 itibarıyla):</strong></p>
+            <ul>
+                <li>Ciro 353.114,80 − Tahsil 266.588,04 = <strong>86.526,76</strong> (2026 siparişlerinin açığı). Bu tutar şöyle dağılır:
+                    <ul>
+                        <li>22.169,36 — faturalandı, vadesi gelmedi → <em>Vadeli Bakiye</em></li>
+                        <li>0,00 — faturalandı, vadesi geçti</li>
+                        <li>59.497,40 — henüz faturalanmadı (sevk bekliyor)</li>
+                        <li>4.860,00 — manuel takipte (Ptp Usprom 2026-01 / 2026-02)</li>
+                    </ul>
+                </li>
+                <li><em>Gecikmiş Borç</em>taki 19.293,16 EUR, <strong>Paffoni 2026-02</strong> siparişidir (fatura IHR2026000000038, 02.07.2026; vade 31.08.2026). Siparişin numarası 2026 olsa da <em>sipariş tarihi</em> 25.12.2025 olduğu için Ciro'da 2025 siparişleri arasında sayılır; bu yüzden köprüde "diğer yıllar" satırında görünür.</li>
+                <li>Önceki yıllardan 70.584,81 EUR manuel takipte (Ptp Usprom 2025-03, Alvano 2023-01, Roccaforte 2025-01).</li>
+            </ul>
+            <p>Aynı mantık USD ve TRY için de geçerlidir; güncel rakamlar Dashboard'daki <strong>Bakiye Köprüsü</strong> tablosunda her zaman para birimi bazında görünür.</p>
+
+            <h4>Manuel Alacaklar Dashboard'da görünüyor mu?</h4>
+            <p>Finans kartlarında <strong>görünmez</strong> (vadesi belirsiz olduğu için "vadeli" ya da "gecikmiş" sayılamaz). Toplamları Bakiye Köprüsü'nün en alt satırında, <em>Manuel takip toplamı</em> olarak gösterilir. Ayrıntı: Ödeme Takibi › Manuel Alacaklar.</p>
+
+            <h4>Önemli kurallar</h4>
+            <ul>
+                <li>Para birimleri (EUR, USD, TRY, GBP) <strong>asla toplanmaz</strong>; her biri ayrı satırda gösterilir.</li>
+                <li>İptal ve bedelsiz siparişler ne ciroya ne alacağa girer.</li>
             </ul>
             <h4>Nasıl Kullanılır?</h4>
             <p>Sol menüden doğrudan ilgili sayfaya geçmek için KPI kartlarına veya grafiklere tıklayabilirsiniz. Döviz kurları otomatik olarak güncellenir; piyasa açıkken yeşil, kapalıyken gri nokta görürsünüz.</p>
@@ -199,15 +243,26 @@ const pages = [
         icon: 'fa-circle-dollar-to-slot',
         href: 'payments.html',
         color: '#2D4A8C',
-        short: 'Alacak ve ödeme takvimleri',
+        short: 'Fatura bazlı alacaklar, tahsilat, vade ve Eximbank',
         desc: `
-            <p>Müşterilerden beklenen ödemeleri ve gerçekleşen tahsilatları takip ettiğiniz finansal sayfadır.</p>
-            <h4>Temel Özellikler</h4>
+            <p>Sistemdeki siparişlerin tahsilatını takip ettiğiniz sayfadır. Alacak <strong>faturayla</strong> doğar; vade faturanın tarihinden işler. Henüz faturalanmamış sipariş bakiyesi alacak sayılmaz, ayrıca gösterilir.</p>
+            <h4>Sekmeler</h4>
             <ul>
-                <li><strong>Beklenen Ödemeler:</strong> Vade tarihine göre sıralanmış tahsilat takvimi.</li>
-                <li><strong>Gecikmiş Ödemeler:</strong> Vadesi geçen alacaklar ayrı renk ve uyarıyla gösterilir.</li>
-                <li><strong>Tahsilat Kaydı:</strong> Gelen ödemeleri sisteme işleyerek bakiyeleri güncelleyin.</li>
-                <li><strong>Özet Grafikler:</strong> Aylık tahsilat vs. beklenti grafiğiyle nakit akışını izleyin.</li>
+                <li><strong>Genel Bakış:</strong> Açık alacak, vadesi geçen, 30 gün içinde vadesi gelecek, bu ay tahsilat, faturalanmamış bakiye ve manuel takip — hepsi para birimi bazında ayrı. Panellere tıklayınca ilgili siparişler listelenir.</li>
+                <li><strong>Açık Alacaklar:</strong> Yaşlandırma tablosu ve fatura bazlı liste. Satırdaki butonlar: Tahsilat, Hatırlatma, Manuel Alacaklar'a taşı, Sipariş faturaları.</li>
+                <li><strong>Tahsilatlar:</strong> Gelen ödemeler sipariş bazında gruplanır. "Tarihsiz" kayıtlar sistem öncesi ödemelerdir; "Tarih gir" ile arşiv için tarihlendirilebilir. Dağıtılmamış tutar müşteri avansıdır; "Dağıt" ile sonraki siparişe mahsup edilir.</li>
+                <li><strong>Eximbank:</strong> Limit kullanımı (faturalı + sevk bekleyen) ve her fatura için iç son gün (vade + 45), V.G.A.B son günü (vade + 60), tazminat başvurusu son günü (vade + 90). Bildirimi yaptığınızda "Bildirim kaydet".</li>
+                <li><strong>Manuel Alacaklar:</strong> Ödemesinin ne zaman geleceği belli olmayan siparişlerin serbest takibi (not, hatırlatma). İsteğe bağlı ödeme planı eklenebilir.</li>
+            </ul>
+            <h4>Tahsilat nasıl girilir?</h4>
+            <p>"Tahsilat Gir" → firma adının herhangi bir kısmını yazın → tutar ve valör tarihini girin → "En eski vadeden dağıt". SWIFT masrafı gibi eksik gelen küçük tutarları <strong>Kesinti</strong> sütununa yazın; sipariş tam kapanır, masraf ayrıca raporlanır. İhraç kayıtlı satışta TL ödemeyi "Para farklı birimde geldi" ile kur girerek kaydedin.</p>
+            <h4>Fatura nasıl girilir?</h4>
+            <p>Açık Alacaklar'da satırdaki <i class="fa-solid fa-file-invoice"></i> butonu ya da "Henüz faturalanmamış" tablosundaki "Fatura ekle". Vade ödeme şeklinden önerilir (hafta sonuna gelirse Pazartesi); siparişin vadesi de faturadan güncellenir. Kısmi sevkiyatta her faturayı ayrı girin.</p>
+            <h4>Otomatik olanlar</h4>
+            <ul>
+                <li>Siparişin "Tahsil" ve "Kalan" tutarları tahsilatlardan hesaplanır; Siparişler ekranında elle değiştirilmez.</li>
+                <li>Etiketler: bakiye kapanınca "Ödeme Tamamlandı", açılınca "Bakiye Bekliyor"; "Gecikme" vade geçince eklenir, ödeme gelince kalkar.</li>
+                <li>Bedelsiz ve iptal siparişler alacak sayılmaz.</li>
             </ul>
         `
     },

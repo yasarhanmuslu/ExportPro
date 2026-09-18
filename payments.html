@@ -10,84 +10,133 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { background: #F6F3EC !important; color: #1C1A17 !important; }
+        body { background: var(--bg) !important; color: var(--ink-1) !important; }
 
-        
-        
-
-        
-
-        
-
-        
-        
-        
-        .data-table tbody tr:last-child td { border-bottom: none; }
-        .data-table tbody tr:hover { background: #FDFAF5; }
-
-        .badge {
-            display: inline-flex; align-items: center; gap: 5px;
-            padding: 3px 10px; border-radius: 999px;
-            font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+        /* ── Sekmeler ── */
+        .pt-tabs { display:flex; gap:2px; border-bottom:1px solid var(--border-soft); margin-bottom:22px; flex-wrap:wrap; }
+        .pt-tab {
+            padding:10px 16px; font-size:13px; border:none; background:none; color:var(--ink-3);
+            border-bottom:2px solid transparent; margin-bottom:-1px; cursor:pointer; display:flex; align-items:center; gap:7px;
+            font-family:Verdana, Geneva, sans-serif; transition:color .15s;
         }
-        .badge-danger { background: #FEE2E2; color: #9F3D3D; }
-        .badge-warning { background: #FFF3CD; color: #92600A; }
-        .badge-yellow { background: #FEF9C3; color: #8B6E00; }
-        .badge-success { background: #DCFCE7; color: #166534; }
+        .pt-tab:hover { color:var(--ink-1); }
+        .pt-tab.active { color:var(--accent); border-bottom-color:var(--accent); font-weight:600; }
+        .pt-tab .cnt { font-size:10px; padding:1px 7px; border-radius:999px; background:var(--surface-2); color:var(--ink-3); font-weight:600; }
+        .pt-tab .cnt.danger { background:var(--danger-soft); color:var(--danger); }
+        .pt-panel[hidden] { display:none !important; }
 
-        .filter-btn {
-            padding: 6px 14px; border-radius: 6px; font-size: 12px;
-            font-family: Verdana, Geneva, sans-serif; cursor: pointer;
-            border: 1px solid #E4DDCE; background: #fff; color: #6B655B;
-            transition: all .15s;
+        /* ── Butonlar ── */
+        .pt-btn {
+            height:36px; padding:0 14px; border-radius:7px; font-size:12.5px; cursor:pointer;
+            display:inline-flex; align-items:center; gap:7px; font-family:Verdana, Geneva, sans-serif;
+            border:1px solid var(--border); background:var(--surface); color:var(--ink-2); transition:background .15s, opacity .15s;
+            white-space:nowrap;
         }
-        .filter-btn.active {
-            background: #2D4A3E; border-color: #2D4A3E; color: #fff;
-        }
-        .filter-btn:hover:not(.active) { background: #F6F3EC; }
+        .pt-btn:hover { background:var(--surface-2); }
+        .pt-btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+        .pt-btn.primary:hover { opacity:.9; background:var(--accent); }
+        .pt-btn.danger { color:var(--danger); }
+        .pt-btn.sm { height:28px; padding:0 10px; font-size:11.5px; }
+        .pt-btn.icon { width:28px; padding:0; justify-content:center; }
 
-        input, select {
-            background: #fff !important; border: 1px solid #E4DDCE !important;
-            border-radius: 6px !important; color: #1C1A17 !important;
-            font-family: Verdana, Geneva, sans-serif !important; font-size: 13px !important;
-            padding: 0 12px; height: 36px;
+        /* ── Form ── */
+        .pt-field label { display:block; font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin-bottom:5px; }
+        .pt-input, .pt-select, .pt-textarea {
+            width:100%; height:36px; padding:0 10px !important; border:1px solid var(--border) !important; border-radius:7px !important;
+            background:var(--surface) !important; color:var(--ink-1) !important; font-size:13px !important; font-family:Verdana, Geneva, sans-serif !important;
         }
-        input:focus, select:focus {
-            outline: none !important; border-color: #2D4A3E !important;
-            box-shadow: 0 0 0 3px rgba(45,74,62,0.08) !important;
-        }
+        .pt-textarea { height:64px; padding:8px 10px !important; resize:vertical; }
+        .pt-input:focus, .pt-select:focus, .pt-textarea:focus { outline:none; border-color:var(--accent) !important; box-shadow:0 0 0 3px rgba(45,74,62,.10); }
+        .pt-input.num { text-align:right; }
 
-        .modal-overlay {
-            position: fixed; inset: 0;
-            background: rgba(28,26,23,0.50); backdrop-filter: blur(4px);
-            display: flex; align-items: flex-start; justify-content: center;
-            z-index: 100; padding: 2rem; overflow-y: auto;
-        }
-        .modal-overlay.hidden { display: none; }
-        .modal-box {
-            background: #fff; border: 1px solid #EFEAE0;
-            border-radius: 1rem; padding: 2rem;
-            width: 100%; max-width: 56rem;
-            box-shadow: 0 25px 50px -12px rgba(28,26,23,0.18);
-            margin: auto;
-        }
+        /* ── Tablolar ── */
+        .pt-table-wrap { overflow-x:auto; }
+        .data-table td.num, .data-table th.num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+        .data-table td.nowrap { white-space:nowrap; }
+        .data-table tr.sev-danger td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+        .data-table tr.sev-warn td:first-child   { box-shadow: inset 3px 0 0 var(--warn); }
+        .data-table tr.sev-ok td:first-child     { box-shadow: inset 3px 0 0 var(--ok); }
+        .data-table tfoot td { font-weight:600; color:var(--ink-1); background:var(--surface-2); }
+        .muted { color:var(--ink-3); }
+        .strong { color:var(--ink-1); font-weight:600; }
 
-        .abc-a { background: #DCFCE7; color: #166534; }
-        .abc-b { background: #FFF3CD; color: #92600A; }
-        .abc-c { background: #F3EFE7; color: #6B655B; }
+        /* ── Rozetler ── */
+        .pill { display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:999px; font-size:10.5px; font-weight:600; white-space:nowrap; }
+        .pill.danger { background:var(--danger-soft); color:var(--danger); }
+        .pill.warn   { background:var(--warn-soft);   color:var(--warn); }
+        .pill.ok     { background:var(--ok-soft);     color:var(--ok); }
+        .pill.info   { background:var(--info-soft);   color:var(--info); }
+        .pill.neutral{ background:var(--surface-2);   color:var(--ink-3); border:1px solid var(--border-soft); }
+        .pill.accent { background:var(--accent-soft); color:var(--accent); }
 
-        .row-overdue td { border-left: 3px solid #EF4444 !important; }
-        .row-week td   { border-left: 3px solid #F97316 !important; }
-        .row-month td  { border-left: 3px solid #EAB308 !important; }
-        .row-paid td   { border-left: 3px solid #22C55E !important; }
+        /* ── KPI ── */
+        .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:14px; margin-bottom:22px; }
+        .kpi-card .kpi-lines div { font-size:19px; font-weight:600; color:var(--ink-1); letter-spacing:-0.01em; line-height:1.35; font-variant-numeric:tabular-nums; }
+        .kpi-card .kpi-sub { font-size:11px; color:var(--ink-3); margin-top:6px; }
+        .kpi-card.accent-danger { box-shadow: inset 3px 0 0 var(--danger); }
+        .kpi-card.accent-warn   { box-shadow: inset 3px 0 0 var(--warn); }
+        .kpi-card.accent-ok     { box-shadow: inset 3px 0 0 var(--ok); }
+        .kpi-card[data-kpi] { cursor:pointer; }
+        .cb { position:relative; }
+        .cb-list { position:absolute; left:0; right:0; top:calc(100% + 4px); z-index:50; max-height:280px; overflow-y:auto;
+                   background:var(--surface); border:1px solid var(--border); border-radius:8px; box-shadow:0 12px 30px rgba(0,0,0,.12); }
+        .cb-list[hidden] { display:none; }
+        .cb-item { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 12px; font-size:12.5px; color:var(--ink-1); cursor:pointer; }
+        .cb-item:hover, .cb-item.active { background:var(--accent-soft); }
+        .cb-empty { padding:10px 12px; font-size:12px; color:var(--ink-3); }
+        .data-table tr.grp-head { cursor:pointer; background:var(--surface-2); }
+        .data-table tr.grp-head:hover { background:var(--accent-soft); }
+        .data-table tr.grp-row td { font-size:12.5px; }
+        .mt-card { border:1px solid var(--border-soft); border-radius:10px; background:var(--surface); margin-bottom:14px; overflow:hidden; }
+        .mt-head { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:12px; padding:14px 18px; border-bottom:1px solid var(--border-soft); background:var(--surface-2); }
+        .mt-body { padding:14px 18px; display:grid; grid-template-columns:minmax(280px, 1fr) minmax(320px, 1.3fr); gap:18px; }
+        .mt-body .data-table td, .mt-body .data-table th { padding:7px 10px !important; }
+        .mt-actions { display:flex; flex-wrap:wrap; gap:6px; }
+        @media (max-width: 1100px) { .mt-body { grid-template-columns:1fr; } }
+        .kpi-card[data-kpi]:hover { border-color:var(--accent); }
+        .kpi-card .kpi-more { font-size:10.5px; color:var(--accent); margin-top:8px; opacity:.75; }
+        .kpi-card[data-kpi]:hover .kpi-more { opacity:1; }
 
-        .skeleton {
-            background: linear-gradient(90deg, #F6F3EC 25%, #EFEAE0 50%, #F6F3EC 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.2s infinite;
-            border-radius: 6px; height: 18px;
+        .dash-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(420px, 1fr)); gap:18px; }
+        .dash-grid .section-card { margin-bottom:0; }
+        .empty { padding:22px; text-align:center; color:var(--ink-3); font-size:12.5px; }
+
+        /* ── Filtre çubuğu ── */
+        .filter-bar { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-bottom:14px; }
+        .filter-bar .pt-field { min-width:150px; }
+        .chip-group { display:inline-flex; border:1px solid var(--border); border-radius:7px; overflow:hidden; }
+        .chip-group button { height:34px; padding:0 12px; font-size:12px; background:var(--surface); color:var(--ink-2); border:none; border-right:1px solid var(--border-soft); cursor:pointer; font-family:inherit; }
+        .chip-group button:last-child { border-right:none; }
+        .chip-group button.active { background:var(--accent); color:#fff; }
+
+        /* ── Eximbank limit kartları ── */
+        .limit-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px; margin-bottom:20px; }
+        .limit-bar { height:7px; border-radius:999px; background:var(--surface-2); border:1px solid var(--border-soft); overflow:hidden; display:flex; margin:10px 0 6px; }
+        .limit-bar span { display:block; height:100%; }
+
+        /* ── Modallar ── */
+        .modal-backdrop { position:fixed; inset:0; background:rgba(28,26,23,0.5); backdrop-filter:blur(4px); display:flex; align-items:flex-start; justify-content:center; z-index:100; padding:2rem 1rem; overflow-y:auto; }
+        .modal-backdrop.hidden { display:none; }
+        .modal-content { background:var(--surface); border:1px solid var(--border); border-radius:12px; width:100%; max-width:52rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.2); margin:auto; }
+        .modal-head { display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--border-soft); }
+        .modal-head h3 { font-size:15px; font-weight:600; color:var(--ink-1); display:flex; align-items:center; gap:8px; }
+        .modal-body { padding:20px 22px; }
+        .modal-foot { display:flex; justify-content:flex-end; gap:8px; padding:14px 22px; border-top:1px solid var(--border-soft); background:var(--surface-2); border-radius:0 0 12px 12px; }
+        .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .grid-3 { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; }
+        .grid-4 { display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; }
+        .alloc-summary { display:flex; flex-wrap:wrap; gap:18px; padding:12px 14px; border:1px solid var(--border-soft); border-radius:8px; background:var(--surface-2); font-size:12px; color:var(--ink-2); margin-top:12px; }
+        .alloc-summary b { color:var(--ink-1); font-variant-numeric:tabular-nums; }
+        .hint { font-size:11.5px; color:var(--ink-3); line-height:1.5; }
+        .fx-box { border:1px dashed var(--border); border-radius:8px; padding:12px; margin-top:12px; }
+        .alloc-table td { padding:8px 10px !important; }
+        .alloc-table .pt-input { height:30px; font-size:12px !important; }
+        .alloc-table .pt-select { height:30px; font-size:11.5px !important; }
+
+        @media (max-width: 900px) {
+            .grid-3, .grid-4 { grid-template-columns:1fr 1fr; }
+            .dash-grid { grid-template-columns:1fr; }
         }
-        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
     </style>
 </head>
 <body class="min-h-screen">
@@ -96,140 +145,546 @@
 
     <main class="min-h-screen" style="margin-left:230px;padding:32px;">
 
-        <!-- Header -->
-        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b" style="border-color:#EFEAE0;">
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-5" style="border-bottom:1px solid var(--border-soft);">
             <div>
                 <h2 class="page-title">
-                    <i class="fa-solid fa-circle-dollar-to-slot" style="font-size:24px;color:#2D4A3E;"></i>
+                    <i class="fa-solid fa-circle-dollar-to-slot" style="font-size:22px;color:var(--accent);"></i>
                     Ödeme Takibi
                 </h2>
-                <p style="font-size:13px;color:#968B7A;margin-top:4px;">Açık bakiyeler, vade takibi ve tahsilat durumu</p>
+                <p style="font-size:13px;color:var(--ink-3);margin-top:4px;">Sistemdeki siparişlerin fatura bazlı alacakları, tahsilatlar, vade ve Eximbank takibi</p>
             </div>
-            <button id="btn-refresh"
-                style="height:38px;padding:0 18px;border-radius:8px;background:#2D4A3E;color:#fff;border:none;font-size:13px;font-family:Verdana, Geneva, sans-serif;cursor:pointer;display:flex;align-items:center;gap:8px;transition:opacity .15s;">
-                <i class="fa-solid fa-rotate-right" style="font-size:12px;"></i> Yenile
-            </button>
+            <div class="flex items-center gap-2">
+                <button id="btn-refresh" class="pt-btn"><i class="fa-solid fa-rotate-right"></i> Yenile</button>
+                <button id="btn-new-payment" class="pt-btn primary" data-requires-edit><i class="fa-solid fa-plus"></i> Tahsilat Gir</button>
+            </div>
         </header>
 
-        <!-- A) KPI KARTLARI -->
-        <section class="mb-8">
-            <div id="kpi-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <!-- Dinamik olarak doldurulacak -->
-                <div class="kpi-card"><div class="skeleton" style="width:60%;margin-bottom:8px;"></div><div class="skeleton" style="width:40%;"></div></div>
-                <div class="kpi-card"><div class="skeleton" style="width:60%;margin-bottom:8px;"></div><div class="skeleton" style="width:40%;"></div></div>
-                <div class="kpi-card"><div class="skeleton" style="width:60%;margin-bottom:8px;"></div><div class="skeleton" style="width:40%;"></div></div>
-                <div class="kpi-card"><div class="skeleton" style="width:60%;margin-bottom:8px;"></div><div class="skeleton" style="width:40%;"></div></div>
-            </div>
-        </section>
+        <nav class="pt-tabs" id="pt-tabs">
+            <button class="pt-tab active" data-tab="dashboard"><i class="fa-solid fa-gauge"></i> Genel Bakış</button>
+            <button class="pt-tab" data-tab="open"><i class="fa-solid fa-file-invoice-dollar"></i> Açık Alacaklar <span class="cnt" id="cnt-open">0</span></button>
+            <button class="pt-tab" data-tab="payments"><i class="fa-solid fa-money-bill-transfer"></i> Tahsilatlar</button>
+            <button class="pt-tab" data-tab="eximbank"><i class="fa-solid fa-shield-halved"></i> Eximbank <span class="cnt" id="cnt-exim">0</span></button>
+            <button class="pt-tab" data-tab="manual"><i class="fa-solid fa-book"></i> Manuel Alacaklar <span class="cnt" id="cnt-manual">0</span></button>
+        </nav>
 
-        <!-- B) KRİTİK UYARI LİSTESİ -->
-        <section class="section-card mb-6">
-            <div class="section-title">
-                <i class="fa-solid fa-triangle-exclamation" style="color:#EF4444;"></i>
-                Vadesi Geçmiş Siparişler
-                <span id="overdue-count" style="background:#FEE2E2;color:#9F3D3D;padding:2px 8px;border-radius:999px;font-size:10px;margin-left:4px;">0</span>
+        <!-- ═══════════ GENEL BAKIŞ ═══════════ -->
+        <section class="pt-panel" id="panel-dashboard">
+            <div class="kpi-grid" id="kpi-grid">
+                <div class="kpi-card"><div class="label-caps">Yükleniyor…</div></div>
             </div>
-            <div style="overflow-x:auto;">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Müşteri</th>
-                            <th>Sipariş No</th>
-                            <th>Vade Tarihi</th>
-                            <th>Gecikme</th>
-                            <th>Kalan Bakiye</th>
-                            <th>Para Birimi</th>
-                        </tr>
-                    </thead>
-                    <tbody id="overdue-tbody">
-                        <tr><td colspan="6" class="text-center py-6" style="color:#968B7A;">Yükleniyor...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <!-- C) TÜM AÇIK BAKİYE TABLOSU -->
-        <section class="section-card mb-6">
-            <div class="section-title">
-                <i class="fa-solid fa-table-list" style="color:#2D4A3E;"></i>
-                Tüm Açık Bakiye
-            </div>
-            <!-- Filtreler -->
-            <div class="flex flex-wrap gap-2 mb-4">
-                <button class="filter-btn active" data-filter="all">Tümü</button>
-                <button class="filter-btn" data-filter="overdue">
-                    <i class="fa-solid fa-circle-exclamation" style="font-size:10px;margin-right:4px;color:#EF4444;"></i>Vadesi Geçmiş
-                </button>
-                <button class="filter-btn" data-filter="week">
-                    <i class="fa-solid fa-circle-exclamation" style="font-size:10px;margin-right:4px;color:#F97316;"></i>Bu Hafta
-                </button>
-                <button class="filter-btn" data-filter="month">
-                    <i class="fa-solid fa-circle-exclamation" style="font-size:10px;margin-right:4px;color:#EAB308;"></i>Bu Ay
-                </button>
-                <div style="margin-left:auto;">
-                    <input type="text" id="search-input" placeholder="Müşteri / Sipariş No ara..." style="width:240px;">
+            <div class="dash-grid">
+                <div class="section-card">
+                    <div class="section-title"><i class="fa-solid fa-shield-halved" style="color:var(--danger);"></i> Eximbank — dikkat gereken</div>
+                    <div id="dash-exim"></div>
+                </div>
+                <div class="section-card">
+                    <div class="section-title"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);"></i> Vadesi geçen alacaklar</div>
+                    <div id="dash-overdue"></div>
+                </div>
+                <div class="section-card">
+                    <div class="section-title"><i class="fa-solid fa-calendar-day" style="color:var(--warn);"></i> 30 gün içinde vadesi gelecek</div>
+                    <div id="dash-upcoming"></div>
+                </div>
+                <div class="section-card">
+                    <div class="section-title"><i class="fa-solid fa-list-ol" style="color:var(--info);"></i> Ödeme planı taksitleri &amp; verilen sözler</div>
+                    <div id="dash-plans"></div>
                 </div>
             </div>
-            <div style="overflow-x:auto;">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Durum</th>
-                            <th>Müşteri</th>
-                            <th>Sipariş No</th>
-                            <th>Vade Tarihi</th>
-                            <th>Toplam Tutar</th>
-                            <th>Ödenen</th>
-                            <th>Kalan</th>
-                            <th>Para Birimi</th>
-                            <th style="text-align:center;">Detay</th>
-                        </tr>
-                    </thead>
-                    <tbody id="all-open-tbody">
-                        <tr><td colspan="9" class="text-center py-6" style="color:#968B7A;">Yükleniyor...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <div id="table-summary" style="font-size:12px;color:#968B7A;margin-top:10px;text-align:right;"></div>
         </section>
 
-        <!-- D) MÜŞTERİ BAZINDA TOPLAM AÇIK BAKİYE -->
-        <section class="section-card">
-            <div class="section-title">
-                <i class="fa-solid fa-users" style="color:#2D4A3E;"></i>
-                Müşteri Bazında Açık Bakiye
-                <span style="margin-left:auto;font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;">ABC Sınıflandırması: A (&gt;10K) · B (1K–10K) · C (&lt;1K)</span>
+        <!-- ═══════════ AÇIK ALACAKLAR ═══════════ -->
+        <section class="pt-panel" id="panel-open" hidden>
+            <div class="section-card">
+                <div class="section-title"><i class="fa-solid fa-layer-group"></i> Yaşlandırma (para birimi bazında)</div>
+                <div class="pt-table-wrap" id="aging-table"></div>
             </div>
-            <div style="overflow-x:auto;">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>ABC</th>
-                            <th>Müşteri</th>
-                            <th>Sipariş Sayısı</th>
-                            <th>En Eski Vade</th>
-                            <th>USD Bakiye</th>
-                            <th>EUR Bakiye</th>
-                            <th>Diğer Bakiye</th>
-                        </tr>
-                    </thead>
-                    <tbody id="customer-tbody">
-                        <tr><td colspan="7" class="text-center py-6" style="color:#968B7A;">Yükleniyor...</td></tr>
-                    </tbody>
-                </table>
+
+            <div class="section-card">
+                <div class="filter-bar">
+                    <div class="pt-field" style="min-width:240px;flex:1;">
+                        <label>Ara</label>
+                        <input id="open-search" class="pt-input" placeholder="Müşteri, sipariş veya fatura no…">
+                    </div>
+                    <div class="pt-field">
+                        <label>Para birimi</label>
+                        <select id="open-currency" class="pt-select"><option value="">Tümü</option></select>
+                    </div>
+                    <div class="pt-field">
+                        <label>Tür</label>
+                        <select id="open-kind" class="pt-select">
+                            <option value="">Tümü</option>
+                            <option value="invoice">Sipariş faturaları</option>
+                            <option value="order">Faturası girilmemiş sevkler</option>
+                        </select>
+                    </div>
+                    <div class="pt-field">
+                        <label>Durum</label>
+                        <div class="chip-group" id="open-bucket">
+                            <button data-v="" class="active">Tümü</button>
+                            <button data-v="overdue">Vadesi geçen</button>
+                            <button data-v="current">Vadesi gelmedi</button>
+                            <button data-v="nodue">Vadesiz</button>
+                        </div>
+                    </div>
+                    <div class="pt-field">
+                        <label>Sırala</label>
+                        <select id="open-sort" class="pt-select">
+                            <option value="overdue">Gecikme (en eski önce)</option>
+                            <option value="invoice-desc">Fatura tarihi (yeni → eski)</option>
+                            <option value="invoice-asc">Fatura tarihi (eski → yeni)</option>
+                            <option value="due-asc">Vade (yakın → uzak)</option>
+                            <option value="customer">Müşteri (A → Z)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="pt-table-wrap" id="open-table"></div>
+                <div class="hint" style="margin-top:10px;">
+                    Alacak <b>faturayla</b> doğar. Henüz faturalanmamış (sevk edilmemiş) sipariş bakiyeleri bu listede değil, aşağıda ayrı gösterilir.
+                    "Vadesiz": peşin / mal mukabili faturalar ve Insteel gibi çekle ödeyen müşteriler — süre fatura tarihinden sayılır.
+                </div>
+            </div>
+
+            <div class="section-card">
+                <div class="section-title"><i class="fa-solid fa-hourglass-half"></i> Henüz faturalanmamış sipariş bakiyeleri (alacak değil)</div>
+                <div class="pt-table-wrap" id="pending-table"></div>
             </div>
         </section>
 
+        <!-- ═══════════ TAHSİLATLAR ═══════════ -->
+        <section class="pt-panel" id="panel-payments" hidden>
+            <div class="section-card">
+                <div class="filter-bar">
+                    <div class="pt-field" style="min-width:240px;flex:1;">
+                        <label>Ara</label>
+                        <input id="pay-search" class="pt-input" placeholder="Müşteri, sipariş no, referans…">
+                    </div>
+                    <div class="pt-field">
+                        <label>Başlangıç</label>
+                        <input id="pay-from" type="date" class="pt-input">
+                    </div>
+                    <div class="pt-field">
+                        <label>Bitiş</label>
+                        <input id="pay-to" type="date" class="pt-input">
+                    </div>
+                    <div class="pt-field">
+                        <label>&nbsp;</label>
+                        <label style="display:flex;align-items:center;gap:7px;height:36px;font-size:12px;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink-2);cursor:pointer;">
+                            <input type="checkbox" id="pay-show-opening"> Tarihsiz (geçmiş) kayıtları göster
+                        </label>
+                    </div>
+                    <div class="pt-field">
+                        <label>&nbsp;</label>
+                        <button class="pt-btn" id="pay-toggle-all"><i class="fa-solid fa-up-down"></i> Tümünü aç / kapat</button>
+                    </div>
+                </div>
+                <div class="pt-table-wrap" id="payments-table"></div>
+            </div>
+        </section>
+
+        <!-- ═══════════ EXIMBANK ═══════════ -->
+        <section class="pt-panel" id="panel-eximbank" hidden>
+            <div class="section-card">
+                <div class="section-title"><i class="fa-solid fa-gauge-high"></i> Limit kullanımı</div>
+                <div class="limit-grid" id="exim-limits"></div>
+                <div class="hint">
+                    <b>Faturalanmış açık alacak</b> limiti fiilen kullanan tutardır. <b>Sevk bekleyen</b>, faturalandığında limite eklenecek bakiyedir —
+                    toplamı limiti aşıyorsa sevkten önce tahsilat ya da limit artışı gerekir.
+                </div>
+            </div>
+            <div class="section-card">
+                <div class="section-title"><i class="fa-solid fa-list-check"></i> Eximbank kapsamındaki açık faturalar</div>
+                <div class="hint" style="margin-bottom:12px;">
+                    İç uyarı: vade + 45 gün · <b>V.G.A.B son günü: vade + 60 gün</b> · Tazminat başvurusu son günü: vade + 90 gün.
+                    Tarihler vadeden hesaplanır; bildirimi yaptığınızda "Bildirim kaydet" ile kaydedin.
+                </div>
+                <div class="pt-table-wrap" id="exim-table"></div>
+            </div>
+        </section>
+
+
+        <!-- ═══════════ MANUEL ALACAKLAR ═══════════ -->
+        <section class="pt-panel" id="panel-manual" hidden>
+            <div class="section-card">
+                <div class="filter-bar">
+                    <div class="pt-field" style="min-width:240px;flex:1;">
+                        <label>Ara</label>
+                        <input id="man-search" class="pt-input" placeholder="Müşteri, sipariş no, not…">
+                    </div>
+                </div>
+                <div class="hint">
+                    Ödemenin <b>ne zaman geleceği belli olmayan</b> alacakların serbest takibi. Burada vade ve gecikme uyarısı yoktur;
+                    alacak not, hatırlatma ve tahsilatlarla izlenir. İstenirse siparişe ödeme planı eklenebilir (<i class="fa-solid fa-list-ol"></i>), zorunlu değildir.
+                    Bir siparişi buraya almak için Açık Alacaklar listesindeki <i class="fa-solid fa-folder-open"></i> butonunu kullanın.
+                </div>
+            </div>
+            <div id="manual-list"></div>
+        </section>
     </main>
 
-    <!-- Sipariş Detay Modalı -->
-    <div id="order-detail-modal" class="modal-overlay hidden">
-        <div class="modal-box">
-            <div class="flex items-center justify-between mb-6">
-                <h3 id="modal-order-title" class="modal-title"></h3>
-                <button id="modal-close" style="background:none;border:none;cursor:pointer;color:#968B7A;font-size:18px;"><i class="fa-solid fa-xmark"></i></button>
+    <!-- ═══════════ TAHSİLAT MODALI ═══════════ -->
+    <div id="payment-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width:64rem;">
+            <div class="modal-head">
+                <h3 id="pm-title"><i class="fa-solid fa-money-bill-transfer" style="color:var(--accent);"></i> Tahsilat Gir</h3>
+                <button class="pt-btn icon sm" data-close="payment-modal"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div id="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;"></div>
+            <div class="modal-body">
+                <div id="pm-existing" class="hint" style="margin-bottom:12px;" hidden></div>
+                <div id="pm-header-fields">
+                    <div class="grid-3">
+                        <div class="pt-field" style="grid-column:span 2;">
+                            <label>Müşteri *</label>
+                            <div class="cb">
+                                <input id="pm-customer-input" class="pt-input" placeholder="Firma adının herhangi bir kısmını yazın…" autocomplete="off">
+                                <div class="cb-list" id="pm-customer-list" hidden></div>
+                            </div>
+                        </div>
+                        <div class="pt-field">
+                            <label>Valör tarihi *</label>
+                            <input id="pm-date" type="date" class="pt-input">
+                        </div>
+                    </div>
+                    <div class="grid-4" style="margin-top:12px;">
+                        <div class="pt-field">
+                            <label>Para birimi *</label>
+                            <select id="pm-currency" class="pt-select">
+                                <option>EUR</option><option>USD</option><option>TRY</option><option>GBP</option>
+                            </select>
+                        </div>
+                        <div class="pt-field">
+                            <label>Tutar *</label>
+                            <input id="pm-amount" class="pt-input num" placeholder="0,00">
+                        </div>
+                        <div class="pt-field">
+                            <label>Ödeme yolu</label>
+                            <select id="pm-method" class="pt-select">
+                                <option>T/T</option><option>Havale/EFT</option><option>Akreditif (LC)</option><option>Vesaik (CAD)</option>
+                                <option>Çek</option><option>Nakit</option><option>Mahsup</option><option>İade</option>
+                            </select>
+                        </div>
+                        <div class="pt-field">
+                            <label>Banka hesabı</label>
+                            <input id="pm-bank" class="pt-input" list="pm-bank-list" placeholder="ör. Garanti USD">
+                            <datalist id="pm-bank-list"></datalist>
+                        </div>
+                    </div>
+                    <div class="grid-2" style="margin-top:12px;">
+                        <div class="pt-field">
+                            <label>Dekont / SWIFT referansı</label>
+                            <input id="pm-ref" class="pt-input">
+                        </div>
+                        <div class="pt-field">
+                            <label>Not</label>
+                            <input id="pm-notes" class="pt-input">
+                        </div>
+                    </div>
+                    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12.5px;color:var(--ink-2);cursor:pointer;">
+                        <input type="checkbox" id="pm-fx-toggle"> Para farklı birimde geldi (ör. ihraç kayıtlı satışta anlaşmalı kurla TL ödeme)
+                    </label>
+                    <div class="fx-box" id="pm-fx-box" hidden>
+                        <div class="grid-4">
+                            <div class="pt-field">
+                                <label>Gelen para birimi</label>
+                                <select id="pm-fx-currency" class="pt-select">
+                                    <option>TRY</option><option>EUR</option><option>USD</option><option>GBP</option>
+                                </select>
+                            </div>
+                            <div class="pt-field">
+                                <label>Gelen tutar</label>
+                                <input id="pm-fx-amount" class="pt-input num" placeholder="0,00">
+                            </div>
+                            <div class="pt-field">
+                                <label>Kur</label>
+                                <input id="pm-fx-rate" class="pt-input num" placeholder="ör. 46,4935">
+                            </div>
+                            <div class="pt-field">
+                                <label>Kur notu</label>
+                                <input id="pm-fx-note" class="pt-input" placeholder="ör. Garanti alış kuru">
+                            </div>
+                        </div>
+                        <div class="hint" style="margin-top:8px;">Alacak yine yukarıdaki para biriminden kapanır. Gelen tutar ve kur girilince tutar otomatik hesaplanır.</div>
+                    </div>
+                    <div id="pm-archive"></div>
+                </div>
+
+                <div style="display:flex;align-items:center;justify-content:space-between;margin:20px 0 8px;">
+                    <div class="section-title" style="margin:0;"><i class="fa-solid fa-diagram-project"></i> Dağıtım</div>
+                    <div class="flex gap-2">
+                        <button class="pt-btn sm" id="pm-fifo"><i class="fa-solid fa-wand-magic-sparkles"></i> En eski vadeden dağıt</button>
+                        <button class="pt-btn sm" id="pm-clear">Temizle</button>
+                    </div>
+                </div>
+                <div class="pt-table-wrap" id="pm-alloc"></div>
+                <div class="alloc-summary" id="pm-summary"></div>
+                <div class="hint" style="margin-top:8px;">
+                    <b>Kesinti</b>: nakit gelmediği hâlde bakiyeyi kapatan tutar — SWIFT/muhabir banka masrafı (müşteriden talep edilmez), küsurat, kur farkı.
+                    <b>Dağıtılmayan tutar</b> müşteri avansı olarak bekler; sonra "Dağıt" ile sonraki siparişe mahsup edilir.
+                    Kalanı açık bırakmak (eksik ödeme) için satırı eksik dağıtmanız yeterli.
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="pt-btn" data-close="payment-modal">Vazgeç</button>
+                <button class="pt-btn primary" id="pm-save"><i class="fa-solid fa-check"></i> Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════ EXIMBANK BİLDİRİM MODALI ═══════════ -->
+    <div id="notice-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width:36rem;">
+            <div class="modal-head">
+                <h3><i class="fa-solid fa-shield-halved" style="color:var(--danger);"></i> Eximbank bildirimi kaydet</h3>
+                <button class="pt-btn icon sm" data-close="notice-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="nm-context" class="hint" style="margin-bottom:14px;"></div>
+                <div class="grid-2">
+                    <div class="pt-field">
+                        <label>Bildirim türü</label>
+                        <select id="nm-type" class="pt-select">
+                            <option>V.G.A.B</option>
+                            <option>Tazminat Başvurusu</option>
+                        </select>
+                    </div>
+                    <div class="pt-field">
+                        <label>Bildirim tarihi</label>
+                        <input id="nm-date" type="date" class="pt-input">
+                    </div>
+                    <div class="pt-field">
+                        <label>Referans no</label>
+                        <input id="nm-ref" class="pt-input">
+                    </div>
+                    <div class="pt-field">
+                        <label>Sonuç</label>
+                        <select id="nm-outcome" class="pt-select">
+                            <option>Beklemede</option><option>Tahsil Edildi</option><option>Tazminat Ödendi</option><option>Reddedildi</option><option>İptal</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="pt-field" style="margin-top:12px;">
+                    <label>Not</label>
+                    <textarea id="nm-notes" class="pt-textarea"></textarea>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="pt-btn" data-close="notice-modal">Vazgeç</button>
+                <button class="pt-btn primary" id="nm-save"><i class="fa-solid fa-check"></i> Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════ HATIRLATMA MODALI ═══════════ -->
+    <div id="reminder-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width:36rem;">
+            <div class="modal-head">
+                <h3><i class="fa-solid fa-bell" style="color:var(--warn);"></i> Müşteriye hatırlatma</h3>
+                <button class="pt-btn icon sm" data-close="reminder-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="rm-context" class="hint" style="margin-bottom:14px;"></div>
+                <div class="grid-2">
+                    <div class="pt-field">
+                        <label>Tarih</label>
+                        <input id="rm-date" type="date" class="pt-input">
+                    </div>
+                    <div class="pt-field">
+                        <label>Kanal</label>
+                        <select id="rm-channel" class="pt-select">
+                            <option>E-posta</option><option>Telefon</option><option>WhatsApp</option><option>Yüz Yüze</option><option>Diğer</option>
+                        </select>
+                    </div>
+                    <div class="pt-field">
+                        <label>Müşterinin söz verdiği ödeme tarihi</label>
+                        <input id="rm-promised" type="date" class="pt-input">
+                    </div>
+                    <div class="pt-field">
+                        <label>Tekrar takip tarihi</label>
+                        <input id="rm-next" type="date" class="pt-input">
+                    </div>
+                </div>
+                <div class="pt-field" style="margin-top:12px;">
+                    <label>Ne konuşuldu?</label>
+                    <textarea id="rm-summary" class="pt-textarea"></textarea>
+                </div>
+                <div id="rm-history" style="margin-top:14px;"></div>
+            </div>
+            <div class="modal-foot">
+                <button class="pt-btn" data-close="reminder-modal">Vazgeç</button>
+                <button class="pt-btn primary" id="rm-save"><i class="fa-solid fa-check"></i> Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════ ÖDEME PLANI MODALI ═══════════ -->
+    <div id="plan-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width:52rem;">
+            <div class="modal-head">
+                <h3><i class="fa-solid fa-list-ol" style="color:var(--info);"></i> Ödeme planı</h3>
+                <button class="pt-btn icon sm" data-close="plan-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="pl-context" class="alloc-summary" style="margin:0 0 14px;"></div>
+                <div class="grid-3">
+                    <div class="pt-field" style="grid-column:span 2;">
+                        <label>Plan adı</label>
+                        <input id="pl-title" class="pt-input" placeholder="ör. SULAV ÖDEME PLANI">
+                    </div>
+                    <div class="pt-field">
+                        <label>Anlaşma tarihi</label>
+                        <input id="pl-agreed" type="date" class="pt-input">
+                    </div>
+                </div>
+                <div class="pt-field" style="margin-top:12px;">
+                    <label>Not</label>
+                    <input id="pl-notes" class="pt-input" placeholder="ör. ilk ödeme 16.08.2024 tarihinde 5.000 USD">
+                </div>
+
+                <div class="fx-box" style="margin-top:14px;">
+                    <div class="section-title" style="margin-bottom:10px;"><i class="fa-solid fa-wand-magic-sparkles"></i> Taksitleri otomatik oluştur</div>
+                    <div class="grid-4">
+                        <div class="pt-field">
+                            <label>Toplam tutar</label>
+                            <input id="pl-gen-total" class="pt-input num">
+                        </div>
+                        <div class="pt-field">
+                            <label>Taksit sayısı</label>
+                            <input id="pl-gen-count" class="pt-input num" value="6">
+                        </div>
+                        <div class="pt-field">
+                            <label>İlk taksit tarihi</label>
+                            <input id="pl-gen-first" type="date" class="pt-input">
+                        </div>
+                        <div class="pt-field">
+                            <label>&nbsp;</label>
+                            <button class="pt-btn" id="pl-generate" style="width:100%;justify-content:center;">Aylık eşit böl</button>
+                        </div>
+                    </div>
+                    <div class="hint" style="margin-top:6px;">Kuruş farkı ilk taksite eklenir. Oluşturduktan sonra tarih ve tutarları aşağıda tek tek düzeltebilirsiniz.</div>
+                </div>
+
+                <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 8px;">
+                    <div class="section-title" style="margin:0;"><i class="fa-solid fa-list-ol"></i> Taksitler</div>
+                    <button class="pt-btn sm" id="pl-add-row"><i class="fa-solid fa-plus"></i> Taksit ekle</button>
+                </div>
+                <div class="pt-table-wrap" id="pl-rows"></div>
+                <div class="alloc-summary" id="pl-summary"></div>
+            </div>
+            <div class="modal-foot">
+                <button class="pt-btn danger" id="pl-delete" style="margin-right:auto;" hidden><i class="fa-solid fa-trash"></i> Planı sil</button>
+                <button class="pt-btn" data-close="plan-modal">Vazgeç</button>
+                <button class="pt-btn primary" id="pl-save"><i class="fa-solid fa-check"></i> Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════ GEÇMİŞ ÖDEME TARİHLENDİRME MODALI ═══════════ -->
+    <div id="date-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width:58rem;">
+            <div class="modal-head">
+                <h3><i class="fa-solid fa-calendar-plus" style="color:var(--info);"></i> Geçmiş ödemenin tarihini gir</h3>
+                <button class="pt-btn icon sm" data-close="date-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="dt-context" class="alloc-summary" style="margin:0 0 12px;"></div>
+                <div class="hint" style="margin-bottom:12px;">
+                    Bu ödeme sistemde zaten var ama tarihi yok. Burada sadece <b>tarihini, yolunu ve referansını</b> girersiniz —
+                    siparişin tahsil edilen tutarı değişmez. Ödeme birkaç parça hâlinde geldiyse "Parça ekle" ile her birini ayrı tarihle girin;
+                    girilmeyen kısım tarihsiz kalır.
+                </div>
+                <datalist id="dt-bank-list"></datalist>
+                <div class="pt-table-wrap" id="dt-rows"></div>
+                <div style="margin-top:8px;"><button class="pt-btn sm" id="dt-add-row"><i class="fa-solid fa-plus"></i> Parça ekle</button></div>
+                <div class="alloc-summary" id="dt-summary"></div>
+            </div>
+            <div class="modal-foot">
+                <button class="pt-btn" data-close="date-modal">Vazgeç</button>
+                <button class="pt-btn primary" id="dt-save"><i class="fa-solid fa-check"></i> Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════ SİPARİŞ FATURALARI MODALI ═══════════ -->
+    <div id="invoice-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width:64rem;">
+            <div class="modal-head">
+                <h3><i class="fa-solid fa-file-invoice" style="color:var(--accent);"></i> Sipariş faturaları</h3>
+                <button class="pt-btn icon sm" data-close="invoice-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="iv-context" class="alloc-summary" style="margin:0 0 14px;"></div>
+                <div class="pt-table-wrap" id="iv-list"></div>
+
+                <div class="fx-box" style="margin-top:16px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                        <div class="section-title" style="margin:0;"><i class="fa-solid fa-pen-to-square"></i> <span id="iv-form-title">Yeni fatura</span></div>
+                        <button class="pt-btn sm" id="iv-new"><i class="fa-solid fa-plus"></i> Yeni fatura</button>
+                    </div>
+                    <div class="grid-4">
+                        <div class="pt-field">
+                            <label>Fatura no *</label>
+                            <input id="iv-no" class="pt-input" placeholder="ör. IHR2026000000052">
+                        </div>
+                        <div class="pt-field">
+                            <label>Fatura tarihi *</label>
+                            <input id="iv-date" type="date" class="pt-input">
+                        </div>
+                        <div class="pt-field">
+                            <label>Tutar *</label>
+                            <input id="iv-amount" class="pt-input num" placeholder="0,00">
+                        </div>
+                        <div class="pt-field">
+                            <label>Fatura para birimi</label>
+                            <select id="iv-currency" class="pt-select">
+                                <option>EUR</option><option>USD</option><option>TRY</option><option>GBP</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid-4" id="iv-fx" style="margin-top:12px;" hidden>
+                        <div class="pt-field">
+                            <label>Kur (ihraç kayıtlı)</label>
+                            <input id="iv-rate" class="pt-input num" placeholder="ör. 46,4935">
+                        </div>
+                        <div class="pt-field">
+                            <label id="iv-oc-label">Sipariş karşılığı</label>
+                            <input id="iv-oc" class="pt-input num">
+                        </div>
+                        <div class="hint" style="grid-column:span 2;align-self:end;">
+                            Fatura TL kesildi, sipariş dövizde: kur girilince karşılık otomatik hesaplanır. Faturalanan tutar sipariş para biriminden izlenir.
+                        </div>
+                    </div>
+                    <div class="grid-4" style="margin-top:12px;">
+                        <div class="pt-field">
+                            <label>Vade</label>
+                            <input id="iv-due" type="date" class="pt-input">
+                        </div>
+                        <div class="pt-field" style="grid-column:span 3;">
+                            <label>Not</label>
+                            <input id="iv-notes" class="pt-input" placeholder="ör. 1. sevk">
+                        </div>
+                    </div>
+                    <div class="hint" id="iv-due-hint" style="margin-top:6px;"></div>
+                    <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+                        <button class="pt-btn primary" id="iv-save"><i class="fa-solid fa-check"></i> Faturayı kaydet</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="pt-btn" data-close="invoice-modal">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════ PANEL DETAY MODALI ═══════════ -->
+    <div id="kpi-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width:74rem;">
+            <div class="modal-head">
+                <h3 id="km-title"></h3>
+                <button class="pt-btn icon sm" data-close="kpi-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="km-summary" class="alloc-summary" style="margin:0 0 14px;"></div>
+                <div id="km-body" class="pt-table-wrap"></div>
+            </div>
         </div>
     </div>
 

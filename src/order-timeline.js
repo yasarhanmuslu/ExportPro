@@ -4,6 +4,7 @@ import { renderNavbar } from './components/navbar.js';
 import { getAccessContext, guardModuleAccess, applyEditLock, canEdit } from './utils/permissions.js';
 import { logChange } from './utils/auditLog.js';
 import { showAlertDialog } from './utils/dialogs.js';
+import { isOrderOverdue, todayIso } from './utils/receivables.js';
 
 // ── State
 let session = null;
@@ -63,17 +64,11 @@ function escapeHtml(str) {
 
 // ── Geciken sipariş uyarısı
 function updateOverdueAlert() {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const CLOSED_TAGS = ['Ödeme Tamamlandı', 'Teslim Edildi', 'İptal'];
-    const isClosed = (o) => {
-        const tags = (o.status_tags && o.status_tags.length > 0) ? o.status_tags : [o.order_status || ''];
-        return tags.some(t => CLOSED_TAGS.includes(t));
-    };
-    const overdue = allOrders.filter(o => {
-        if (!o.due_date) return false;
-        if (isClosed(o)) return false;
-        return new Date(o.due_date) < today;
-    });
+    // Ödeme Takibi ile aynı kural: bakiyesi açık + vadesi geçmiş; iptal, bedelsiz ve manuel
+    // takipteki siparişler hariç. (Önceden etikete bakılıyordu — ödemesi gelmiş ama etiketi
+    // güncellenmemiş sipariş gecikmiş görünüyordu.)
+    const today = todayIso();
+    const overdue = allOrders.filter(o => isOrderOverdue(o, today));
     const alertEl = document.getElementById('alert-overdue');
     document.getElementById('overdue-count').textContent = overdue.length;
     alertEl.style.display = overdue.length > 0 ? 'flex' : 'none';
@@ -96,11 +91,7 @@ function getFiltered() {
         if (currentFilter === 'active') {
             return !isClosed(o);
         }
-        if (currentFilter === 'overdue') {
-            if (!o.due_date) return false;
-            if (isClosed(o)) return false;
-            return new Date(o.due_date) < today;
-        }
+        if (currentFilter === 'overdue') return isOrderOverdue(o, todayIso());
         if (currentFilter === 'thismonth') {
             const dates = [o.order_date, o.shipment_date, o.due_date].filter(Boolean);
             return dates.some(d => {

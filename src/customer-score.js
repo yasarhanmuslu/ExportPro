@@ -2,6 +2,7 @@ import { supabase } from './utils/supabaseClient.js';
 import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
 import { getAccessContext, guardModuleAccess } from './utils/permissions.js';
+import { isOrderOverdue } from './utils/receivables.js';
 
 // ─── Global State ───────────────────────────────────────────────────────────
 let allScores = [];       // Tüm müşteri skorları
@@ -40,7 +41,7 @@ async function loadAndComputeScores() {
         // 2. Siparişler (toplam tutar + gecikme)
         const { data: orders, error: oErr } = await supabase
             .from('orders')
-            .select('customer_id, total_amount, due_date, payment_status')
+            .select('customer_id, total_amount, currency, due_date, remaining_balance, status_tags, order_status, payment_method, manual_tracking')
             .eq('user_id', uid);
         if (oErr) throw oErr;
 
@@ -146,22 +147,15 @@ async function loadAndComputeScores() {
 // ─── Yardımcı Aggregation Fonksiyonları ──────────────────────────────────────
 function buildOrderMap(orders) {
     const map = {};
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
 
     for (const o of orders) {
         if (!map[o.customer_id]) map[o.customer_id] = { totalAmount: 0, overdueCount: 0 };
         map[o.customer_id].totalAmount += parseFloat(o.total_amount || 0);
 
-        // Vadesi geçmiş: due_date geçmiş VE ödeme tamamlanmamış
-        if (o.due_date) {
-            const due = new Date(o.due_date);
-            due.setHours(0, 0, 0, 0);
-            const notPaid = !o.payment_status || o.payment_status.toLowerCase() !== 'ödendi';
-            if (due < today && notPaid) {
-                map[o.customer_id].overdueCount++;
-            }
-        }
+        // Vadesi geçmiş: Ödeme Takibi ile aynı kural (bakiyesi açık, vadesi geçmiş;
+        // iptal / bedelsiz / manuel takip hariç). Eskiden var olmayan payment_status
+        // alanına bakıyordu ve sorgu tümden hata veriyordu.
+        if (isOrderOverdue(o)) map[o.customer_id].overdueCount++;
     }
     return map;
 }

@@ -12,6 +12,7 @@ import {
 } from './utils/proformaPdf.js';
 import { createPriceFlags, flagPayload, flagDefaults } from './utils/priceFlags.js';
 import { createInvoiceDeduction, fmtAmount } from './utils/invoiceDeduction.js';
+import { isOrderOverdue, isCancelled as isOrderCancelled, todayIso } from './utils/receivables.js';
 
 // ── DURUM ETİKETLERİ ────────────────────────────────────────────────────────
 const STATUS_TAGS_LIST = [
@@ -224,31 +225,32 @@ async function fetchOrdersData() {
     }
 }
 
-// Vadesi geçmiş (ve bakiyesi kalan) siparişlere otomatik "Gecikme" etiketi ekler ve DB'ye yazar.
-// Sadece ekleme yapar — mevcut etiketleri veya order_status'u değiştirmez, elle kaldırılan/eklenen etiketlere dokunmaz.
+// "Gecikme" etiketini Ödeme Takibi'nin kuralına göre ekler / kaldırır (receivables.isOrderOverdue):
+// bakiyesi açık ve vadesi geçmiş siparişte olur; ödeme gelince, vade ileri alınınca, sipariş manuel
+// takibe alınınca (ödeme tarihi belli değil), iptal ya da bedelsiz olunca kalkar.
+// Diğer etiketlere dokunmaz. "Ödeme Tamamlandı / Bakiye Bekliyor" tahsilatla DB'de güncellenir (SQL 037).
 async function autoApplyGecikmeTags(orders) {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const today = todayIso();
     const updates = [];
 
     orders.forEach(o => {
-        const isOverdue = o.due_date
-            && parseFloat(o.remaining_balance || 0) > 0
-            && new Date(o.due_date + 'T00:00:00') < today;
-        if (!isOverdue) return;
-
         const currentTags = (o.status_tags && o.status_tags.length > 0)
             ? o.status_tags
             : (o.order_status ? [o.order_status] : []);
-        if (currentTags.includes('Gecikme')) return;
+        const has = currentTags.includes('Gecikme');
+        const overdue = isOrderOverdue(o, today);
+        if (overdue === has) return;
 
-        const newTags = [...currentTags, 'Gecikme'];
+        let newTags = overdue ? [...currentTags, 'Gecikme'] : currentTags.filter(t => t !== 'Gecikme');
+        if (newTags.length === 0) newTags = ['Devam Ediyor'];
         o.status_tags = newTags;
-        updates.push({ id: o.id, status_tags: newTags });
+        updates.push({ id: o.id, status_tags: newTags, order_status: newTags[0] });
     });
 
-    if (updates.length === 0) return;
+    // Yalnızca görüntüleme yetkisi olan kullanıcıda ekrandaki etiket düzelir, veritabanına yazılmaz.
+    if (updates.length === 0 || !canEdit(ctx, 'orders')) return;
     await Promise.all(updates.map(u =>
-        supabase.from('orders').update({ status_tags: u.status_tags }).eq('id', u.id)
+        supabase.from('orders').update({ status_tags: u.status_tags, order_status: u.order_status }).eq('id', u.id)
     ));
 }
 
@@ -308,7 +310,9 @@ function renderOrdersList(list) {
         }
 
         const remaining = parseFloat(order.remaining_balance || 0);
-        const kalanHtml = remaining === 0
+        const kalanHtml = isOrderCancelled(order)
+            ? `<span class="fin-sifir">İptal</span>`
+            : remaining === 0
             ? `<span class="fin-sifir">0,00 ${s}</span>`
             : `<span class="fin-kalan">${fmt(remaining)} ${s}</span>`;
 
@@ -378,7 +382,7 @@ function renderOrdersList(list) {
                 <div class="row-col-fin">
                     <div class="fin-r"><span class="fin-lbl">Toplam</span><span class="fin-val">${fmt(order.total_amount)} ${s}</span></div>
                     <div class="fin-divider"></div>
-                    <div class="fin-r"><span class="fin-lbl">Avans</span><span class="fin-sub">${fmt(order.advance_payment)} ${s}</span></div>
+                    <div class="fin-r"><span class="fin-lbl">Tahsil</span><span class="fin-sub">${fmt(order.advance_payment)} ${s}</span></div>
                     <div class="fin-r"><span class="fin-lbl">Kalan</span>${kalanHtml}</div>
                     <div class="fin-divider"></div>
                     <div class="fin-r"><span class="fin-lbl">Adet</span><span class="fin-sub">${escapeHtml(order.order_quantity || '\u2014')}</span><span style="width:6px;display:inline-block;"></span><span class="fin-lbl">\u00d6deme</span><span class="fin-sub">${escapeHtml(order.payment_method || '\u2014')}</span></div>
@@ -615,8 +619,6 @@ async function handleOrderSubmit(e) {
     if (!(await requireOrderField('payment_method', 'Lütfen ödeme şeklini seçiniz.')))        return;
 
     const total_amount     = parseTurkishFloat(document.getElementById('total_amount').value);
-    const advance_payment  = parseTurkishFloat(document.getElementById('advance_payment').value);
-    const remaining_balance = total_amount - advance_payment;
 
     if (isNaN(total_amount) || total_amount <= 0) {
         await showAlertDialog('Lütfen geçerli bir toplam sipariş tutarı giriniz.', { variant: 'warn', title: 'Eksik Bilgi' });
@@ -632,8 +634,8 @@ async function handleOrderSubmit(e) {
         order_date:      document.getElementById('order_date').value,
         currency:        document.getElementById('currency').value,
         total_amount,
-        advance_payment,
-        remaining_balance,
+        // advance_payment / remaining_balance form tarafından YAZILMAZ: tahsilatlar
+        // Ödeme Takibi defterinden gelir, bakiyeyi SQL 022 trigger'ı hesaplar.
         order_number:    document.getElementById('order_number').value || null,
         idevit_order_no: document.getElementById('idevit_order_no').value || null,
         ideal_order_no:  document.getElementById('ideal_order_no').value || null,
@@ -704,9 +706,12 @@ async function handleOrderSubmit(e) {
         if (currentOrderId) {
             const { error } = await supabase.from('orders').update(payload).eq('id', currentOrderId).eq('user_id', userId);
             if (error) throw error;
+            await recalcOrderBalance(currentOrderId);
             logChange({ ctx, moduleId: 'orders', action: 'update', summary: `Sipariş güncellendi: ${payload.order_number || orderId}` });
         } else {
             payload.user_id = userId;
+            payload.advance_payment = 0;
+            payload.remaining_balance = total_amount;
             const { data, error } = await supabase.from('orders').insert([payload]).select().single();
             if (error) throw error;
             orderId = data.id;
@@ -720,6 +725,13 @@ async function handleOrderSubmit(e) {
         console.error('Sipariş kaydedilemedi:', err.message);
         await showAlertDialog('Hata: ' + err.message, { variant: 'danger', title: 'Hata' });
     }
+}
+
+// Sipariş tutarı değişince kalan bakiye = yeni tutar - tahsilat defterindeki toplam.
+// Fonksiyon SQL 022'de (security definer); hata olursa kayıt yine geçerli, sadece uyarı.
+async function recalcOrderBalance(orderId) {
+    const { error } = await supabase.rpc('recalc_order_payment_totals', { p_order_id: orderId });
+    if (error) console.warn('Sipariş bakiyesi yeniden hesaplanamadı:', error.message);
 }
 
 async function saveOrderItems(orderId, userId) {
@@ -766,7 +778,29 @@ async function handleDeleteOrder() {
     const id = document.getElementById('order-id').value;
     if (!id) return;
     const orderNumber = document.getElementById('order_number')?.value || id;
-    const ok = await showConfirmDialog('Bu siparişi kalıcı olarak silmek istediğinize emin misiniz?', {
+
+    // Ödeme Takibi kayıtları siparişle birlikte silinir (cascade) — kullanıcı neyi kaybedeceğini görsün.
+    // Ödeme Takibi yetkisi olmayan kullanıcıda sorgular boş döner; uyarı yine de genel metinle çıkar.
+    const cur = document.getElementById('currency')?.value || '';
+    const [allocRes, invRes, noticeRes, planRes] = await Promise.all([
+        supabase.from('payment_allocations').select('amount, write_off_amount').eq('order_id', id),
+        supabase.from('order_invoices').select('id', { count: 'exact', head: true }).eq('order_id', id),
+        supabase.from('eximbank_notices').select('id', { count: 'exact', head: true }).eq('order_id', id),
+        supabase.from('payment_plans').select('id', { count: 'exact', head: true }).eq('order_id', id),
+    ]);
+    const allocs = allocRes.data || [];
+    const paid = allocs.reduce((s, a) => s + (Number(a.amount) || 0) + (Number(a.write_off_amount) || 0), 0);
+    const links = [
+        allocs.length ? `• ${allocs.length} tahsilat dağıtımı (${paid.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${cur})` : '',
+        invRes.count ? `• ${invRes.count} fatura kaydı` : '',
+        noticeRes.count ? `• ${noticeRes.count} Eximbank bildirimi` : '',
+        planRes.count ? '• ödeme planı ve taksitleri' : '',
+    ].filter(Boolean);
+    const msg = 'Bu siparişi kalıcı olarak silmek istediğinize emin misiniz?' + (links.length
+        ? `\n\nSiparişle birlikte silinecek Ödeme Takibi kayıtları:\n${links.join('\n')}`
+          + (allocs.length ? '\n\nTahsilatların kendisi silinmez; bu siparişe dağıtılan tutar "dağıtılmamış müşteri avansı" olarak kalır.' : '')
+        : '');
+    const ok = await showConfirmDialog(msg, {
         title: 'Siparişi Sil', variant: 'danger', confirmText: 'Sil'
     });
     if (!ok) return;
@@ -1351,8 +1385,8 @@ async function handleImportRun() {
             const statusTags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : ['Devam Ediyor'];
 
             const totalAmount   = parseFloat(String(row['toplam_tutar'] || '0').replace(',', '.')) || 0;
+            // "avans" sütunu artık okunmuyor: tahsilatlar Ödeme Takibi defterinden girilir (SQL 022).
             const avans         = parseFloat(String(row['avans']        || '0').replace(',', '.')) || 0;
-            const kalanBakiye   = totalAmount - avans;
 
             const payload = {
                 user_id:         userId,
@@ -1361,8 +1395,6 @@ async function handleImportRun() {
                 order_date:      parseDateTR(row['siparis_tarihi']) || new Date().toISOString().slice(0, 10),
                 currency:        String(row['para_birimi'] || 'EUR').trim(),
                 total_amount:    totalAmount,
-                advance_payment: avans,
-                remaining_balance: kalanBakiye,
                 idevit_order_no: String(row['idevit_sip_no'] || '').trim() || null,
                 ideal_order_no:  String(row['ideal_sip_no']  || '').trim() || null,
                 order_type:      String(row['siparis_turu']   || '').trim() || null,
@@ -1385,11 +1417,17 @@ async function handleImportRun() {
                 .eq('user_id', userId)
                 .maybeSingle();
 
+            if (avans > 0) {
+                logMsg(`ⓘ "${siparisNo}": Excel'deki avans (${avans}) alınmadı — tahsilatı Ödeme Takibi'nden girin.`, 'warn');
+            }
+
             if (existing) {
                 const { error } = await supabase.from('orders').update(payload).eq('id', existing.id);
                 if (error) { logMsg(`✗ "${siparisNo}" güncellenemedi: ${error.message}`, 'err'); errored++; }
-                else { logMsg(`↺ "${siparisNo}" — ${musteriAdi} güncellendi.`, 'warn'); updated++; }
+                else { await recalcOrderBalance(existing.id); logMsg(`↺ "${siparisNo}" — ${musteriAdi} güncellendi.`, 'warn'); updated++; }
             } else {
+                payload.advance_payment = 0;
+                payload.remaining_balance = totalAmount;
                 const { error } = await supabase.from('orders').insert([payload]);
                 if (error) { logMsg(`✗ "${siparisNo}" eklenemedi: ${error.message}`, 'err'); errored++; }
                 else { logMsg(`✓ "${siparisNo}" — ${musteriAdi} eklendi.`, 'ok'); inserted++; }
