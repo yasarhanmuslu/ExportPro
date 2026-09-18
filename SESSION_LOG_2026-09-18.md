@@ -73,7 +73,9 @@ Yeni oturumda bu dosyayı ver ve şunu söyle: **"SESSION_LOG_2026-09-18.md'yi o
 - Paffoni 2026-01/02 sipariş tarihleri 25.12.2025 — patron: DOĞRU (2025 cirosunda kalır; gecikmiş 19.293,16 EUR = Paffoni 2026-02).
 - Menü: Ödeme Takibi "Müşteri İşlemleri" altına taşındı. Sürüm 1.1.25, commit edildi.
 - 9 tarihsiz ödeme: sonraya bırakıldı.
-- Müşteri Skoru: teşhis yapıldı (hacimde para birimi karışıyor, siparişsiz 416 müşteri B alıyor, şikayet hacme oranlanmıyor, iskonto kriteri tartışmalı). Patron: Ödeme Takibi bitince dönülecek.
+- Dashboard: "Sipariş Cirosu" + altında "Faturalanan" (2026+). Yardım & Kılavuz tüm modüller için yeniden yazıldı (Genel Kurallar sayfası dahil).
+- **Müşteri Skoru yeniden yazıldı** (patron kararları): son 24 ay ama en erken 01.11.2025 (sipariş verisi başlangıcı); Hacim 30 (para birimi içinde sıra), Ödeme 35 (Ödeme Takibi bugünkü gecikme; manuel takip = 0), Şikayet 20 (CN adedi / sipariş), Süreklilik 15; iskonto kriteri kaldırıldı; dönemde siparişi olmayan = Puanlanmadı; A için ≥75 VE ≥3 sipariş. Sonuç: A 9 / B 31 / C 1 / Puanlanmadı 422. Bilinen sınırlama: çekle ödeyen (Insteel) gecikme hesaplanamaz.
+- Sırada: **Pazar Analizi** para birimlerini karıştırıyor (USD etiketiyle toplam) — düzeltilecek.
 
 ## 6. Teknik notlar
 

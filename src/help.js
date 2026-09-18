@@ -449,19 +449,28 @@ const pages = [
         icon: 'fa-ranking-star',
         href: 'customer-score.html',
         color: '#6B3A8C',
-        short: 'Müşteri puanlama (revize edilecek)',
+        short: 'Dört kritere göre müşteri puanlaması',
         desc: `
-            <p>Müşterileri dört kritere göre 100 üzerinden puanlar ve A / B / C sınıfına ayırır.</p>
-            <h4>Mevcut puanlama</h4>
+            <p>Müşterileri dört kritere göre 100 üzerinden puanlar ve A / B / C sınıfına ayırır. Satırdaki müşteriye tıklayınca her kriterin puanı ve gerekçesi görünür.</p>
+            <h4>Dönem</h4>
+            <p>Son 24 ay; ancak en erken <strong>01.11.2025</strong>. Siparişler sisteme bu tarihten itibaren eksiksiz girildi, Credit Note'lar ise 2023'ten beri var. Pencere daha geriye uzansaydı eski şikayetler sayılır ama o dönemin siparişleri sayılmazdı. Pencere Kasım 2027'den itibaren kendiliğinden tam 24 ay olur. Dönemde siparişi olmayan müşteriler <strong>puanlanmaz</strong> ("Puanlanmadı" filtresi); bunlardan manuel takipte açık alacağı olanlar listenin başında işaretli görünür.</p>
+            <h4>Kriterler</h4>
             <ul>
-                <li><strong>Sipariş hacmi (30):</strong> Müşterinin toplam sipariş tutarının en yüksek müşteriye oranı.</li>
-                <li><strong>Ödeme düzeni (30):</strong> Vadesi geçmiş sipariş yoksa 30, 1 ise 20, 2 ise 10, 3 ve üzeri 0. Gecikme kuralı Ödeme Takibi ile aynıdır.</li>
-                <li><strong>Şikayet (20):</strong> Credit Note sayısı; 0 ise 20, her CN'de 5 puan düşer.</li>
-                <li><strong>İskonto (20):</strong> Fiyat kartındaki ortalama iskonto; %10'un altı 20, %30 ve üzeri 5.</li>
-                <li><strong>Sınıf:</strong> 75 ve üzeri A (Stratejik), 50–74 B (Geliştirilecek), 50 altı C (Riskli / Az Kârlı).</li>
+                <li><strong>Sipariş Hacmi (30):</strong> Dönemdeki sipariş tutarının <em>aynı para birimindeki</em> müşteriler arasındaki sırası. EUR müşteriler kendi aralarında, TL müşteriler kendi aralarında karşılaştırılır; kur çevrimi yapılmaz. En büyük müşteri 30 alır.</li>
+                <li><strong>Ödeme Düzeni (35):</strong> Ödeme Takibi'ndeki <em>bugünkü</em> durum. Vadesi geçmiş fatura yoksa 35; en eski gecikme 1–15 gün 30, 16–30 gün 25, 31–60 gün 15, 61–90 gün 8, 90 günden fazla 0. Manuel takipte açık alacağı olan müşteri 0 alır.</li>
+                <li><strong>Şikayet (20):</strong> Dönemdeki Credit Note sayısı ÷ sipariş sayısı. Hiç yoksa 20; sipariş başına en fazla 0,25 ise 16, 0,5 ise 12, 1 ise 8, 2 ise 4, daha fazlası 0. (Tutar değil adet kullanılır, çünkü bedelsiz kalemlerin fiyatı girilmiyor.)</li>
+                <li><strong>Süreklilik (15):</strong> Dönemdeki sipariş sayısı (6+ → 10, 4–5 → 8, 3 → 6, 2 → 4, 1 → 2) + son siparişin yakınlığı (90 gün içinde 5, 180 gün 3, 1 yıl 1).</li>
             </ul>
-            <h4>Bilinen sınırlamalar</h4>
-            <p>Model gözden geçirilecek. Şu an: hacim puanında para birimleri ayrılmadan karşılaştırılıyor (TL tutarlı müşteriler öne geçiyor), şikayet sayısı sipariş hacmine oranlanmıyor, hiç siparişi olmayan müşteriler de puan alıyor. Sonuçları bu gözle yorumlayın.</p>
+            <h4>Sınıflar</h4>
+            <ul>
+                <li><strong>A · Stratejik:</strong> 75 ve üzeri <em>ve</em> dönemde en az 3 sipariş. Puanı 75'i geçen ama daha az siparişi olan müşteri B'de kalır (tek siparişlik temiz bir kayıt "stratejik" sayılmaz).</li>
+                <li><strong>B · Geliştirilecek:</strong> 50–74.</li>
+                <li><strong>C · Riskli / Takip Gerekli:</strong> 50'nin altı.</li>
+            </ul>
+            <h4>Hariç tutulanlar</h4>
+            <p>İptal ve bedelsiz siparişler ile iptal edilmiş Credit Note'lar hesaba girmez. İskonto oranı artık bir kriter değildir; iskonto riski değil anlaşılan fiyat seviyesini gösterir.</p>
+            <h4>Bilinen sınırlama</h4>
+            <p>Çekle ödeyen ve faturasında vade olmayan müşterilerde (ör. Insteel) gecikme hesaplanamaz; ödeme puanları tam görünür.</p>
         `
     },
     {
