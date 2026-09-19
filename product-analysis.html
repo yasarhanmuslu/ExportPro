@@ -9,120 +9,277 @@
     <link rel="stylesheet" href="./src/assets/css/theme.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        body { background: #F6F3EC !important; color: #1C1A17 !important; }
-        
-        .stat-card:hover { box-shadow: 0 4px 12px rgba(28,26,23,0.10); }
-        .stat-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        
-        
-        .matrix-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-        .matrix-table th { padding: 6px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #968B7A; border-bottom: 2px solid #EFEAE0; text-align: left; white-space: nowrap; background: #FDFAF6; }
-        .matrix-table td { padding: 6px 10px; border-bottom: 1px solid #F0EBE1; color: #3D3A34; vertical-align: middle; }
-        .matrix-table tbody tr:hover { background: #FBF8F1; }
-        .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #2D6A4F; }
-        .dot-empty { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #EFEAE0; border: 1px solid #D4CEC3; }
-        #loading-overlay { position: fixed; inset: 0; background: rgba(246,243,236,0.92); z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
-        .spinner { width: 36px; height: 36px; border: 3px solid rgba(45,74,62,0.15); border-top-color: #2D4A3E; border-radius: 50%; animation: spin 0.8s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        /* Tüm renkler theme.css değişkenlerinden gelir — koyu tema bedavaya çalışır. */
+
+        .filter-bar {
+            display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+            padding: 12px 16px; margin-bottom: 24px;
+            background: var(--surface); border: 1px solid var(--border-soft);
+            border-radius: 10px;
+        }
+        .filter-group { display: flex; align-items: center; gap: 7px; }
+        .filter-label {
+            font-size: 10px; font-weight: 600; letter-spacing: 0.12em;
+            text-transform: uppercase; color: var(--ink-3);
+        }
+        .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+        .seg button {
+            padding: 5px 11px; font-size: 11px; font-family: var(--font-base);
+            background: var(--surface); color: var(--ink-2);
+            border: none; border-right: 1px solid var(--border); cursor: pointer;
+            transition: background .12s, color .12s;
+        }
+        .seg button:last-child { border-right: none; }
+        .seg button:hover { background: var(--surface-2); }
+        .seg button.active { background: var(--accent); color: #fff; font-weight: 600; }
+
+        .chk { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-2); cursor: pointer; }
+        .chk input { width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; }
+
+        .btn-plain {
+            display: flex; align-items: center; gap: 7px;
+            padding: 8px 16px; border-radius: 8px;
+            border: 1px solid var(--border); background: var(--surface);
+            color: var(--ink-2); font-size: 12px; font-family: var(--font-base);
+            cursor: pointer; transition: border-color .15s;
+        }
+        .btn-plain:hover { border-color: var(--accent); }
+
+        #error-banner {
+            display: none; align-items: flex-start; gap: 10px;
+            padding: 14px 16px; margin-bottom: 20px; border-radius: 10px;
+            background: var(--danger-soft); border: 1px solid var(--danger);
+            color: var(--danger); font-size: 12px; line-height: 1.55;
+        }
+        #error-banner.show { display: flex; }
+
+        /* ── Özet şeridi ── */
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 24px; }
+        .stat {
+            padding: 14px 16px; border-radius: 10px;
+            background: var(--surface); border: 1px solid var(--border-soft);
+        }
+        .stat-label {
+            font-size: 10px; font-weight: 600; letter-spacing: 0.12em;
+            text-transform: uppercase; color: var(--ink-3); margin-bottom: 6px;
+        }
+        .stat-value { font-size: 20px; font-weight: 600; color: var(--ink-1); font-family: var(--font-base); }
+        .stat-value small { font-size: 12px; font-weight: 400; color: var(--ink-3); }
+        .stat-sub { font-size: 10px; color: var(--ink-3); margin-top: 3px; }
+        .stat-money { font-size: 13px; font-family: monospace; font-weight: 600; color: var(--accent); line-height: 1.6; }
+
+        .count-pill {
+            margin-left: auto; font-size: 10px; padding: 2px 10px; border-radius: 10px;
+            background: var(--surface-2); color: var(--ink-2);
+        }
+        .hint { font-size: 11px; color: var(--ink-3); margin-bottom: 12px; line-height: 1.55; }
+        .empty { text-align: center; padding: 28px; color: var(--ink-3); font-size: 12px; }
+        .num { text-align: right; font-family: monospace; font-size: 12px; white-space: nowrap; }
+        .scroll-x { overflow-x: auto; }
+
+        .badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 2px 7px; border-radius: 10px; white-space: nowrap;
+            font-size: 9px; font-weight: 600; letter-spacing: 0.05em;
+        }
+        .b-warn  { background: var(--warn-soft);   color: var(--warn); }
+        .b-info  { background: var(--info-soft);   color: var(--info); }
+        .b-muted { background: var(--surface-2);   color: var(--ink-3); }
+
+        /* ── Portföy tablosu ── */
+        .pf-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .pf-table th {
+            padding: 8px 10px; font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+            text-transform: uppercase; color: var(--ink-3); text-align: left; white-space: nowrap;
+            border-bottom: 2px solid var(--border-soft);
+        }
+        .pf-table th.r { text-align: right; }
+        .pf-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-soft); color: var(--ink-2); vertical-align: middle; }
+        .pf-table tr.l1 > td { color: var(--ink-1); }
+        .pf-table tr.l1 .g-name { font-weight: 600; }
+        .pf-table tr.l2 > td { background: var(--surface-2); font-size: 11px; }
+        .pf-table tr.l2 .g-name { padding-left: 26px; }
+        .pf-table tr.hidden-row { display: none; }
+        .caret { display: inline-block; width: 14px; color: var(--ink-3); font-size: 10px; transition: transform .12s; }
+        tr.open .caret { transform: rotate(90deg); }
+
+        .share { display: flex; align-items: center; gap: 8px; min-width: 130px; }
+        .bar { flex: 1; height: 6px; background: var(--border-soft); border-radius: 3px; overflow: hidden; min-width: 60px; }
+        .bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--accent), var(--bronze)); }
+        .share-pct { font-size: 10px; font-family: monospace; color: var(--ink-3); width: 42px; text-align: right; }
+        .money-lines { line-height: 1.55; }
+
+        .icon-btn {
+            border: 1px solid var(--border-soft); background: var(--surface);
+            color: var(--ink-3); border-radius: 6px; padding: 3px 8px; font-size: 10px;
+            cursor: pointer; white-space: nowrap;
+        }
+        .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* ── Tıklanabilir satırlar ── */
+        [data-detail], [data-toggle] { cursor: pointer; }
+        tr[data-detail]:hover > td, tr[data-toggle]:hover > td { background: var(--surface-2); }
+        tr.l2[data-detail]:hover > td { background: var(--border-soft); }
+
+        /* ── Detay penceresi ── */
+        #detail-overlay {
+            display: none; position: fixed; inset: 0; z-index: 200;
+            background: rgba(28,26,23,0.5); backdrop-filter: blur(5px);
+            align-items: center; justify-content: center; padding: 1.5rem;
+        }
+        #detail-overlay.active { display: flex; }
+        .detail-box {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 14px; width: 100%; max-width: 1040px;
+            max-height: 88vh; display: flex; flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.28);
+        }
+        .detail-head {
+            display: flex; align-items: flex-start; gap: 14px;
+            padding: 20px 22px 14px; border-bottom: 1px solid var(--border-soft);
+        }
+        .detail-title { font-size: 16px; font-weight: 600; color: var(--ink-1); font-family: var(--font-base); }
+        .detail-sub { font-size: 11px; color: var(--ink-3); margin-top: 4px; line-height: 1.5; }
+        .detail-btn {
+            flex-shrink: 0; width: 32px; height: 32px; border-radius: 8px;
+            border: 1px solid var(--border-soft); background: var(--surface-2);
+            color: var(--ink-2); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        #detail-back { display: none; }
+        #detail-back.show { display: flex; }
+        #detail-back:hover { border-color: var(--accent); color: var(--accent); }
+        #detail-close { margin-left: auto; }
+        #detail-close:hover { border-color: var(--danger); color: var(--danger); }
+        .detail-body { padding: 16px 22px 22px; overflow: auto; }
+        .d-section { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); margin: 18px 0 8px; }
+        .d-section:first-child { margin-top: 0; }
+        .attr-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+        .attr { font-size: 11px; padding: 3px 9px; border-radius: 6px; background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--border-soft); }
+        .attr b { color: var(--ink-3); font-weight: 500; margin-right: 4px; }
+
+        /* Aylık adet çubukları */
+        .months { display: flex; align-items: flex-end; gap: 4px; height: 120px; padding-top: 16px; }
+        .month { flex: 1; min-width: 18px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+        .month-bar { width: 100%; max-width: 34px; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 1px; }
+        .month-bar.zero { background: var(--border-soft); }
+        .month-val { font-size: 9px; font-family: monospace; color: var(--ink-2); margin-bottom: 2px; }
+        .month-lbl { font-size: 9px; color: var(--ink-3); margin-top: 4px; white-space: nowrap; }
+
+        details.sub { margin-top: 14px; border-top: 1px solid var(--border-soft); padding-top: 12px; }
+        details.sub > summary { cursor: pointer; font-size: 11px; font-weight: 600; color: var(--ink-2); }
+        details.sub > summary:hover { color: var(--ink-1); }
+        .sub-body { margin-top: 10px; }
+
+        /* ── Mutabakat (src/utils/orderReconciliation.js) ── */
+        .cur-block { margin-bottom: 18px; }
+        .cur-block:last-child { margin-bottom: 0; }
+        .cur-head {
+            display: flex; align-items: baseline; gap: 10px;
+            padding: 7px 12px; margin-bottom: 8px; border-radius: 7px;
+            background: var(--surface-2); border: 1px solid var(--border-soft);
+        }
+        .cur-name { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-1); }
+        .cur-meta { margin-left: auto; font-size: 10px; color: var(--danger); }
+        [data-detail] .go { opacity: 0; transition: opacity .12s; font-size: 9px; color: var(--ink-3); margin-left: 5px; }
+        [data-detail]:hover .go { opacity: 1; }
     </style>
 </head>
 <body class="min-h-screen">
 
     <div id="navbar-target"></div>
 
-    <!-- Yükleme overlay -->
-    <div id="loading-overlay">
-        <div class="spinner"></div>
-        <div style="font-size:13px;color:rgb(249,115,22);font-family:Verdana, Geneva, sans-serif;letter-spacing:0.05em;">Analiz yükleniyor...</div>
-    </div>
+    <main class="min-h-screen" style="margin-left:230px; padding:32px;">
 
-    <main class="min-h-screen" style="margin-left:230px;padding:32px;">
-        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-5 border-b">
+        <div class="label-caps" style="margin-bottom:8px">Analitik · Ürün</div>
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-5" style="border-bottom:1px solid var(--border-soft);">
             <div>
                 <h2 class="page-title">
-                    <i class="fa-solid fa-boxes-stacked text-[#2D4A3E]"></i> Ürün Analizi
+                    <i class="fa-solid fa-boxes-stacked" style="color:var(--accent);font-size:20px;"></i> Ürün Analizi.
                 </h2>
-                <p style="font-size:13px;color:#968B7A;margin-top:4px;font-family:Verdana, Geneva, sans-serif;">Son 12 aya ait sipariş kalemlerinden hesaplanan ürün bazlı satış ve ciro analizleri.</p>
+                <p style="font-size:13px;color:var(--ink-2);margin-top:6px;">
+                    Satılan ürünlerin katalog niteliklerine (tür, seri, renk, kalite) göre dağılımı.
+                </p>
             </div>
-            <div class="flex items-center gap-2">
-                <span id="data-period" style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#968B7A;font-family:Verdana, Geneva, sans-serif;background:#FBF8F1;border:1px solid #EFEAE0;border-radius:20px;padding:6px 14px;"></span>
-            </div>
+            <button id="btn-refresh" class="btn-plain">
+                <i class="fa-solid fa-arrows-rotate" style="font-size:11px;"></i> Yenile
+            </button>
         </header>
 
-        <!-- KPI Kartları -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8" id="kpi-row">
-            <div class="stat-card" style="background:#D1FAE5;border:1px solid #6EE7B7;">
-                <div class="stat-icon" style="background:#065F46;">
-                    <i class="fa-solid fa-box text-white" style="font-size:14px;"></i>
-                </div>
-                <div>
-                    <div style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#065F46;margin-bottom:2px;">Toplam Kalem</div>
-                    <div class="kpi-value" style="color:#065F46" id="kpi-total-items">—</div>
-                    <div style="font-size:10px;color:#065F46;opacity:0.7;">Son 12 ay sipariş kalemi</div>
-                </div>
+        <!-- Filtreler -->
+        <div class="filter-bar">
+            <div class="filter-group">
+                <span class="filter-label">Yıl</span>
+                <select id="f-year" style="padding:5px 10px;font-size:11px;min-width:100px;"></select>
             </div>
-            <div class="stat-card" style="background:#FEF3C7;border:1px solid #FCD34D;">
-                <div class="stat-icon" style="background:#92400E;">
-                    <i class="fa-solid fa-layer-group text-white" style="font-size:14px;"></i>
-                </div>
-                <div>
-                    <div style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#92400E;margin-bottom:2px;">Ürün Çeşidi</div>
-                    <div class="kpi-value" style="color:#92400E" id="kpi-unique-products">—</div>
-                    <div style="font-size:10px;color:#92400E;opacity:0.7;">Farklı ürün adedi</div>
-                </div>
+            <div class="filter-group">
+                <span class="filter-label">Para Birimi</span>
+                <div class="seg" id="f-currency"></div>
             </div>
-            <div class="stat-card" style="background:#E0F2FE;border:1px solid #7DD3FC;">
-                <div class="stat-icon" style="background:#0C4A6E;">
-                    <i class="fa-solid fa-coins text-white" style="font-size:14px;"></i>
-                </div>
-                <div>
-                    <div style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#0C4A6E;margin-bottom:2px;">Toplam Ciro</div>
-                    <div class="kpi-value" style="color:#0C4A6E" id="kpi-total-revenue">—</div>
-                    <div style="font-size:10px;color:#0C4A6E;opacity:0.7;">Sipariş kalemlerinden</div>
-                </div>
+            <div class="filter-group">
+                <span class="filter-label">Gruplama</span>
+                <div class="seg" id="f-group"></div>
             </div>
-            <div class="stat-card" style="background:#F3E8FF;border:1px solid #D8B4FE;">
-                <div class="stat-icon" style="background:#6B21A8;">
-                    <i class="fa-solid fa-users text-white" style="font-size:14px;"></i>
-                </div>
-                <div>
-                    <div style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#6B21A8;margin-bottom:2px;">Müşteri Sayısı</div>
-                    <div class="kpi-value" style="color:#6B21A8" id="kpi-customer-count">—</div>
-                    <div style="font-size:10px;color:#6B21A8;opacity:0.7;">Aktif alıcı sayısı</div>
-                </div>
-            </div>
+            <label class="chk" title="1 adetlik satırlar tipik olarak numune ya da yedek parçadır.">
+                <input type="checkbox" id="f-singles" checked>
+                1 adetlik satırları hariç tut
+            </label>
+            <span id="filter-summary" style="margin-left:auto;font-size:10px;color:var(--ink-3);"></span>
         </div>
 
-        <!-- Grafikler -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <!-- En çok satan 10 ürün (bar) -->
-            <div class="chart-card lg:col-span-2">
-                <div class="section-title"><i class="fa-solid fa-chart-bar"></i> En Çok Satan 10 Ürün (Tutar)</div>
-                <canvas id="chart-top-products" height="260"></canvas>
-            </div>
-            <!-- Ürün grubu ciro dağılımı (doughnut) -->
-            <div class="chart-card">
-                <div class="section-title"><i class="fa-solid fa-chart-pie"></i> Grup Bazlı Ciro Dağılımı</div>
-                <canvas id="chart-group-revenue" height="260"></canvas>
-                <div id="group-legend" class="mt-3 space-y-1"></div>
-            </div>
+        <div id="error-banner">
+            <i class="fa-solid fa-triangle-exclamation" style="margin-top:2px;"></i>
+            <div><strong>Veri yüklenemedi.</strong> <span id="error-text"></span></div>
         </div>
 
-        <!-- Müşteri-Ürün Matrisi -->
-        <div class="chart-card mb-8">
-            <div class="section-title"><i class="fa-solid fa-table-cells"></i> Müşteri - Ürün Matrisi</div>
-            <p style="font-size:11px;color:#968B7A;margin-bottom:1rem;">● = satın aldı (son 12 ay). Ürünler satır, müşteriler sütun olarak gösterilmektedir.</p>
-            <div style="overflow-x:auto;">
-                <table class="matrix-table" id="matrix-table">
-                    <thead id="matrix-thead"></thead>
-                    <tbody id="matrix-tbody"></tbody>
-                </table>
+        <!-- Özet -->
+        <div class="stats" id="stats"></div>
+
+        <!-- Portföy -->
+        <section class="section-card mb-6">
+            <div class="section-title">
+                <i class="fa-solid fa-sitemap" style="color:var(--accent);"></i>
+                Ürün Portföyü
+                <span id="pf-count" class="count-pill">yükleniyor...</span>
             </div>
-            <div id="matrix-empty" class="hidden" style="text-align:center;color:#968B7A;padding:32px;font-size:13px;">Yeterli veri bulunamadı.</div>
-        </div>
+            <div class="hint">
+                Sipariş kalemleri ürün kataloğuna bağlanır ve kataloğun <em>Ürün Türü / Seri / Renk / Kalite</em>
+                alanlarına göre gruplanır. <strong>Adet</strong> para biriminden bağımsızdır, pay çubuğu adede göredir;
+                ciro para birimi bazında ayrı yazılır, kur çevrimi yapılmaz. Set olarak satılan ürünler 1 set = 1 adet sayılır.
+                İptal ve Bedelsiz siparişler hariçtir. <em>Çeşit</em> sütunu: satılan ürün sayısı / katalogdaki ürün sayısı.
+                Satıra tıklayarak ürün listesini, ürüne tıklayarak müşteri ve ay kırılımını açabilirsiniz.
+            </div>
+            <div id="pf-body" class="scroll-x">
+                <div class="empty"><i class="fa-solid fa-spinner fa-spin"></i> Yükleniyor...</div>
+            </div>
+
+            <details class="sub" id="recon-wrap" style="display:none;">
+                <summary><span id="recon-label"></span></summary>
+                <div class="sub-body" id="recon-body"></div>
+            </details>
+        </section>
+
     </main>
+
+    <!-- ══ DETAY PENCERESİ ══ -->
+    <div id="detail-overlay">
+        <div class="detail-box">
+            <div class="detail-head">
+                <button class="detail-btn" id="detail-back" title="Geri">
+                    <i class="fa-solid fa-arrow-left" style="font-size:12px;"></i>
+                </button>
+                <div>
+                    <div class="detail-title" id="detail-title"></div>
+                    <div class="detail-sub" id="detail-sub"></div>
+                </div>
+                <button class="detail-btn" id="detail-close" title="Kapat (Esc)">
+                    <i class="fa-solid fa-xmark" style="font-size:13px;"></i>
+                </button>
+            </div>
+            <div class="detail-body" id="detail-body"></div>
+        </div>
+    </div>
 
     <script type="module" src="./src/product-analysis.js"></script>
 </body>

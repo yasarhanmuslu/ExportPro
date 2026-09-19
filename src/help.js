@@ -479,11 +479,31 @@ const pages = [
         icon: 'fa-boxes-stacked',
         href: 'product-analysis.html',
         color: '#2D4A3E',
-        short: 'Yapım aşamasında',
+        short: 'Satılan ürünlerin tür / seri / renk / kalite dağılımı',
         desc: `
-            <p>Son 12 ayın sipariş kalemlerinden ürün bazlı satış analizi (en çok satan ürünler, grup bazlı dağılım, müşteri–ürün matrisi) göstermesi planlanan ekrandır.</p>
-            <h4>Durum</h4>
-            <p><strong>Yapım aşamasında</strong> — ekran şu an veri göstermiyor. Ürün bazında satış rakamları için <em>Satış &amp; Fiyat Analizi › Gerçek Satış Performansı</em> bölümünü kullanın.</p>
+            <p>Sipariş kalemlerini ürün kataloğuna bağlar ve kataloğun <strong>Ürün Türü, Seri, Renk, Kalite</strong> alanlarına göre gruplar. Soru: <em>hangi ürünleri, kaç müşteriye satıyoruz ve kataloğun ne kadarı gerçekten satılıyor?</em></p>
+            <h4>Filtreler</h4>
+            <ul>
+                <li><strong>Yıl</strong> — sipariş tarihine göre.</li>
+                <li><strong>Para birimi</strong> — yalnızca o para birimindeki siparişler.</li>
+                <li><strong>Gruplama</strong> — Tür → Seri, Seri → Tür, Renk, Kalite.</li>
+                <li><strong>1 adetlik satırları hariç tut</strong> (varsayılan açık) — numune / yedek parça satırları.</li>
+            </ul>
+            <h4>Ürün Portföyü tablosu</h4>
+            <ul>
+                <li><strong>Adet</strong> ana ölçüdür, para biriminden bağımsızdır; <strong>Pay</strong> çubuğu adede göredir. Set olarak satılan ürünlerde 1 set = 1 adet.</li>
+                <li><strong>Çeşit</strong>: satılan ürün sayısı / katalogdaki ürün sayısı.</li>
+                <li><strong>Ciro</strong> her para birimi için ayrı satırda yazılır, kur çevrimi yapılmaz.</li>
+                <li><strong>(Katalogda yok)</strong>: ürün kartına bağlanamayan kalemler (yedek parça, sarf malzemesi, katalog dışı ürün). <strong>(Belirtilmemiş)</strong>: ürün kartında o alan boş.</li>
+            </ul>
+            <h4>Tıklayınca</h4>
+            <p>Tür satırı serilere açılır; seri (ya da <em>Ürünler</em> butonu) o gruptaki ürün listesini, ürün de ürün kartını açar: nitelikler, aylık adet grafiği, müşteri kırılımı ve sipariş kalemleri. Ürün listesinin altında o grupta <strong>katalogda olup bu dönemde hiç satılmayan</strong> ürünler de listelenir. "Geri" oku bir önceki pencereye döner.</p>
+            <h4>Hariç tutulanlar</h4>
+            <p>İptal ve Bedelsiz siparişler. Bedelsiz işaretli kalemler (sipariş içinde) adet ve ciroda kalır — o tutar faturalanmıştır; kalem listesinde "bedelsiz" rozetiyle görünür.</p>
+            <h4>Satış &amp; Fiyat Analizi ile ilişkisi</h4>
+            <p>Aynı filtrelerle iki ekranın para birimi toplamları birebir aynıdır. Satış &amp; Fiyat Analizi ürün bazında fiyat ve sapmaya bakar; Ürün Analizi ürünlerin katalogdaki yerine ve müşteri yaygınlığına.</p>
+            <h4>Sipariş tutarlarıyla mutabakat</h4>
+            <p>Portföy tablosunun altındaki katlanır blok. Dashboard ve Siparişler sipariş kapağındaki <em>tutarı</em>, bu sayfa ise <em>kalemleri</em> toplar; aradaki fark para birimi bazında adım adım gösterilir (iptal, bedelsiz, KDV dahil girilmiş tutarlar, fatura altı indirim, kalemi girilmemiş siparişler, gizlenen 1 adetlik satırlar). ⚠ işaretli adımlar düzeltilmesi gereken veridir. Her adıma tıklayınca ilgili siparişler açılır. Blok Satış &amp; Fiyat Analizi'ndekiyle aynı koddan gelir.</p>
         `
     },
     {

@@ -20,6 +20,7 @@ import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
 import { getAccessContext, guardModuleAccess } from './utils/permissions.js';
 import { buildProductIndex, productKey, productLabel, identityKeys } from './utils/productIdentity.js';
+import { buildOrderReconciliation, renderOrderReconciliation } from './utils/orderReconciliation.js';
 
 // ── Sabitler ─────────────────────────────────────────────────────────────────
 
@@ -37,12 +38,7 @@ const DEVIATION_MIN_PCT = 1;
 // Tutarsızlık bölümünde "dikkat" eşiği.
 const SPREAD_WARN_PCT = 15;
 
-// Sipariş tutarı, kalem toplamının tam bu oranıysa aradaki fark KDV'dir,
-// veri hatası değil. Canlı veride 21 uyuşmazlığın 16'sı kuruşu kuruşuna 1,20:
-// TRY siparişlerin 15'inin 15'i, USD'nin 1'i. Bunları "hata" diye raporlamak
-// gerçek 5 uyuşmazlığı gürültüde boğuyordu.
-const VAT_RATE = 0.20;
-const VAT_TOLERANCE = 0.005;   // oranda ±%0,5
+// KDV oranı / toleransı ve mutabakat köprüsü: src/utils/orderReconciliation.js
 
 // Sembolik fiyat eşiği: ürünün medyan anlaşılan fiyatının bu oranının altındaki
 // kayıtlar bedelsiz/numune kabul edilir ve istatistiğe katılmaz.
@@ -485,196 +481,43 @@ function renderSales(view) {
 // diye sordu. İki sayı farklı şeyi ölçüyor: orders.total_amount sipariş kapağına
 // elle girilen tutar, bu modül ise fiilen girilmiş kalemleri topluyor. Farkın
 // nereden geldiği artık ekranda adım adım gösteriliyor.
-function buildReconciliation(itemView) {
-    const itemsByOrder = new Map();
-    raw.items.forEach(it => {
-        if (!itemsByOrder.has(it.order_id)) itemsByOrder.set(it.order_id, []);
-        itemsByOrder.get(it.order_id).push(it);
-    });
-
-    const lineAmount = it => (parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0);
-
-    // Detay penceresinin beklediği satır biçimi (buildItemView'inkiyle aynı alanlar).
-    const reconLine = (it, o) => ({
-        orderId: o.id, orderDate: o.order_date || null,
-        label: productLabel(productIndex, it),
-        qty: parseFloat(it.quantity) || 0,
-        unitPrice: parseFloat(it.unit_price) || 0,
-        revenue: lineAmount(it),
-        priceless: it.is_free === true || it.cn_adjusted === true,
-        isFree: it.is_free === true,
-        cnAdjusted: it.cn_adjusted === true,
-    });
-
-    // Gösterilen ciro: bölüm 1'in topladığı rakamın aynısı.
-    const shown = new Map();
-    itemView.items.forEach(it => shown.set(it.currency, (shown.get(it.currency) || 0) + it.revenue));
-
-    const currencies = sortCurrencies([...new Set(
-        raw.orders.map(o => o.currency).filter(c => c && currencyAllowed(c))
-    )]);
-
-    return currencies.map(cur => {
-        // Yıl filtresi uygulanmış, ama İptal/Bedelsiz HENÜZ çıkarılmamış küme.
-        const base = raw.orders.filter(o =>
-            o.currency === cur && (filters.year === 'ALL' || orderYear(o) === filters.year));
-        if (!base.length) return null;
-
-        const steps = [];
-        const sumTot = list => list.reduce((s, o) => s + (parseFloat(o.total_amount) || 0), 0);
-
-        let running = sumTot(base);
-        const start = running;
-
-        const iptal = base.filter(o => Array.isArray(o.status_tags) && o.status_tags.includes(EXCLUDED_STATUS));
-        if (iptal.length) { running -= sumTot(iptal); steps.push({ t: `İptal edilen ${iptal.length} sipariş`, v: -sumTot(iptal), orders: iptal }); }
-
-        const r1 = base.filter(o => !iptal.includes(o));
-        const bedelsiz = r1.filter(o => (o.payment_method || '') === EXCLUDED_PAYMENT);
-        if (bedelsiz.length) { running -= sumTot(bedelsiz); steps.push({ t: `Bedelsiz ${bedelsiz.length} sipariş`, v: -sumTot(bedelsiz), orders: bedelsiz }); }
-
-        const r2 = r1.filter(o => !bedelsiz.includes(o));
-        const noItems = r2.filter(o => !(itemsByOrder.get(o.id) || []).length);
-        if (noItems.length) {
-            running -= sumTot(noItems);
-            steps.push({ t: `Hiç kalem girilmemiş ${noItems.length} sipariş`, v: -sumTot(noItems), warn: true, orders: noItems });
-        }
-
-        const r3 = r2.filter(o => (itemsByOrder.get(o.id) || []).length);
-        let itemsSame = 0, itemsOther = 0, singles = 0;
-        const mismatched = [];
-        const vatOrders = [];
-        const deductionOrders = [];   // fatura altı indirim uygulanmış (SQL 017)
-        const otherCurLines = [];
-        const singleLines = [];
-        r3.forEach(o => {
-            let orderItemsTotal = 0;
-            (itemsByOrder.get(o.id) || []).forEach(it => {
-                const amt = lineAmount(it);
-                orderItemsTotal += amt;
-                if ((it.currency || o.currency) === cur) {
-                    itemsSame += amt;
-                    if ((parseFloat(it.quantity) || 0) === 1) { singles += amt; singleLines.push(reconLine(it, o)); }
-                } else {
-                    itemsOther += amt;
-                    otherCurLines.push(reconLine(it, o));
-                }
-            });
-            const tot = parseFloat(o.total_amount) || 0;
-            if (Math.abs(orderItemsTotal - tot) > 0.5) {
-                const ratio = orderItemsTotal > 0 ? tot / orderItemsTotal : 0;
-                const deduction = parseFloat(o.invoice_deduction) || 0;
-                // Fatura altı indirim girilmişse fark AÇIKLANMIŞTIR: kalem
-                // fiyatlarına dokunulmadan CN tutarı faturadan düşülmüştür.
-                if (deduction > 0 && Math.abs(orderItemsTotal - deduction - tot) <= 0.5) deductionOrders.push(o);
-                else if (Math.abs(ratio - (1 + VAT_RATE)) <= VAT_TOLERANCE) vatOrders.push(o);
-                else mismatched.push(o);
-            }
-        });
-
-        // Farkı ayır: KDV kaynaklı olan (normal) ve gerçekten uyuşmayan.
-        const sumDiff = list => list.reduce((sum, o) => {
-            const items = (itemsByOrder.get(o.id) || []).reduce((t, it) => t + lineAmount(it), 0);
-            return sum + (items - (parseFloat(o.total_amount) || 0));
-        }, 0);
-
-        const vatDelta = sumDiff(vatOrders);
-        if (vatOrders.length) {
-            running += vatDelta;
-            steps.push({
-                t: `${vatOrders.length} siparişin tutarı KDV dahil girilmiş (%${VAT_RATE * 100})`,
-                v: vatDelta, orders: vatOrders, withItemsTotal: true,
-            });
-        }
-
-        const deductionDelta = sumDiff(deductionOrders);
-        if (deductionOrders.length) {
-            running += deductionDelta;
-            steps.push({
-                t: `${deductionOrders.length} siparişte fatura altı indirim uygulanmış`,
-                v: deductionDelta, orders: deductionOrders, withItemsTotal: true,
-            });
-        }
-
-        const mismatchDelta = sumDiff(mismatched);
-        if (mismatched.length) {
-            running += mismatchDelta;
-            steps.push({
-                t: `${mismatched.length} siparişte kalem toplamı sipariş tutarını tutmuyor`,
-                v: mismatchDelta, warn: true, orders: mismatched, withItemsTotal: true,
-            });
-        }
-
-        // Kalan bakiye (yuvarlama). Normalde sıfır olmalı.
-        const delta = (itemsSame + itemsOther) - sumTot(r3) - vatDelta - deductionDelta - mismatchDelta;
-        if (Math.abs(delta) > 0.005) {
-            running += delta;
-            steps.push({ t: 'Diğer küçük farklar', v: delta });
-        }
-        if (itemsOther > 0.005) { running -= itemsOther; steps.push({ t: 'Farklı para birimindeki kalemler', v: -itemsOther, lines: otherCurLines }); }
-        if (filters.hideSingles && singles > 0.005) { running -= singles; steps.push({ t: 'Gizlenen 1 adetlik satırlar', v: -singles, lines: singleLines }); }
-
-        const shownVal = shown.get(cur) || 0;
-        return { cur, start, steps, end: running, shown: shownVal, ok: Math.abs(running - shownVal) < 0.05, itemsByOrder };
-    }).filter(Boolean);
-}
-
 function renderReconciliation(itemView) {
     const wrap  = document.getElementById('recon-wrap');
     const label = document.getElementById('recon-label');
     const body  = document.getElementById('recon-body');
     if (!wrap) return;
 
-    const blocks = buildReconciliation(itemView).filter(b => b.steps.length);
-    if (!blocks.length) { wrap.style.display = 'none'; return; }
+    // Gösterilen ciro: bölüm 1'in topladığı rakamın aynısı.
+    const shown = new Map();
+    itemView.items.forEach(it => shown.set(it.currency, (shown.get(it.currency) || 0) + it.revenue));
+
+    const blocks = buildOrderReconciliation({
+        orders: raw.orders, items: raw.items, year: filters.year,
+        currencyAllowed, hideSingles: filters.hideSingles, shownByCurrency: shown,
+    });
+    const out = renderOrderReconciliation(blocks, {
+        regDetail, customerName,
+        renderLines: (pairs, cur) => linesTable(pairs.map(p => reconLine(p.item, p.order)), cur),
+    });
+    if (!out) { wrap.style.display = 'none'; return; }
     wrap.style.display = '';
+    label.textContent = out.label;
+    body.innerHTML = out.html;
+}
 
-    const warnCount = blocks.reduce((n, b) => n + b.steps.filter(x => x.warn).length, 0);
-    label.textContent = `Sipariş tutarlarıyla mutabakat${warnCount ? ` — ${warnCount} veri uyuşmazlığı` : ''}`;
-
-    body.innerHTML = `
-        <div class="hint" style="margin-bottom:8px;">
-            Siparişler ekranındaki toplam, sipariş kapağına elle girilen <em>tutar</em> alanını toplar.
-            Bu sayfa ise fiilen girilmiş <em>kalemleri</em> toplar. Aradaki fark adım adım aşağıda.
-        </div>
-        ${blocks.map(b => `
-        <div class="cur-block">
-            <div class="cur-head">
-                <span class="cur-name">${b.cur} ${CURRENCY_SYMBOLS[b.cur] || ''}</span>
-                <span class="cur-meta">${b.ok ? '' : 'köprü tutmuyor — lütfen bildir'}</span>
-            </div>
-            <table class="data-table">
-                <tbody>
-                    <tr>
-                        <td>Sipariş tutarları toplamı</td>
-                        <td class="num" style="font-weight:600;">${fmtMoney(b.start, b.cur)}</td>
-                    </tr>
-                    ${b.steps.map(st => {
-                        const did = (st.orders || st.lines) ? regDetail({
-                            title: st.t,
-                            subtitle: `${b.cur} &middot; ${st.v > 0 ? '+' : ''}${fmtMoney(st.v, b.cur)}`
-                                + (st.withItemsTotal ? ' &middot; "Fark" kolonu, kalem toplamının sipariş tutarından ne kadar saptığını gösterir.' : ''),
-                            html: () => st.orders
-                                ? ordersTable(st.orders, b.cur, b.itemsByOrder, { showItemsTotal: !!st.withItemsTotal })
-                                : linesTable(st.lines, b.cur),
-                        }) : null;
-                        return `
-                    <tr${did ? ` data-detail="${did}"` : ''}>
-                        <td style="color:var(--ink-2);padding-left:18px;">
-                            ${st.warn ? '<i class="fa-solid fa-triangle-exclamation" style="color:var(--warn);font-size:10px;margin-right:5px;"></i>' : ''}${escHtml(st.t)}${did ? '<i class="fa-solid fa-chevron-right go"></i>' : ''}
-                        </td>
-                        <td class="num" style="color:${st.v < 0 ? 'var(--danger)' : 'var(--ok)'};">
-                            ${st.v > 0 ? '+' : ''}${fmtMoney(st.v, b.cur)}
-                        </td>
-                    </tr>`;
-                    }).join('')}
-                    <tr>
-                        <td style="font-weight:600;">Bu sayfada gösterilen</td>
-                        <td class="num" style="font-weight:600;color:var(--accent);">${fmtMoney(b.shown, b.cur)}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>`).join('')}`;
+// Mutabakat adımındaki ham kalemi detay penceresinin beklediği biçime çevirir
+// (buildItemView'inkiyle aynı alanlar).
+function reconLine(it, o) {
+    const qty = parseFloat(it.quantity) || 0;
+    const unitPrice = parseFloat(it.unit_price) || 0;
+    return {
+        orderId: o.id, orderDate: o.order_date || null,
+        label: productLabel(productIndex, it),
+        qty, unitPrice, revenue: qty * unitPrice,
+        priceless: it.is_free === true || it.cn_adjusted === true,
+        isFree: it.is_free === true,
+        cnAdjusted: it.cn_adjusted === true,
+    };
 }
 
 function qualityBadge(label) {
@@ -1245,34 +1088,6 @@ function linePriceFlag(l) {
         ? 'Bedelsiz gönderim — birim fiyat temsilidir, fiyat sapma raporuna katılmaz.'
         : 'Fiyat bir Credit Note nedeniyle düzenlenmiş — fiyat sapma raporuna katılmaz.';
     return `<div class="prow-sub" title="${escHtml(tip)}" style="color:var(--ink-3);">${txt}</div>`;
-}
-
-// Sipariş listesi — mutabakat adımlarının arkasındaki siparişler.
-function ordersTable(orders, currency, itemsByOrder, { showItemsTotal = false } = {}) {
-    const sorted = [...orders].sort((a, b) => String(b.order_date || '').localeCompare(String(a.order_date || '')));
-    const headers = [{ t: 'Tarih' }, { t: 'Sipariş No' }, { t: 'Müşteri' }, { t: 'Sipariş Tutarı', right: true }];
-    if (showItemsTotal) headers.push({ t: 'Kalem Toplamı', right: true }, { t: 'Fark', right: true }, { t: 'Oran', right: true });
-
-    return detailTable(headers, sorted.map(o => {
-        const tot = parseFloat(o.total_amount) || 0;
-        const itemsTot = (itemsByOrder.get(o.id) || [])
-            .reduce((sum, it) => sum + (parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0), 0);
-        const diff = itemsTot - tot;
-        return `<tr>
-            <td style="white-space:nowrap;">${fmtDate(o.order_date)}</td>
-            <td style="font-family:monospace;font-size:11px;">${escHtml(o.order_number || '—')}</td>
-            <td>${escHtml(customerName(o.customer_id))}</td>
-            <td class="num">${fmtMoney(tot, currency)}</td>
-            ${showItemsTotal ? `
-            <td class="num">${fmtMoney(itemsTot, currency)}</td>
-            <td class="num" style="font-weight:600;color:${diff < 0 ? 'var(--danger)' : 'var(--ok)'};">
-                ${diff > 0 ? '+' : ''}${fmtMoney(diff, currency)}
-            </td>
-            <td class="num" title="Sipariş tutarı ÷ kalem toplamı. 1,2000 = KDV dahil girilmiş.">
-                ${itemsTot > 0 ? (tot / itemsTot).toLocaleString('tr-TR', { minimumFractionDigits: 4, maximumFractionDigits: 4 }) : '—'}
-            </td>` : ''}
-        </tr>`;
-    }));
 }
 
 // Ürün kırılımı — "anlaşılan fiyatı olmayan satışlar" gibi müşteri satırları için.
