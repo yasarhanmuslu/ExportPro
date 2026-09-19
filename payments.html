@@ -256,7 +256,7 @@
                 <div class="filter-bar">
                     <div class="pt-field" style="min-width:240px;flex:1;">
                         <label>Ara</label>
-                        <input id="pay-search" class="pt-input" placeholder="Müşteri, sipariş no, referans…">
+                        <input id="pay-search" class="pt-input" placeholder="Müşteri, sipariş no, fatura no, referans…">
                     </div>
                     <div class="pt-field">
                         <label>Başlangıç</label>
@@ -599,6 +599,77 @@
             <div class="modal-foot">
                 <button class="pt-btn" data-close="date-modal">Vazgeç</button>
                 <button class="pt-btn primary" id="dt-save"><i class="fa-solid fa-check"></i> Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════ TAHSİLAT DÜZENLE MODALI ═══════════ -->
+    <div id="pay-edit-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width:40rem;">
+            <div class="modal-head">
+                <h3><i class="fa-solid fa-pen" style="color:var(--accent);"></i> Tahsilatı düzenle</h3>
+                <button class="pt-btn icon sm" data-close="pay-edit-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="pe-context" class="alloc-summary" style="margin:0 0 12px;"></div>
+                <div class="hint" style="margin-bottom:12px;">
+                    Tutar ve dağıtım burada değişmez — tutar yanlışsa tahsilatı silip yeniden girin.
+                    Tarihsiz (geçmiş) kayıtların tarihi "Tarih gir" ile verilir.
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div class="pt-field" id="pe-date-wrap">
+                        <label>Ödeme tarihi *</label>
+                        <input id="pe-date" type="date" class="pt-input">
+                    </div>
+                    <div class="pt-field">
+                        <label>Ödeme yolu</label>
+                        <select id="pe-method" class="pt-select">
+                            <option value="">—</option>
+                            <option>T/T</option><option>Havale/EFT</option><option>Akreditif (LC)</option><option>Vesaik (CAD)</option>
+                            <option>Çek</option><option>Nakit</option><option>Mahsup</option><option>İade</option>
+                        </select>
+                    </div>
+                    <div class="pt-field">
+                        <label>Banka hesabı</label>
+                        <input id="pe-bank" class="pt-input" list="pe-bank-list">
+                        <datalist id="pe-bank-list"></datalist>
+                    </div>
+                    <div class="pt-field">
+                        <label>Referans</label>
+                        <input id="pe-ref" class="pt-input">
+                    </div>
+                    <div class="pt-field" style="grid-column:1/-1;">
+                        <label>Not</label>
+                        <textarea id="pe-notes" class="pt-input" rows="3" style="height:auto;padding-top:8px;"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="pt-btn" data-close="pay-edit-modal">Vazgeç</button>
+                <button class="pt-btn primary" id="pe-save"><i class="fa-solid fa-check"></i> Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════ SİPARİŞ NOTU MODALI (SQL 040) ═══════════ -->
+    <div id="order-note-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width:40rem;">
+            <div class="modal-head">
+                <h3><i class="fa-solid fa-note-sticky" style="color:var(--bronze);"></i> Sipariş notu</h3>
+                <button class="pt-btn icon sm" data-close="order-note-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="on-context" class="alloc-summary" style="margin:0 0 12px;"></div>
+                <div class="hint" style="margin-bottom:10px;">
+                    Siparişler ekranındaki <b>Notlar</b> alanının aynısıdır — burada yazılan orada da görünür.
+                    Yeni not eklemek için "Tarihli satır ekle"ye basın; mevcut metin korunur.
+                </div>
+                <textarea id="on-text" class="pt-input" rows="8" style="height:auto;padding-top:8px;width:100%;"></textarea>
+                <div style="margin-top:8px;"><button class="pt-btn sm" id="on-stamp"><i class="fa-solid fa-calendar-day"></i> Tarihli satır ekle</button></div>
+            </div>
+            <div class="modal-foot">
+                <button class="pt-btn" data-close="order-note-modal">Vazgeç</button>
+                <button class="pt-btn primary" id="on-save"><i class="fa-solid fa-check"></i> Kaydet</button>
             </div>
         </div>
     </div>

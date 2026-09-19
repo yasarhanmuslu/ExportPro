@@ -289,6 +289,8 @@ function initFilters() {
         if (act === 'edit-note')   editManualNote(id);
         if (act === 'toggle-cust') { F.payExpanded.has(id) ? F.payExpanded.delete(id) : F.payExpanded.add(id); renderPayments(); }
         if (act === 'date-pay')    { closeModal('payment-modal'); openDateModal(id); }
+        if (act === 'edit-pay')    openPayEditModal(id);
+        if (act === 'order-note')  openOrderNoteModal(id);
         if (act === 'toggle-plan') { F.manExpanded.has(id) ? F.manExpanded.delete(id) : F.manExpanded.add(id); renderManual(); }
     });
 }
@@ -693,7 +695,9 @@ function renderPayments() {
 
     let list2 = [...groups.values()];
     if (F.paySearch) {
-        list2 = list2.filter(g => [g.custName, g.order?.order_number, ...g.entries.flatMap(e => [e.p.reference_no, e.p.notes, e.p.bank_account])]
+        list2 = list2.filter(g => [g.custName, g.order?.order_number,
+                ...(g.order ? orderInvoices(g.order.id).map(i => i.invoice_no) : []),
+                ...g.entries.flatMap(e => [e.p.reference_no, e.p.notes, e.p.bank_account])]
             .some(v => norm(v).includes(F.paySearch)));
     }
     list2.forEach(g => {
@@ -731,12 +735,14 @@ function renderPayments() {
             const remaining = g.kind === 'order' ? Number(g.order.remaining_balance) || 0 : null;
             const head = `<tr class="grp-head" data-act="toggle-cust" data-id="${esc(g.key)}">
                 <td><i class="fa-solid fa-chevron-${open ? 'down' : 'right'}" style="font-size:10px;color:var(--ink-3);"></i></td>
-                <td>${title} <span class="pill neutral">${g.entries.length} ödeme</span></td>
+                <td>${title} <span class="pill neutral">${g.entries.length} ödeme</span>${g.kind === 'order' && g.order.order_notes
+                    ? `<div class="muted" style="font-size:11px;margin-top:3px;white-space:pre-line;max-width:420px;" title="Sipariş notu"><i class="fa-solid fa-note-sticky" style="font-size:9px;margin-right:4px;"></i>${esc(g.order.order_notes)}</div>` : ''}</td>
                 <td class="muted" style="font-size:11.5px;">${g.last ? 'son ' + dateTr(g.last) : 'tarihsiz'}</td>
                 <td class="num strong">${money(g.total, cur)}${g.kind === 'order' ? `<div class="muted" style="font-size:10.5px;font-weight:400;">sipariş ${money(g.order.total_amount, cur)}</div>` : ''}</td>
-                <td colspan="2"></td>
+                <td colspan="2">${g.kind === 'order' ? invoiceSummary(g.order) : ''}</td>
                 <td class="num">${remaining === null ? '' : remaining > 0.005 ? `<span class="pill warn">${money(remaining, cur)}</span>` : '<span class="pill ok">Kapandı</span>'}</td>
-                <td></td>
+                <td class="nowrap" style="text-align:right;">${EDIT && g.kind === 'order'
+                    ? `<button class="pt-btn sm icon" data-act="order-note" data-id="${g.order.id}" title="Sipariş notu"><i class="fa-solid fa-note-sticky"></i></button>` : ''}</td>
             </tr>`;
             if (!open) return head;
             return head + g.entries.map(e => {
@@ -760,6 +766,7 @@ function renderPayments() {
                     <td class="nowrap" style="text-align:right;">
                         ${EDIT && datable ? `<button class="pt-btn sm" data-act="date-pay" data-id="${p.id}"><i class="fa-solid fa-calendar-plus"></i> Tarih gir</button>` : ''}
                         ${EDIT && !p.is_opening && unallocated > 0.005 ? `<button class="pt-btn sm" data-act="allocate" data-id="${p.id}"><i class="fa-solid fa-diagram-project"></i> Dağıt</button>` : ''}
+                        ${EDIT ? `<button class="pt-btn sm icon" data-act="edit-pay" data-id="${p.id}" title="Tahsilatı düzenle"><i class="fa-solid fa-pen"></i></button>` : ''}
                         ${EDIT && !p.is_opening ? `<button class="pt-btn sm icon danger" data-act="del-pay" data-id="${p.id}" title="Tahsilatı sil"><i class="fa-solid fa-trash"></i></button>` : ''}
                     </td>
                 </tr>`;
@@ -768,6 +775,143 @@ function renderPayments() {
         <tfoot><tr><td colspan="3">${list2.filter(g => g.kind === 'order').length} sipariş · ${paymentCount} tahsilat</td>
             <td class="num">${currencyLines(sumByCurrency(list2.map(g => ({ currency: g.currency, open: g.total }))))}</td><td colspan="4"></td></tr></tfoot>
     </table>`;
+}
+
+// Grup başlığında siparişin faturaları: tahsilatın hangi belgelere karşılık geldiğini
+// görmek için. Tahsilat faturaya değil siparişe dağıtılır; bu bilgi kesin olan
+// sipariş → fatura bağıdır, ödeme → fatura eşleşmesi değildir.
+function invoiceSummary(o) {
+    const invs = orderInvoices(o.id);
+    if (!invs.length) return '<span class="muted" style="font-size:11px;">Fatura girilmemiş</span>';
+    return invs.map(i => `<div style="font-size:11.5px;white-space:nowrap;">
+        <i class="fa-solid fa-file-invoice" style="font-size:10px;color:var(--ink-3);margin-right:4px;"></i><span class="strong">${esc(i.invoice_no || '—')}</span>
+        <span class="muted">· ${dateTr(i.invoice_date)} · ${money(i.amount, i.currency)}${i.fx_rate ? ` (${money(i.amount_order_currency, o.currency)})` : ''}</span>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TAHSİLAT DÜZENLE — tarih / yol / banka / referans / not. Tutar ve dağıtım
+// değişmez: siparişlerin bakiyesini onlar belirler (trigger); tutar yanlışsa
+// tahsilat silinip yeniden girilir.
+// ═══════════════════════════════════════════════════════════════════════════
+const PE = { payment: null };
+
+function openPayEditModal(paymentId) {
+    if (!EDIT) return;
+    const p = S.payments.find(x => x.id === paymentId);
+    if (!p) return;
+    PE.payment = p;
+    const nos = paymentAllocations(p.id).map(a => S.orderById.get(a.order_id)?.order_number).filter(Boolean);
+    document.getElementById('pe-context').innerHTML = `
+        <span>Müşteri: <b>${esc(S.custById.get(p.customer_id)?.company_name || '—')}</b></span>
+        <span>Sipariş: <b>${nos.map(esc).join(', ') || '—'}</b></span>
+        <span>Tutar: <b>${money(p.amount, p.currency)}</b></span>
+        ${p.is_opening ? '<span class="pill neutral">Tarihsiz kayıt</span>' : ''}`;
+    document.getElementById('pe-date-wrap').style.display = p.is_opening ? 'none' : '';
+    document.getElementById('pe-date').value = p.payment_date || '';
+    const methodSel = document.getElementById('pe-method');
+    if (p.method && ![...methodSel.options].some(o => o.value === p.method)) {
+        methodSel.insertAdjacentHTML('beforeend', `<option>${esc(p.method)}</option>`);
+    }
+    methodSel.value = p.method || '';
+    document.getElementById('pe-bank').value = p.bank_account || '';
+    document.getElementById('pe-ref').value = p.reference_no || '';
+    document.getElementById('pe-notes').value = p.notes || '';
+    const banks = [...new Set(S.payments.map(x => x.bank_account).filter(Boolean))];
+    document.getElementById('pe-bank-list').innerHTML = banks.map(b => `<option value="${esc(b)}">`).join('');
+    openModal('pay-edit-modal');
+}
+
+function initPayEditModal() {
+    document.getElementById('pe-save').addEventListener('click', savePayEdit);
+}
+
+async function savePayEdit() {
+    const p = PE.payment;
+    if (!p) return;
+    const val = id => document.getElementById(id).value.trim();
+    const patch = {
+        method: val('pe-method') || null,
+        bank_account: val('pe-bank') || null,
+        reference_no: val('pe-ref') || null,
+        notes: val('pe-notes') || null,
+    };
+    if (!p.is_opening) {
+        const d = val('pe-date');
+        if (!d) return showAlertDialog('Ödeme tarihi boş olamaz.', { variant: 'warn', title: 'Eksik bilgi' });
+        if (d > TODAY) return showAlertDialog('Ödeme tarihi bugünden ileri olamaz.', { variant: 'warn', title: 'Tarih hatası' });
+        patch.payment_date = d;
+    }
+    const changed = Object.keys(patch).filter(k => (patch[k] || null) !== (p[k] || null));
+    if (!changed.length) { closeModal('pay-edit-modal'); return; }
+
+    const btn = document.getElementById('pe-save');
+    btn.disabled = true;
+    const { error } = await supabase.from('payments').update(patch).eq('id', p.id);
+    btn.disabled = false;
+    if (error) return showAlertDialog('Kaydedilemedi: ' + error.message, { variant: 'danger' });
+
+    const cust = S.custById.get(p.customer_id)?.company_name || '';
+    logChange({ ctx, moduleId: MODULE, action: 'update',
+        summary: `Tahsilat düzenlendi: ${cust} ${money(p.amount, p.currency)} (${changed.join(', ')})`,
+        details: { before: Object.fromEntries(changed.map(k => [k, p[k]])), after: Object.fromEntries(changed.map(k => [k, patch[k]])) } });
+    closeModal('pay-edit-modal');
+    toast('Tahsilat güncellendi.');
+    await loadData();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SİPARİŞ NOTU (SQL 040) — orders.order_notes, Siparişler ekranıyla aynı alan.
+// Yalnızca Ödeme Takibi yetkisi olan kullanıcı da yazabilsin diye RPC ile.
+// ═══════════════════════════════════════════════════════════════════════════
+const ON = { order: null };
+
+function openOrderNoteModal(orderId) {
+    if (!EDIT) return;
+    const o = S.orderById.get(orderId);
+    if (!o) return;
+    ON.order = o;
+    document.getElementById('on-context').innerHTML = `
+        <span>Müşteri: <b>${esc(S.custById.get(o.customer_id)?.company_name || '—')}</b></span>
+        <span>Sipariş: <b>${esc(o.order_number)}</b> · ${dateTr(o.order_date)}</span>
+        <span>Tutar: <b>${money(o.total_amount, o.currency)}</b></span>`;
+    const ta = document.getElementById('on-text');
+    ta.value = o.order_notes || '';
+    openModal('order-note-modal');
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+
+function initOrderNoteModal() {
+    document.getElementById('on-stamp').addEventListener('click', () => {
+        const ta = document.getElementById('on-text');
+        const prefix = ta.value.trim() ? ta.value.replace(/\s+$/, '') + '\n' : '';
+        ta.value = `${prefix}${dateTr(TODAY)} – `;
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+    });
+    document.getElementById('on-save').addEventListener('click', saveOrderNote);
+}
+
+async function saveOrderNote() {
+    const o = ON.order;
+    if (!o) return;
+    const note = document.getElementById('on-text').value.trim();
+    if (note === (o.order_notes || '').trim()) { closeModal('order-note-modal'); return; }
+
+    const btn = document.getElementById('on-save');
+    btn.disabled = true;
+    const { error } = await supabase.rpc('set_order_note', { p_order_id: o.id, p_note: note });
+    btn.disabled = false;
+    if (error) return showAlertDialog('Kaydedilemedi: ' + error.message + '\n\n(SQL 040 çalıştırılmış olmalı.)', { variant: 'danger' });
+
+    const cust = S.custById.get(o.customer_id)?.company_name || '';
+    logChange({ ctx, moduleId: MODULE, action: 'update',
+        summary: `Sipariş notu: ${cust} sipariş ${o.order_number}`,
+        details: { before: o.order_notes || null, after: note || null } });
+    closeModal('order-note-modal');
+    toast('Sipariş notu kaydedildi.');
+    await loadData();
 }
 
 async function deletePayment(id) {
@@ -897,6 +1041,8 @@ function initModals() {
     // Tahsilat modalı
     initCustomerCombo();
     initDateModal();
+    initPayEditModal();
+    initOrderNoteModal();
     document.getElementById('pm-currency').addEventListener('change', () => { PM.currency = document.getElementById('pm-currency').value; pmBuildRows(); });
     document.getElementById('pm-amount').addEventListener('input', pmSummary);
     document.getElementById('pm-amount').addEventListener('blur', e => { const n = parseNum(e.target.value); if (!isNaN(n)) e.target.value = fmtNum(n); pmSummary(); });
