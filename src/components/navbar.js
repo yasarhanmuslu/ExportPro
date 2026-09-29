@@ -1,7 +1,7 @@
 import { supabase } from '../utils/supabaseClient.js';
 import { isOwner, canView } from '../utils/permissions.js';
 
-const APP_VERSION = 'V: 1.1.31';
+const APP_VERSION = 'V: 1.1.32';
 const ADMIN_TAB = { id: 'admin', label: 'Yönetici', icon: 'fa-user-shield', href: 'admin.html' };
 
 // MENU MODELI
@@ -45,6 +45,11 @@ const MENU = [
 ];
 
 const HELP_TAB = { id: 'help', label: 'Yardım & Kılavuz', icon: 'fa-circle-question', href: 'help.html' };
+
+function activeLabel(activeTab) {
+    const all = [...MENU.flatMap(n => n.type === 'group' ? n.children : [n]), ADMIN_TAB, HELP_TAB];
+    return all.find(t => t.id === activeTab)?.label || 'Export Suite';
+}
 
 export async function renderNavbar(activeTab, ctx = null) {
     const { data: { session } } = await supabase.auth.getSession();
@@ -195,7 +200,18 @@ export async function renderNavbar(activeTab, ctx = null) {
                 </button>
             </div>
         </aside>
+        <div id="nav-backdrop"></div>
+        <div id="mobile-topbar">
+            <button type="button" id="btn-nav-toggle" aria-label="Menü"><i class="fa-solid fa-bars"></i></button>
+            <span class="mt-title">${activeLabel(activeTab)}</span>
+        </div>
     `;
+
+    // Mobil: menü ☰ ile açılır; arka plana ya da bir bağlantıya dokununca kapanır.
+    const setNav = open => document.body.classList.toggle('nav-open', open);
+    document.getElementById('btn-nav-toggle')?.addEventListener('click', () => setNav(!document.body.classList.contains('nav-open')));
+    document.getElementById('nav-backdrop')?.addEventListener('click', () => setNav(false));
+    navbarTarget.querySelectorAll('#main-sidebar a.nav-row').forEach(a => a.addEventListener('click', () => setNav(false)));
 
     // Akordeon: ayni anda tek grup acik
     const panels = navbarTarget.querySelectorAll('.nav-group-panel');

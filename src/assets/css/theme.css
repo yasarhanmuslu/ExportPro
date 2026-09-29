@@ -860,3 +860,75 @@ body, main, #main-sidebar,
 input, select, textarea {
   transition: background-color 0.25s ease, border-color 0.25s ease, color 0.2s ease;
 }
+
+/* ══════════════════════════════
+   MOBİL (≤ 900px)
+   Menü ekran dışına çekilir, üst çubuktaki ☰ ile açılır (navbar.js).
+   İçerik tam genişlik; geniş tablolar sayfayı değil kendini kaydırır.
+   ══════════════════════════════ */
+#mobile-topbar, #nav-backdrop { display: none; }
+
+@media (max-width: 900px) {
+  #mobile-topbar {
+    display: flex; align-items: center; gap: 12px;
+    position: sticky; top: 0; z-index: 45; height: 52px; padding: 0 12px;
+    background: var(--sidebar-bg); border-bottom: 1px solid var(--sidebar-border);
+    font-family: Verdana, Geneva, sans-serif;
+  }
+  #mobile-topbar button {
+    width: 38px; height: 38px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--ink-1); display: flex; align-items: center; justify-content: center;
+    font-size: 16px; cursor: pointer; flex-shrink: 0;
+  }
+  #mobile-topbar .mt-title { font-size: 15px; font-weight: 600; color: var(--ink-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  #main-sidebar {
+    transform: translateX(-100%); transition: transform .22s ease !important; z-index: 60 !important;
+    max-width: 85vw;
+  }
+  body.nav-open #main-sidebar { transform: none; box-shadow: 0 0 40px rgba(0,0,0,.25); }
+  body.nav-open #nav-backdrop { display: block; position: fixed; inset: 0; z-index: 55; background: rgba(28,26,23,.45); }
+  body.nav-open { overflow: hidden; }
+
+  main, .main-area {
+    margin-left: 0 !important;
+    padding: 16px 12px 40px !important;
+    max-width: 100vw; overflow-x: hidden;
+  }
+
+  /* Izgara hücreleri içerikleri yüzünden genişlemesin */
+  main .grid > * { min-width: 0; }
+
+  /* Tablolar: kendi içinde yana kaysın */
+  main table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  main table.no-mobile-scroll { display: table; }
+
+  /* Başlık satırları ve filtre çubukları alt satıra kaysın */
+  main header, main .filter-bar { flex-wrap: wrap; }
+  main header > *, main header > * > div { min-width: 0; flex-shrink: 1 !important; flex-wrap: wrap !important; }
+  /* Tailwind "başlık solda, butonlar sağda" satırları taşmasın */
+  main .flex.justify-between, main .flex.items-center { flex-wrap: wrap; row-gap: 8px; }
+  .page-title { font-size: 20px !important; }
+
+  /* Form ızgaraları: 2 sütun */
+  .grid-3, .grid-4 { grid-template-columns: 1fr 1fr !important; }
+
+  /* Siparişler / Teklifler liste satırı: sütunlar alt alta, tarih ızgarası 3'lü */
+  .row-body { flex-direction: column !important; align-items: stretch !important; }
+  .row-col-firm, .row-col-dates, .row-col-fin { border-right: none !important; border-bottom: 0.5px solid var(--border-soft) !important; }
+  .dates-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 4px 10px !important; }
+  .row-col-act { padding: 8px 12px !important; justify-content: flex-end !important; flex-wrap: wrap; gap: 6px; }
+
+  /* Modallar ekrana sığsın */
+  .modal-backdrop { padding: 8px !important; }
+  .modal-content { max-width: 100% !important; }
+  .modal-body { padding: 14px !important; }
+  .modal-head, .modal-foot { padding: 12px 14px !important; }
+}
+
+@media (max-width: 600px) {
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr !important; }
+  /* Tailwind sabit sütunlu ızgaralar (öneksiz grid-cols-N) telefonda tek/iki sütuna iner */
+  main .grid-cols-3, main .grid-cols-4, main .grid-cols-5, main .grid-cols-6 { grid-template-columns: 1fr 1fr !important; }
+  .filter-bar .pt-field, .filter-bar > * { min-width: 0 !important; flex: 1 1 100%; }
+}

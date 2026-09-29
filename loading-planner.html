@@ -47,6 +47,12 @@
       padding:4px;font-size:13px;background:var(--bg);color:var(--ink-1);}
     .lp-legend{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-2);}
     .lp-legend i{width:12px;height:12px;border-radius:3px;display:inline-block;}
+    /* Mobil: sol panel üstte, 3B görünüm altta; istatistikler 2'li */
+    @media (max-width: 900px) {
+      .lp-layout { grid-template-columns: 1fr !important; }
+      .lp-layout > * { min-width: 0; }
+      .lp-stats { grid-template-columns: repeat(2, 1fr) !important; }
+    }
   </style>
 </head>
 <body style="background:var(--bg);color:var(--ink-1);font-family:Verdana,Geneva,sans-serif;">

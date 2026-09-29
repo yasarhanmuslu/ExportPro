@@ -242,7 +242,7 @@ const F = {
 
 function initFilters() {
     const on = (id, ev, fn) => document.getElementById(id)?.addEventListener(ev, fn);
-    on('open-search', 'input', e => { F.openSearch = e.target.value.toLocaleLowerCase('tr-TR'); renderOpen(); });
+    on('open-search', 'input', e => { F.openSearch = norm(e.target.value.trim()); renderOpen(); });
     on('open-currency', 'change', e => { F.openCurrency = e.target.value; renderOpen(); });
     on('open-kind', 'change', e => { F.openKind = e.target.value; renderOpen(); });
     chipGroup('open-bucket', v => { F.openBucket = v; renderOpen(); });
@@ -561,15 +561,12 @@ function renderOpen() {
     if (F.openBucket === 'overdue') list = list.filter(i => i.overdueDays > 0);
     if (F.openBucket === 'current') list = list.filter(i => i.dueDate && i.overdueDays <= 0);
     if (F.openBucket === 'nodue') list = list.filter(i => !i.dueDate);
-    if (F.openSearch) {
-        list = list.filter(i => [i.customerName, i.orderNumber, i.docNo]
-            .some(v => String(v || '').toLocaleLowerCase('tr-TR').includes(F.openSearch)));
-    }
+    if (F.openSearch) list = list.filter(i => openSearchMatch(i, i.docNo));
     sortItems(list, F.openSort);
 
     const el = document.getElementById('open-table');
     if (!list.length) {
-        el.innerHTML = `<div class="empty">Kriterlere uyan açık alacak yok.</div>`;
+        el.innerHTML = `<div class="empty">Kriterlere uyan açık alacak yok.${openSearchElsewhere()}</div>`;
     } else {
         const totals = sumByCurrency(list);
         el.innerHTML = `<table class="data-table">
@@ -601,8 +598,9 @@ function renderOpen() {
         </table>`;
     }
 
-    // Faturalanmamış bakiyeler
-    const pend = S.openPending.slice().sort((a, b) => (b.orderDate || '').localeCompare(a.orderDate || ''));
+    // Faturalanmamış bakiyeler — aynı arama kutusuyla süzülür (sipariş no çoğunlukla burada aranır).
+    const pend = S.openPending.filter(p => !F.openSearch || openSearchMatch(p))
+        .sort((a, b) => (b.orderDate || '').localeCompare(a.orderDate || ''));
     document.getElementById('pending-table').innerHTML = pend.length ? `<table class="data-table">
         <thead><tr><th>Müşteri</th><th>Sipariş</th><th>Sipariş tarihi</th><th>Durum</th>
             <th class="num">Sipariş tutarı</th><th class="num">Faturalanmamış</th><th class="num">Tahsil edilmemiş</th><th></th></tr></thead>
@@ -617,7 +615,23 @@ function renderOpen() {
             <td class="nowrap" style="text-align:right;">${EDIT ? `<button class="pt-btn sm" data-act="invoices" data-id="${p.orderId}"><i class="fa-solid fa-file-invoice"></i> Fatura ekle</button>` : ''}</td>
         </tr>`).join('')}</tbody>
         <tfoot><tr><td colspan="6">${pend.length} sipariş</td><td class="num">${currencyLines(sumByCurrency(pend))}</td><td></td></tr></tfoot>
-    </table>` : `<div class="empty">Faturalanmamış bakiye yok.</div>`;
+    </table>` : `<div class="empty">${F.openSearch ? 'Aramaya uyan faturalanmamış bakiye yok.' : 'Faturalanmamış bakiye yok.'}</div>`;
+}
+
+// Arama: her kelime müşteri / sipariş no / fatura no içinde geçmeli — "owadan 2026-01",
+// "sipariş 2026-02" ya da sadece "2026-02" çalışır. Türkçe harf farkları norm() ile düzleşir.
+function openSearchMatch(i, ...extra) {
+    const hay = norm(['siparis', i.customerName, i.orderNumber, ...orderInvoices(i.orderId).map(v => v.invoice_no), ...extra].join(' '));
+    return F.openSearch.split(/\s+/).every(t => hay.includes(t));
+}
+
+// Açık listede bulunamayan sipariş başka yerde olabilir: haber ver ki "arama çalışmıyor" sanılmasın.
+function openSearchElsewhere() {
+    if (!F.openSearch) return '';
+    const where = [];
+    if (S.openPending.some(p => openSearchMatch(p))) where.push('aşağıdaki <b>faturalanmamış bakiyeler</b> tablosunda');
+    if ([...S.manualItems, ...S.manualPending].some(i => openSearchMatch(i))) where.push('<b>Manuel Alacaklar</b> sekmesinde');
+    return where.length ? `<div style="margin-top:6px;">Aradığınız sipariş ${where.join(' ve ')}.</div>` : '';
 }
 
 function renderAging() {
@@ -742,7 +756,8 @@ function renderPayments() {
                 <td colspan="2">${g.kind === 'order' ? invoiceSummary(g.order) : ''}</td>
                 <td class="num">${remaining === null ? '' : remaining > 0.005 ? `<span class="pill warn">${money(remaining, cur)}</span>` : '<span class="pill ok">Kapandı</span>'}</td>
                 <td class="nowrap" style="text-align:right;">${EDIT && g.kind === 'order'
-                    ? `<button class="pt-btn sm icon" data-act="order-note" data-id="${g.order.id}" title="Sipariş notu"><i class="fa-solid fa-note-sticky"></i></button>` : ''}</td>
+                    ? `<button class="pt-btn sm icon" data-act="invoices" data-id="${g.order.id}" title="Fatura ekle / düzenle"><i class="fa-solid fa-file-invoice"></i></button>
+                       <button class="pt-btn sm icon" data-act="order-note" data-id="${g.order.id}" title="Sipariş notu"><i class="fa-solid fa-note-sticky"></i></button>` : ''}</td>
             </tr>`;
             if (!open) return head;
             return head + g.entries.map(e => {
@@ -782,7 +797,9 @@ function renderPayments() {
 // sipariş → fatura bağıdır, ödeme → fatura eşleşmesi değildir.
 function invoiceSummary(o) {
     const invs = orderInvoices(o.id);
-    if (!invs.length) return '<span class="muted" style="font-size:11px;">Fatura girilmemiş</span>';
+    if (!invs.length) return EDIT
+        ? `<button class="pt-btn sm" data-act="invoices" data-id="${o.id}"><i class="fa-solid fa-file-invoice"></i> Fatura ekle</button>`
+        : '<span class="muted" style="font-size:11px;">Fatura girilmemiş</span>';
     return invs.map(i => `<div style="font-size:11.5px;white-space:nowrap;">
         <i class="fa-solid fa-file-invoice" style="font-size:10px;color:var(--ink-3);margin-right:4px;"></i><span class="strong">${esc(i.invoice_no || '—')}</span>
         <span class="muted">· ${dateTr(i.invoice_date)} · ${money(i.amount, i.currency)}${i.fx_rate ? ` (${money(i.amount_order_currency, o.currency)})` : ''}</span>

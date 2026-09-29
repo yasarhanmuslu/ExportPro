@@ -106,6 +106,13 @@
             outline:none !important; border-color:#2D4A3E !important;
             box-shadow:0 0 0 3px rgba(45,74,62,0.08) !important;
         }
+
+        /* ── Mobil: 4'lü satırlar 2'ye, 2'li satırlar tek sütuna ── */
+        @media (max-width: 900px) {
+            main .grid-cols-4 { grid-template-columns: 1fr 1fr !important; }
+            main .grid-cols-2 { grid-template-columns: 1fr !important; }
+            .sec-label { flex-wrap: wrap; }
+        }
     </style>
 </head>
 <body class="min-h-screen">

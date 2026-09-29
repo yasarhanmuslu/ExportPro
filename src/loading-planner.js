@@ -826,7 +826,7 @@ function makePlaced(it, cx, cy, z0, rot, pad) {
 function buildUI() {
   const root = document.getElementById('planner-root');
   root.innerHTML = `
-    <div style="display:grid;grid-template-columns:320px 1fr;gap:18px;align-items:start;">
+    <div class="lp-layout" style="display:grid;grid-template-columns:320px 1fr;gap:18px;align-items:start;">
       <!-- SOL PANEL -->
       <div style="display:flex;flex-direction:column;gap:14px;">
         <div class="lp-card" style="padding:16px;">
@@ -875,7 +875,7 @@ function buildUI() {
 
       <!-- SAĞ PANEL -->
       <div style="display:flex;flex-direction:column;gap:14px;">
-        <div id="lp-stats" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;"></div>
+        <div id="lp-stats" class="lp-stats" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;"></div>
         <div id="lp-strategy" style="font-size:11px;color:var(--ink-2);padding:0 2px;"></div>
         <div class="lp-card" style="position:relative;padding:12px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
