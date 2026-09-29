@@ -827,7 +827,7 @@ function applyFilters() {
     const currency      = document.getElementById('filter-order-currency').value;
     const statusFilter  = document.getElementById('filter-order-status').value;
     const shipMonthFilter = document.getElementById('filter-shipment-month').value;
-    const sortShipDate  = document.getElementById('sort-shipment-date').value; // '', 'asc', 'desc'
+    const sortMode      = document.getElementById('sort-shipment-date').value; // '', 'asc'/'desc' (sevk), 'order-asc'/'order-desc'
 
     let filtered = globalOrders.filter(o => {
         const compName   = (o.customers?.company_name || '').toLocaleLowerCase('tr-TR');
@@ -854,15 +854,18 @@ function applyFilters() {
         return matchSearch && matchCurrency && matchStatus && matchShipMonth;
     });
 
-    // Sevk Tarihine göre sıralama (Excel mantığı — tarihi olmayanlar her zaman en sona)
-    if (sortShipDate) {
+    // Tarihe göre sıralama (Excel mantığı — tarihi olmayanlar her zaman en sona).
+    // Sipariş tarihinde aynı günün siparişleri sisteme giriş sırasıyla (created_at) dizilir.
+    if (sortMode) {
+        const byOrder = sortMode.startsWith('order-');
+        const dir = sortMode.endsWith('asc') ? 1 : -1;
+        const key = o => byOrder ? (o.order_date ? o.order_date + '|' + (o.created_at || '') : '') : (o.shipment_date || '');
         filtered = filtered.slice().sort((a, b) => {
-            if (!a.shipment_date && !b.shipment_date) return 0;
-            if (!a.shipment_date) return 1;
-            if (!b.shipment_date) return -1;
-            return sortShipDate === 'asc'
-                ? a.shipment_date.localeCompare(b.shipment_date)
-                : b.shipment_date.localeCompare(a.shipment_date);
+            const ka = key(a), kb = key(b);
+            if (!ka && !kb) return 0;
+            if (!ka) return 1;
+            if (!kb) return -1;
+            return dir * ka.localeCompare(kb);
         });
     }
 
