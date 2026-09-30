@@ -708,7 +708,8 @@ function norm(s) {
 
 function renderPayments() {
     let list = S.payments.slice();
-    if (!F.payShowOpening) list = list.filter(p => !p.is_opening);
+    // Tarihsiz iade gizlenmez: gizlenirse sipariş tahsilatı iade edilmemiş gibi görünür (Elallar 2025-01).
+    if (!F.payShowOpening) list = list.filter(p => !p.is_opening || isRefund(p));
     if (F.payFrom) list = list.filter(p => p.payment_date && p.payment_date >= F.payFrom);
     if (F.payTo) list = list.filter(p => p.payment_date && p.payment_date <= F.payTo);
 
@@ -761,7 +762,9 @@ function renderPayments() {
     }
 
     const expandAll = !!F.paySearch;
-    const paymentCount = new Set(list2.flatMap(g => g.entries.map(e => e.p.id))).size;
+    const shown = [...new Map(list2.flatMap(g => g.entries.map(e => [e.p.id, e.p]))).values()];
+    const refundCount = shown.filter(isRefund).length;
+    const paymentCount = shown.length - refundCount;
 
     el.innerHTML = `<table class="data-table">
         <thead><tr>
@@ -804,7 +807,7 @@ function renderPayments() {
                 const others = allocs.filter(a => a !== e.a).map(a => S.orderById.get(a.order_id)?.order_number).filter(Boolean);
                 const sharedNote = e.shared || Math.abs(Number(p.amount) - e.amount) > 0.005
                     ? `<div class="muted" style="font-size:10.5px;">tahsilatın tamamı ${money(p.amount, p.currency)}${others.length ? ' · diğer: ' + others.map(esc).join(', ') : ''}</div>` : '';
-                const datable = p.is_opening && p.method !== 'Mahsup' && allocs.length === 1 && !Number(allocs[0].write_off_amount);
+                const datable = p.is_opening && !isRefund(p) && p.method !== 'Mahsup' && allocs.length === 1 && !Number(allocs[0].write_off_amount);
                 return `<tr class="grp-row">
                     <td></td>
                     <td></td>
@@ -822,7 +825,7 @@ function renderPayments() {
                 </tr>`;
             }).join('');
         }).join('')}</tbody>
-        <tfoot><tr><td colspan="3">${list2.filter(g => g.kind === 'order').length} sipariş · ${paymentCount} tahsilat</td>
+        <tfoot><tr><td colspan="3">${list2.filter(g => g.kind === 'order').length} sipariş · ${paymentCount} tahsilat${refundCount ? ` · ${refundCount} iade` : ''}</td>
             <td class="num">${currencyLines(sumByCurrency(list2.map(g => ({ currency: g.currency, open: g.total }))))}</td><td colspan="4"></td></tr></tfoot>
     </table>`;
 }
