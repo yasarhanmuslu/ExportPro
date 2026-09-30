@@ -361,6 +361,8 @@ const pages = [
             </ul>
             <h4>Tahsilat nasıl girilir?</h4>
             <p>"Tahsilat Gir" → firma adının herhangi bir kısmını yazın → tutar ve valör tarihini girin → "En eski vadeden dağıt". SWIFT masrafı gibi eksik gelen küçük tutarları <strong>Kesinti</strong> sütununa yazın; sipariş tam kapanır, masraf ayrıca raporlanır. İhraç kayıtlı satışta TL ödemeyi "Para farklı birimde geldi" ile kur girerek kaydedin.</p>
+            <h4>İade nasıl girilir?</h4>
+            <p>Müşteriye para geri gönderildiğinde (yanlışlıkla yapılan fazla ödeme, alınan avans/depozitonun iadesi) "İade Gir" → müşteri → tarih, tutar ve iade nedeni → iadenin <strong>neyden</strong> yapıldığını seçin: <strong>Müşteri avansı</strong> (hiçbir siparişe dağıtılmamış tahsilat) ya da ödemesi alınmış bir <strong>sipariş</strong>. İade Tahsilatlar'da eksi tutarlı, kırmızı "İade" satırı olarak görünür; asıl tahsilat silinmez. Siparişten yapılan iade o siparişin tahsil edilen tutarını düşürür — sipariş iptal değilse bakiyesi yeniden açılır (kaydetmeden önce uyarı verilir). "Bu ay tahsilat" paneli iadeleri ayrıca gösterir.</p>
             <h4>Fatura nasıl girilir?</h4>
             <p>Açık Alacaklar'da satırdaki <i class="fa-solid fa-file-invoice"></i> butonu ya da "Henüz faturalanmamış" tablosundaki "Fatura ekle". Vade ödeme şeklinden önerilir (hafta sonuna gelirse Pazartesi); siparişin vadesi de faturadan güncellenir. Kısmi sevkiyatta her faturayı ayrı girin.</p>
             <h4>Otomatik olanlar</h4>

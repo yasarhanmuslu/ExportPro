@@ -265,6 +265,7 @@ function initFilters() {
         i?.classList.remove('fa-spin');
     });
     on('btn-new-payment', 'click', () => openPaymentModal({}));
+    on('btn-new-refund', 'click', () => openRefundModal());
 
     // Tablo içi butonlar (event delegation)
     document.body.addEventListener('click', e => {
@@ -319,7 +320,9 @@ function renderDashboard() {
     const upcoming = live.filter(i => i.dueDate && i.overdueDays <= 0 && i.overdueDays >= -30);
 
     const monthStart = TODAY.slice(0, 8) + '01';
-    const monthPays = S.payments.filter(p => !p.is_opening && p.payment_date && p.payment_date >= monthStart && p.payment_date <= TODAY);
+    const monthMoves = S.payments.filter(p => !p.is_opening && p.payment_date && p.payment_date >= monthStart && p.payment_date <= TODAY);
+    const monthPays = monthMoves.filter(p => !isRefund(p));
+    const monthRefunds = monthMoves.filter(isRefund);
     const monthPayIds = new Set(monthPays.map(p => p.id));
     const monthCharges = {};
     S.allocations.filter(a => monthPayIds.has(a.payment_id) && a.write_off_type === 'Banka Kesintisi' && Number(a.write_off_amount))
@@ -332,9 +335,12 @@ function renderDashboard() {
     const chargeTxt = Object.keys(monthCharges).length
         ? ' · kesinti ' + Object.entries(monthCharges).map(([c, v]) => money(v, c)).join(', ')
         : '';
+    const refundTxt = monthRefunds.length
+        ? ` · ${monthRefunds.length} iade ` + Object.entries(sumByCurrency(monthRefunds, 'amount')).map(([c, v]) => money(-v, c)).join(', ')
+        : '';
 
     // Panel detay penceresi (openKpiModal) aynı listeleri kullanır.
-    S.kpi = { open: live, overdue, upcoming, month: monthPays, pending: S.openPending };
+    S.kpi = { open: live, overdue, upcoming, month: monthMoves, pending: S.openPending };
 
     const kpi = (id, title, icon, color, body, sub, accent = '') => `
         <div class="kpi-card ${accent}" data-kpi="${id}" title="Detay için tıklayın">
@@ -355,7 +361,7 @@ function renderDashboard() {
         kpi('upcoming', '30 gün içinde vadesi gelecek', 'fa-calendar-day', 'var(--warn)', currencyLines(sumByCurrency(upcoming)),
             `${upcoming.length} kalem`, 'accent-warn'),
         kpi('month', 'Bu ay tahsilat', 'fa-circle-check', 'var(--ok)', currencyLines(sumByCurrency(monthPays, 'amount')),
-            `${monthPays.length} tahsilat${chargeTxt}`, 'accent-ok'),
+            `${monthPays.length} tahsilat${refundTxt}${chargeTxt}`, 'accent-ok'),
         kpi('pending', 'Henüz faturalanmamış', 'fa-hourglass-half', 'var(--info)', currencyLines(sumByCurrency(S.openPending)),
             `${S.openPending.length} sipariş · alacak değil`),
         kpi('manual', 'Manuel takip', 'fa-book', 'var(--bronze)', currencyLines(sumByCurrency([...S.manualItems, ...S.manualPending])),
@@ -413,7 +419,7 @@ function openKpiModal(id) {
         open:     ['fa-wallet', 'var(--accent)', 'Açık alacak'],
         overdue:  ['fa-circle-exclamation', 'var(--danger)', 'Vadesi geçen alacaklar'],
         upcoming: ['fa-calendar-day', 'var(--warn)', '30 gün içinde vadesi gelecek alacaklar'],
-        month:    ['fa-circle-check', 'var(--ok)', 'Bu ay yapılan tahsilatlar'],
+        month:    ['fa-circle-check', 'var(--ok)', 'Bu ay yapılan tahsilatlar ve iadeler'],
         pending:  ['fa-hourglass-half', 'var(--info)', 'Henüz faturalanmamış sipariş bakiyeleri'],
     }[id];
     document.getElementById('km-title').innerHTML = `<i class="fa-solid ${title[0]}" style="color:${title[1]};"></i> ${title[2]} <span class="pill neutral">${list.length}</span>`;
@@ -422,7 +428,9 @@ function openKpiModal(id) {
     const summary = document.getElementById('km-summary');
 
     if (id === 'month') {
-        summary.innerHTML = `<span>Toplam:</span> ${Object.entries(sumByCurrency(list, 'amount')).map(([c, v]) => `<b>${money(v, c)}</b>`).join(' · ') || '<b>—</b>'}`;
+        const refunds = list.filter(isRefund);
+        summary.innerHTML = `<span>Tahsilat:</span> ${Object.entries(sumByCurrency(list.filter(p => !isRefund(p)), 'amount')).map(([c, v]) => `<b>${money(v, c)}</b>`).join(' · ') || '<b>—</b>'}`
+            + (refunds.length ? ` <span>İade:</span> ${Object.entries(sumByCurrency(refunds, 'amount')).map(([c, v]) => `<b style="color:var(--danger);">${money(-v, c)}</b>`).join(' · ')}` : '');
         body.innerHTML = list.length ? `<table class="data-table">
             <thead><tr><th>Tarih</th><th>Müşteri</th><th>Sipariş</th><th>Yol</th><th>Referans</th><th class="num">Tutar</th></tr></thead>
             <tbody>${list.slice().sort((a, b) => (b.payment_date || '').localeCompare(a.payment_date || '')).map(p => {
@@ -431,9 +439,9 @@ function openKpiModal(id) {
                     <td class="nowrap">${dateTr(p.payment_date)}</td>
                     <td class="strong">${esc(S.custById.get(p.customer_id)?.company_name || '—')}</td>
                     <td>${orders.map(esc).join(', ') || '<span class="muted">dağıtılmadı</span>'}</td>
-                    <td style="font-size:12px;">${esc(p.method || '')}</td>
+                    <td style="font-size:12px;">${isRefund(p) ? '<span class="pill danger">İade</span>' : esc(p.method || '')}</td>
                     <td style="font-size:12px;">${esc(p.reference_no || '')}</td>
-                    <td class="num strong">${money(p.amount, p.currency)}</td>
+                    <td class="num strong" style="${isRefund(p) ? 'color:var(--danger);' : ''}">${money(p.amount, p.currency)}</td>
                 </tr>`;
             }).join('')}</tbody></table>` : `<div class="empty">Bu ay tahsilat yok.</div>`;
         openModal('kpi-modal');
@@ -672,6 +680,25 @@ function paymentAllocations(paymentId) {
     return S.allocations.filter(a => a.payment_id === paymentId);
 }
 
+// İade = eksi tutarlı tahsilat (022; ilk örnek Elallar 2025-01 avans iadesi).
+function isRefund(p) { return Number(p.amount) < 0; }
+
+// Tahsilatın hiçbir siparişe dağıtılmamış kısmı. İadede eksidir: avanstan yapılan iade.
+function paymentUnallocated(p) {
+    return round2((Number(p.amount) || 0) - paymentAllocations(p.id).reduce((s, a) => s + (Number(a.amount) || 0), 0));
+}
+
+// Müşterinin bir para birimindeki net avansı = dağıtılmamış tahsilatlar − avanstan yapılan iadeler.
+function customerAdvance(customerId, currency) {
+    return round2(S.payments.filter(p => p.customer_id === customerId && p.currency === currency)
+        .reduce((s, p) => s + paymentUnallocated(p), 0));
+}
+
+// Siparişe fiilen yatan nakit (kesinti/küsurat hariç): siparişten en fazla bu kadar iade edilebilir.
+function orderCashPaid(orderId) {
+    return round2(S.allocations.filter(a => a.order_id === orderId).reduce((s, a) => s + (Number(a.amount) || 0), 0));
+}
+
 // Türkçe harf farkları aramayı bozmasın: "otomotiv" yazınca "Otomotıv" da bulunsun.
 function norm(s) {
     return String(s || '').toLocaleLowerCase('tr-TR')
@@ -701,8 +728,9 @@ function renderPayments() {
             if (!o) return;
             group(o.id, { kind: 'order', order: o, custName }).entries.push({ p, a, amount: Number(a.amount) || 0, writeOff: Number(a.write_off_amount) || 0, shared: allocs.length > 1 });
         });
-        if (unallocated > 0.005 && !p.is_opening) {
-            group(`unalloc:${p.customer_id}`, { kind: 'unalloc', custName, currency: p.currency })
+        // Eksi dağıtılmamış kısım avanstan yapılan iadedir; aynı başlıkta avansı netler.
+        if (Math.abs(unallocated) > 0.005 && !p.is_opening) {
+            group(`unalloc:${p.customer_id}:${p.currency}`, { kind: 'unalloc', custName, currency: p.currency })
                 .entries.push({ p, a: null, amount: unallocated, writeOff: 0, shared: allocs.length > 0 });
         }
     });
@@ -745,16 +773,23 @@ function renderPayments() {
             const cur = g.currency;
             const title = g.kind === 'order'
                 ? `<span class="strong">${esc(g.custName)}</span> · Sipariş <span class="strong">${esc(g.order.order_number)}</span>`
-                : `<span class="strong">${esc(g.custName)}</span> · <span class="pill warn">Dağıtılmamış — müşteri avansı</span>`;
+                : `<span class="strong">${esc(g.custName)}</span> · ${g.total > 0.005
+                    ? '<span class="pill warn">Dağıtılmamış — müşteri avansı</span>'
+                    : '<span class="pill neutral">Müşteri avansı — iade edildi</span>'}`;
             const remaining = g.kind === 'order' ? Number(g.order.remaining_balance) || 0 : null;
+            const refundCount = g.entries.filter(e => isRefund(e.p)).length;
+            const moveCount = `${g.entries.length - refundCount} ödeme${refundCount ? ` · ${refundCount} iade` : ''}`;
             const head = `<tr class="grp-head" data-act="toggle-cust" data-id="${esc(g.key)}">
                 <td><i class="fa-solid fa-chevron-${open ? 'down' : 'right'}" style="font-size:10px;color:var(--ink-3);"></i></td>
-                <td>${title} <span class="pill neutral">${g.entries.length} ödeme</span>${g.kind === 'order' && g.order.order_notes
+                <td>${title} <span class="pill neutral">${moveCount}</span>${g.kind === 'order' && g.order.order_notes
                     ? `<div class="muted" style="font-size:11px;margin-top:3px;white-space:pre-line;max-width:420px;" title="Sipariş notu"><i class="fa-solid fa-note-sticky" style="font-size:9px;margin-right:4px;"></i>${esc(g.order.order_notes)}</div>` : ''}</td>
                 <td class="muted" style="font-size:11.5px;">${g.last ? 'son ' + dateTr(g.last) : 'tarihsiz'}</td>
                 <td class="num strong">${money(g.total, cur)}${g.kind === 'order' ? `<div class="muted" style="font-size:10.5px;font-weight:400;">sipariş ${money(g.order.total_amount, cur)}</div>` : ''}</td>
                 <td colspan="2">${g.kind === 'order' ? invoiceSummary(g.order) : ''}</td>
-                <td class="num">${remaining === null ? '' : remaining > 0.005 ? `<span class="pill warn">${money(remaining, cur)}</span>` : '<span class="pill ok">Kapandı</span>'}</td>
+                <td class="num">${remaining === null ? '' : isCancelled(g.order) ? '<span class="pill neutral" title="İptal siparişte kalan bakiye alacak sayılmaz">İptal</span>'
+                    : remaining > 0.005 ? `<span class="pill warn">${money(remaining, cur)}</span>`
+                    : remaining < -0.005 ? `<span class="pill info" title="Siparişe tutarından fazla ödeme dağıtılmış">Fazla ödeme ${money(-remaining, cur)}</span>`
+                    : '<span class="pill ok">Kapandı</span>'}</td>
                 <td class="nowrap" style="text-align:right;">${EDIT && g.kind === 'order'
                     ? `<button class="pt-btn sm icon" data-act="invoices" data-id="${g.order.id}" title="Fatura ekle / düzenle"><i class="fa-solid fa-file-invoice"></i></button>
                        <button class="pt-btn sm icon" data-act="order-note" data-id="${g.order.id}" title="Sipariş notu"><i class="fa-solid fa-note-sticky"></i></button>` : ''}</td>
@@ -773,16 +808,16 @@ function renderPayments() {
                 return `<tr class="grp-row">
                     <td></td>
                     <td></td>
-                    <td class="nowrap">${p.is_opening ? '<span class="pill neutral">Tarihsiz</span>' : dateTr(p.payment_date)}</td>
-                    <td class="num strong">${money(e.amount, g.currency)}${e.writeOff ? `<div class="muted" style="font-size:10.5px;">+${money(e.writeOff, g.currency)} ${esc(e.a?.write_off_type || '')}</div>` : ''}${sharedNote}${fx}</td>
+                    <td class="nowrap">${p.is_opening ? '<span class="pill neutral">Tarihsiz</span>' : dateTr(p.payment_date)}${isRefund(p) ? ' <span class="pill danger">İade</span>' : ''}</td>
+                    <td class="num strong" style="${e.amount < 0 ? 'color:var(--danger);' : ''}">${money(e.amount, g.currency)}${e.writeOff ? `<div class="muted" style="font-size:10.5px;">+${money(e.writeOff, g.currency)} ${esc(e.a?.write_off_type || '')}</div>` : ''}${sharedNote}${fx}</td>
                     <td style="font-size:12px;">${esc(p.method || '')}${p.bank_account ? `<div class="muted" style="font-size:11px;">${esc(p.bank_account)}</div>` : ''}</td>
                     <td style="font-size:12px;">${esc(p.reference_no || '')}${p.notes ? `<div class="muted" style="font-size:11px;">${esc(p.notes)}</div>` : ''}</td>
-                    <td class="num">${g.kind === 'unalloc' ? `<span class="pill warn">${money(e.amount, g.currency)}</span>` : ''}</td>
+                    <td class="num">${g.kind === 'unalloc' && e.amount > 0 ? `<span class="pill warn">${money(e.amount, g.currency)}</span>` : ''}</td>
                     <td class="nowrap" style="text-align:right;">
                         ${EDIT && datable ? `<button class="pt-btn sm" data-act="date-pay" data-id="${p.id}"><i class="fa-solid fa-calendar-plus"></i> Tarih gir</button>` : ''}
-                        ${EDIT && !p.is_opening && unallocated > 0.005 ? `<button class="pt-btn sm" data-act="allocate" data-id="${p.id}"><i class="fa-solid fa-diagram-project"></i> Dağıt</button>` : ''}
-                        ${EDIT ? `<button class="pt-btn sm icon" data-act="edit-pay" data-id="${p.id}" title="Tahsilatı düzenle"><i class="fa-solid fa-pen"></i></button>` : ''}
-                        ${EDIT && !p.is_opening ? `<button class="pt-btn sm icon danger" data-act="del-pay" data-id="${p.id}" title="Tahsilatı sil"><i class="fa-solid fa-trash"></i></button>` : ''}
+                        ${EDIT && !p.is_opening && unallocated > 0.005 && customerAdvance(p.customer_id, p.currency) > 0.005 ? `<button class="pt-btn sm" data-act="allocate" data-id="${p.id}"><i class="fa-solid fa-diagram-project"></i> Dağıt</button>` : ''}
+                        ${EDIT ? `<button class="pt-btn sm icon" data-act="edit-pay" data-id="${p.id}" title="${isRefund(p) ? 'İadeyi' : 'Tahsilatı'} düzenle"><i class="fa-solid fa-pen"></i></button>` : ''}
+                        ${EDIT && !p.is_opening ? `<button class="pt-btn sm icon danger" data-act="del-pay" data-id="${p.id}" title="${isRefund(p) ? 'İadeyi' : 'Tahsilatı'} sil"><i class="fa-solid fa-trash"></i></button>` : ''}
                     </td>
                 </tr>`;
             }).join('');
@@ -935,14 +970,17 @@ async function deletePayment(id) {
     const p = S.payments.find(x => x.id === id);
     if (!p) return;
     const cust = S.custById.get(p.customer_id)?.company_name || '';
+    const refund = isRefund(p);
     const ok = await showConfirmDialog(
-        `${cust} · ${dateTr(p.payment_date)} · ${money(p.amount, p.currency)}\n\nBu tahsilat ve dağıtımları silinecek; ilgili siparişlerin bakiyesi yeniden açılacak.`,
-        { title: 'Tahsilatı sil', variant: 'danger', confirmText: 'Sil' });
+        `${cust} · ${dateTr(p.payment_date)} · ${money(p.amount, p.currency)}\n\n` + (refund
+            ? 'Bu iade kaydı silinecek; iade edilen tutar yeniden siparişin tahsilatı / müşteri avansı sayılacak.'
+            : 'Bu tahsilat ve dağıtımları silinecek; ilgili siparişlerin bakiyesi yeniden açılacak.'),
+        { title: refund ? 'İadeyi sil' : 'Tahsilatı sil', variant: 'danger', confirmText: 'Sil' });
     if (!ok) return;
     const { error } = await supabase.from('payments').delete().eq('id', id);
     if (error) { await showAlertDialog('Silinemedi: ' + error.message, { variant: 'danger' }); return; }
-    logChange({ ctx, moduleId: MODULE, action: 'delete', summary: `Tahsilat silindi: ${cust} ${money(p.amount, p.currency)} (${dateTr(p.payment_date)})`, details: { payment: p } });
-    toast('Tahsilat silindi.');
+    logChange({ ctx, moduleId: MODULE, action: 'delete', summary: `${refund ? 'İade' : 'Tahsilat'} silindi: ${cust} ${money(p.amount, p.currency)} (${dateTr(p.payment_date)})`, details: { payment: p } });
+    toast(refund ? 'İade silindi.' : 'Tahsilat silindi.');
     await loadData();
 }
 
@@ -1056,7 +1094,12 @@ function initModals() {
     });
 
     // Tahsilat modalı
-    initCustomerCombo();
+    initCustomerCombo({
+        inputId: 'pm-customer-input', listId: 'pm-customer-list', getId: () => PM.customerId,
+        onChoose: id => setPmCustomer(id, true),
+        badges: () => new Map(S.orders.filter(o => !isCancelled(o) && Number(o.remaining_balance) > 0.005).map(o => [o.customer_id, 'açık bakiye'])),
+    });
+    initRefundModal();
     initDateModal();
     initPayEditModal();
     initOrderNoteModal();
@@ -1076,31 +1119,30 @@ function initModals() {
 }
 
 // ── Müşteri arama kutusu (serbest yazı; select'in "baş harfe atla" davranışı yerine) ──
-function initCustomerCombo() {
-    const input = document.getElementById('pm-customer-input');
-    const listEl = document.getElementById('pm-customer-list');
+// badges(): müşteri id → rozet metni. Rozetli müşteriler listenin başına gelir.
+function initCustomerCombo({ inputId, listId, badges, getId, onChoose }) {
+    const input = document.getElementById(inputId);
+    const listEl = document.getElementById(listId);
     let active = -1;
-
-    const openIds = () => new Set(S.orders.filter(o => !isCancelled(o) && Number(o.remaining_balance) > 0.005).map(o => o.customer_id));
 
     const render = () => {
         const q = norm(input.value.trim());
-        const ids = openIds();
+        const flags = badges();
         let matches = S.customers.filter(c => !q || norm(c.company_name).includes(q) || norm(c.country).includes(q));
-        matches.sort((a, b) => (ids.has(b.id) - ids.has(a.id)) || a.company_name.localeCompare(b.company_name, 'tr'));
+        matches.sort((a, b) => (flags.has(b.id) - flags.has(a.id)) || a.company_name.localeCompare(b.company_name, 'tr'));
         matches = matches.slice(0, 60);
         active = matches.length ? 0 : -1;
         listEl.innerHTML = matches.length
             ? matches.map((c, k) => `<div class="cb-item${k === 0 ? ' active' : ''}" data-cid="${c.id}">
                 <span>${esc(c.company_name)}${c.country ? ` <span class="muted">(${esc(c.country)})</span>` : ''}</span>
-                ${ids.has(c.id) ? '<span class="pill warn" style="font-size:9.5px;">açık bakiye</span>' : ''}
+                ${flags.has(c.id) ? `<span class="pill warn" style="font-size:9.5px;">${esc(flags.get(c.id))}</span>` : ''}
               </div>`).join('')
             : `<div class="cb-empty">Eşleşen müşteri yok.</div>`;
         listEl.hidden = false;
     };
     const choose = id => {
         listEl.hidden = true;
-        setPmCustomer(id, true);
+        onChoose(id);
     };
     const move = d => {
         const items = [...listEl.querySelectorAll('.cb-item')];
@@ -1129,7 +1171,7 @@ function initCustomerCombo() {
         setTimeout(() => {
             listEl.hidden = true;
             // Yazılan metin bir müşteri değilse seçili müşterinin adına geri dön.
-            const c = S.custById.get(PM.customerId);
+            const c = S.custById.get(getId());
             input.value = c ? c.company_name : '';
         }, 120);
     });
@@ -1156,8 +1198,8 @@ function openPaymentModal({ item = null, payment = null }) {
     const existing = document.getElementById('pm-existing');
 
     if (payment) {
-        const allocs = paymentAllocations(payment.id);
-        const unallocated = round2(Number(payment.amount) - allocs.reduce((s, a) => s + (Number(a.amount) || 0), 0));
+        // Avanstan iade yapıldıysa dağıtılabilecek tutar müşterinin net avansıyla sınırlıdır.
+        const unallocated = Math.min(paymentUnallocated(payment), customerAdvance(payment.customer_id, payment.currency));
         PM.customerId = payment.customer_id;
         PM.currency = payment.currency;
         header.hidden = true;
@@ -1325,6 +1367,7 @@ async function pmSave() {
         if (!PM.customerId) return showAlertDialog('Lütfen müşteri seçin.', { variant: 'warn', title: 'Eksik bilgi' });
         if (!document.getElementById('pm-date').value) return showAlertDialog('Valör tarihi gerekli.', { variant: 'warn', title: 'Eksik bilgi' });
         if (!amount) return showAlertDialog('Tahsilat tutarı girin.', { variant: 'warn', title: 'Eksik bilgi' });
+        if (amount < 0) return showAlertDialog('Müşteriye geri ödeme için üstteki "İade Gir" butonunu kullanın; tutarı artı olarak yazmanız yeterli.', { variant: 'warn', title: 'İade mi?' });
     } else if (amount <= 0) {
         return showAlertDialog('Dağıtılacak tutar yok.', { variant: 'warn' });
     }
@@ -1402,6 +1445,260 @@ async function pmSave() {
 
         closeModal('payment-modal');
         toast(PM.mode === 'new' ? 'Tahsilat kaydedildi.' : 'Avans dağıtıldı.');
+        await loadData();
+    } catch (e) {
+        console.error(e);
+        showAlertDialog('Kaydedilemedi: ' + e.message, { variant: 'danger', title: 'Hata' });
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// İADE MODALI
+// Müşteriye geri gönderilen para (fazla ödeme, avans/depozito iadesi). 022'deki kural:
+// iade eksi tutarlı tahsilattır. Siparişten iade edilen kısım o siparişe eksi dağıtım
+// satırı olur ve siparişin tahsil edilen tutarını düşürür (trigger hesaplar); hiçbir
+// siparişe dağıtılmayan kısım müşteri avansından düşer (customerAdvance).
+// ═══════════════════════════════════════════════════════════════════════════
+const RF = { customerId: null, currency: 'EUR', rows: [] };
+
+// İade adayı müşteriler: avansı olan, fazla ödenmiş ya da iptal edilip ödemesi duran siparişi olan.
+function refundBadges() {
+    const out = new Map();
+    S.orders.forEach(o => {
+        if (orderCashPaid(o.id) <= 0.005) return;
+        if (isCancelled(o)) out.set(o.customer_id, 'iptal + ödeme');
+        else if (Number(o.remaining_balance) < -0.005) out.set(o.customer_id, 'fazla ödeme');
+    });
+    S.customers.forEach(c => {
+        if (CURRENCIES.some(cur => customerAdvance(c.id, cur) > 0.005)) out.set(c.id, 'avans');
+    });
+    return out;
+}
+
+function initRefundModal() {
+    initCustomerCombo({
+        inputId: 'rf-customer-input', listId: 'rf-customer-list', getId: () => RF.customerId,
+        onChoose: id => setRfCustomer(id),
+        badges: refundBadges,
+    });
+    document.getElementById('rf-currency').addEventListener('change', e => { RF.currency = e.target.value; rfBuildRows(); });
+    document.getElementById('rf-amount').addEventListener('input', rfSummary);
+    document.getElementById('rf-amount').addEventListener('blur', e => {
+        const n = parseNum(e.target.value);
+        if (!isNaN(n)) e.target.value = fmtNum(Math.abs(n));
+        // Tek kaynak varsa tutarın tamamını ona yaz.
+        const amount = rfAmount();
+        if (RF.rows.length === 1 && amount && !RF.rows[0].refund) { RF.rows[0].refund = Math.min(amount, RF.rows[0].max); rfRenderRows(); }
+        rfSummary();
+    });
+    document.getElementById('rf-save').addEventListener('click', rfSave);
+}
+
+function openRefundModal() {
+    if (!EDIT) return;
+    RF.customerId = null;
+    RF.currency = 'EUR';
+    RF.rows = [];
+    document.getElementById('rf-customer-input').value = '';
+    document.getElementById('rf-date').value = TODAY;
+    document.getElementById('rf-currency').value = RF.currency;
+    document.getElementById('rf-amount').value = '';
+    document.getElementById('rf-reason').value = 'Fazla ödeme';
+    ['rf-bank', 'rf-ref', 'rf-notes'].forEach(id => { document.getElementById(id).value = ''; });
+    const banks = [...new Set(S.payments.map(p => p.bank_account).filter(Boolean))];
+    document.getElementById('rf-bank-list').innerHTML = banks.map(b => `<option value="${esc(b)}">`).join('');
+    rfBuildRows();
+    openModal('refund-modal');
+    setTimeout(() => document.getElementById('rf-customer-input').focus(), 50);
+}
+
+function setRfCustomer(id) {
+    RF.customerId = id || null;
+    const c = S.custById.get(RF.customerId);
+    document.getElementById('rf-customer-input').value = c ? c.company_name : '';
+    // İade edilebilir tutarın olduğu para birimini seç (önce avans, sonra sipariş).
+    const has = cur => customerAdvance(RF.customerId, cur) > 0.005
+        || S.orders.some(o => o.customer_id === RF.customerId && o.currency === cur && orderCashPaid(o.id) > 0.005);
+    const pick = CURRENCIES.find(cur => customerAdvance(RF.customerId, cur) > 0.005) || CURRENCIES.find(has);
+    if (pick) { RF.currency = pick; document.getElementById('rf-currency').value = pick; }
+    rfBuildRows();
+}
+
+function rfBuildRows() {
+    RF.rows = [];
+    if (RF.customerId) {
+        const adv = customerAdvance(RF.customerId, RF.currency);
+        if (adv > 0.005) {
+            RF.rows.push({ orderId: null, label: 'Müşteri avansı', sub: 'hiçbir siparişe dağıtılmamış tahsilat (fazla ödeme / depozito)', max: adv, remaining: null, cancelled: false, refund: 0 });
+        }
+        S.orders
+            .filter(o => o.customer_id === RF.customerId && o.currency === RF.currency)
+            .map(o => ({ o, paid: orderCashPaid(o.id) }))
+            .filter(x => x.paid > 0.005)
+            // Önce iade adayları (iptal / fazla ödenmiş), sonra en yeni sipariş.
+            .sort((a, b) => (rfPriority(b.o) - rfPriority(a.o)) || (b.o.order_date || '').localeCompare(a.o.order_date || ''))
+            .forEach(({ o, paid }) => {
+                const rem = round2(Number(o.remaining_balance) || 0);
+                const sub = [o.order_date ? dateTr(o.order_date) : '', `sipariş ${money(o.total_amount, o.currency)}`, `tahsil ${money(paid, o.currency)}`].filter(Boolean).join(' · ');
+                RF.rows.push({ orderId: o.id, label: `Sipariş ${o.order_number || '—'}`, sub, max: paid, remaining: rem, cancelled: isCancelled(o), refund: 0 });
+            });
+    }
+    rfRenderRows();
+}
+
+function rfPriority(o) {
+    if (isCancelled(o)) return 2;
+    return Number(o.remaining_balance) < -0.005 ? 1 : 0;
+}
+
+function rfRowState(r) {
+    if (r.cancelled) return '<span class="pill neutral">İptal</span>';
+    if (r.remaining === null) return '';
+    if (r.remaining < -0.005) return `<span class="pill info">Fazla ödeme ${money(-r.remaining, RF.currency)}</span>`;
+    if (r.remaining > 0.005) return `<span class="pill warn">Kalan ${money(r.remaining, RF.currency)}</span>`;
+    return '<span class="pill ok">Kapandı</span>';
+}
+
+// İadeden sonra siparişin kalanı (iptal siparişte alacak doğmaz).
+function rfAfter(r) {
+    if (r.remaining === null) return `<span class="muted">avans ${money(round2(r.max - r.refund), RF.currency)}</span>`;
+    if (r.cancelled) return '<span class="muted">İptal — alacak doğmaz</span>';
+    const after = round2(r.remaining + r.refund);
+    if (!r.refund) return '';
+    return after > 0.005
+        ? `<span style="color:var(--danger);font-weight:600;">Kalan ${money(after, RF.currency)} açılır</span>`
+        : `<span class="muted">Kalan ${money(after, RF.currency)}</span>`;
+}
+
+function rfRenderRows() {
+    const el = document.getElementById('rf-sources');
+    if (!RF.customerId) {
+        el.innerHTML = `<div class="empty">Önce müşteri seçin.</div>`;
+        rfSummary();
+        return;
+    }
+    if (!RF.rows.length) {
+        el.innerHTML = `<div class="empty">Bu müşterinin ${RF.currency} cinsinden iade edilebilecek tahsilatı yok (avans ya da ödemesi alınmış sipariş bulunmuyor).</div>`;
+        rfSummary();
+        return;
+    }
+    el.innerHTML = `<table class="data-table alloc-table">
+        <thead><tr><th>Kaynak</th><th>Durum</th><th class="num">İade edilebilir</th><th class="num" style="width:150px;">İade edilecek</th><th>Sonrası</th></tr></thead>
+        <tbody>${RF.rows.map((r, idx) => `<tr>
+            <td><div class="strong">${esc(r.label)}</div><div class="muted" style="font-size:11px;">${esc(r.sub)}</div></td>
+            <td>${rfRowState(r)}</td>
+            <td class="num"><a href="#" data-rf-max="${idx}" title="Tamamını iade et">${fmtNum(r.max)}</a></td>
+            <td><input class="pt-input num" data-rf="${idx}" value="${r.refund ? fmtNum(r.refund) : ''}" placeholder="0,00"></td>
+            <td style="font-size:11.5px;" data-rf-after="${idx}">${rfAfter(r)}</td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+    el.querySelectorAll('[data-rf]').forEach(inp => {
+        inp.addEventListener('input', () => {
+            const r = RF.rows[Number(inp.dataset.rf)];
+            const n = parseNum(inp.value);
+            r.refund = isNaN(n) ? 0 : round2(Math.abs(n));
+            el.querySelector(`[data-rf-after="${inp.dataset.rf}"]`).innerHTML = rfAfter(r);
+            rfSummary();
+        });
+        inp.addEventListener('blur', () => { const n = parseNum(inp.value); inp.value = isNaN(n) || !n ? '' : fmtNum(Math.abs(n)); });
+    });
+    el.querySelectorAll('[data-rf-max]').forEach(a => a.addEventListener('click', e => {
+        e.preventDefault();
+        const r = RF.rows[Number(a.dataset.rfMax)];
+        r.refund = r.max;
+        if (!rfAmount()) document.getElementById('rf-amount').value = fmtNum(r.max);
+        rfRenderRows();
+    }));
+    rfSummary();
+}
+
+function rfAmount() {
+    const n = parseNum(document.getElementById('rf-amount').value);
+    return isNaN(n) ? 0 : round2(Math.abs(n));
+}
+
+function rfSummary() {
+    const amount = rfAmount();
+    const spread = round2(RF.rows.reduce((s, r) => s + r.refund, 0));
+    const diff = round2(amount - spread);
+    const cur = RF.currency;
+    document.getElementById('rf-summary').innerHTML = `
+        <span>İade tutarı: <b>${money(amount, cur)}</b></span>
+        <span>Kaynaklara dağıtılan: <b>${money(spread, cur)}</b></span>
+        <span style="${Math.abs(diff) > 0.005 ? 'color:var(--danger);' : ''}">Fark: <b>${money(diff, cur)}</b></span>`;
+}
+
+async function rfSave() {
+    const btn = document.getElementById('rf-save');
+    const amount = rfAmount();
+    const cur = RF.currency;
+    const date = document.getElementById('rf-date').value;
+    const reason = document.getElementById('rf-reason').value;
+    const rows = RF.rows.filter(r => r.refund > 0.005);
+    const spread = round2(rows.reduce((s, r) => s + r.refund, 0));
+
+    if (!RF.customerId) return showAlertDialog('Lütfen müşteri seçin.', { variant: 'warn', title: 'Eksik bilgi' });
+    if (!date) return showAlertDialog('İade tarihi gerekli.', { variant: 'warn', title: 'Eksik bilgi' });
+    if (!amount) return showAlertDialog('İade tutarını girin.', { variant: 'warn', title: 'Eksik bilgi' });
+    if (!rows.length) return showAlertDialog('İadenin neyden yapıldığını seçin: müşteri avansı ya da bir sipariş satırına tutar yazın.', { variant: 'warn', title: 'Eksik bilgi' });
+    const over = rows.find(r => r.refund - r.max > 0.005);
+    if (over) return showAlertDialog(`${over.label}: iade (${money(over.refund, cur)}) iade edilebilir tutarı (${money(over.max, cur)}) aşıyor.`, { variant: 'warn', title: 'Dağıtım hatası' });
+    if (Math.abs(amount - spread) > 0.005) {
+        return showAlertDialog(`İade tutarı (${money(amount, cur)}) ile kaynaklara dağıtılan (${money(spread, cur)}) eşit olmalı.`, { variant: 'warn', title: 'Dağıtım hatası' });
+    }
+
+    const custName = S.custById.get(RF.customerId)?.company_name || '';
+    const reopened = rows.filter(r => r.orderId && !r.cancelled && round2(r.remaining + r.refund) > 0.005);
+    const ok = await showConfirmDialog(
+        `${custName} · ${dateTr(date)} · ${money(amount, cur)} iade (${reason})\n\n`
+        + rows.map(r => `• ${r.label}: ${money(r.refund, cur)}`).join('\n')
+        + (reopened.length
+            ? `\n\nDİKKAT: ${reopened.map(r => `${r.label} kalanı ${money(round2(r.remaining + r.refund), cur)}`).join(', ')} olarak yeniden açılacak ve alacak görünecek. Sipariş iptal edildiyse önce Siparişler'de iptal edin.`
+            : ''),
+        { title: 'İadeyi kaydet', variant: reopened.length ? 'warn' : 'info', confirmText: 'Kaydet' });
+    if (!ok) return;
+
+    btn.disabled = true;
+    try {
+        const note = document.getElementById('rf-notes').value.trim();
+        const { data: pay, error } = await supabase.from('payments').insert([{
+            user_id: ctx.ownerId,
+            customer_id: RF.customerId,
+            payment_date: date,
+            currency: cur,
+            amount: -amount,
+            method: 'İade',
+            bank_account: document.getElementById('rf-bank').value.trim() || null,
+            reference_no: document.getElementById('rf-ref').value.trim() || null,
+            notes: `İade nedeni: ${reason}${note ? ' — ' + note : ''}`,
+            created_by: ctx.userId,
+        }]).select().single();
+        if (error) throw error;
+
+        const orderRows = rows.filter(r => r.orderId);
+        if (orderRows.length) {
+            const { error: aErr } = await supabase.from('payment_allocations').insert(orderRows.map(r => ({
+                payment_id: pay.id,
+                order_id: r.orderId,
+                amount: -r.refund,
+                notes: `İade — ${reason}`,
+            })));
+            if (aErr) {
+                // Dağıtım yazılamadıysa yarım kayıt bırakma.
+                await supabase.from('payments').delete().eq('id', pay.id);
+                throw aErr;
+            }
+        }
+
+        logChange({
+            ctx, moduleId: MODULE, action: 'create',
+            summary: `İade: ${custName} ${money(amount, cur)} (${dateTr(date)}, ${reason}) ← ${rows.map(r => `${r.label} ${fmtNum(r.refund)}`).join(', ')}`,
+            details: { payment_id: pay.id, reason, sources: rows.map(r => ({ order_id: r.orderId, amount: r.refund })) },
+        });
+        closeModal('refund-modal');
+        toast('İade kaydedildi.');
         await loadData();
     } catch (e) {
         console.error(e);

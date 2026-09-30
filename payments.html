@@ -155,6 +155,7 @@
             </div>
             <div class="flex items-center gap-2">
                 <button id="btn-refresh" class="pt-btn"><i class="fa-solid fa-rotate-right"></i> Yenile</button>
+                <button id="btn-new-refund" class="pt-btn" data-requires-edit title="Müşteriye geri ödeme: fazla ödeme ya da avans/depozito iadesi"><i class="fa-solid fa-rotate-left"></i> İade Gir</button>
                 <button id="btn-new-payment" class="pt-btn primary" data-requires-edit><i class="fa-solid fa-plus"></i> Tahsilat Gir</button>
             </div>
         </header>
@@ -359,7 +360,7 @@
                             <label>Ödeme yolu</label>
                             <select id="pm-method" class="pt-select">
                                 <option>T/T</option><option>Havale/EFT</option><option>Akreditif (LC)</option><option>Vesaik (CAD)</option>
-                                <option>Çek</option><option>Nakit</option><option>Mahsup</option><option>İade</option>
+                                <option>Çek</option><option>Nakit</option><option>Mahsup</option>
                             </select>
                         </div>
                         <div class="pt-field">
@@ -425,6 +426,81 @@
             <div class="modal-foot">
                 <button class="pt-btn" data-close="payment-modal">Vazgeç</button>
                 <button class="pt-btn primary" id="pm-save"><i class="fa-solid fa-check"></i> Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════ İADE MODALI ═══════════ -->
+    <div id="refund-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width:56rem;">
+            <div class="modal-head">
+                <h3><i class="fa-solid fa-rotate-left" style="color:var(--danger);"></i> İade Gir</h3>
+                <button class="pt-btn icon sm" data-close="refund-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="hint" style="margin-bottom:12px;">
+                    Müşteriye <b>geri gönderilen</b> para: yanlışlıkla yapılan fazla ödemenin ya da alınan avans/depozitonun iadesi.
+                    Tahsilatlar'da eksi tutarlı <b>İade</b> hareketi olarak görünür; tahsilat kaydı silinmez, geçmiş korunur.
+                </div>
+                <div class="grid-3">
+                    <div class="pt-field" style="grid-column:span 2;">
+                        <label>Müşteri *</label>
+                        <div class="cb">
+                            <input id="rf-customer-input" class="pt-input" placeholder="Firma adının herhangi bir kısmını yazın…" autocomplete="off">
+                            <div class="cb-list" id="rf-customer-list" hidden></div>
+                        </div>
+                    </div>
+                    <div class="pt-field">
+                        <label>İade tarihi *</label>
+                        <input id="rf-date" type="date" class="pt-input">
+                    </div>
+                </div>
+                <div class="grid-4" style="margin-top:12px;">
+                    <div class="pt-field">
+                        <label>Para birimi *</label>
+                        <select id="rf-currency" class="pt-select">
+                            <option>EUR</option><option>USD</option><option>TRY</option><option>GBP</option>
+                        </select>
+                    </div>
+                    <div class="pt-field">
+                        <label>İade tutarı *</label>
+                        <input id="rf-amount" class="pt-input num" placeholder="0,00">
+                    </div>
+                    <div class="pt-field">
+                        <label>İade nedeni *</label>
+                        <select id="rf-reason" class="pt-select">
+                            <option>Fazla ödeme</option><option>Avans / depozito iadesi</option><option>Sipariş iptali</option><option>Diğer</option>
+                        </select>
+                    </div>
+                    <div class="pt-field">
+                        <label>Gönderilen banka hesabı</label>
+                        <input id="rf-bank" class="pt-input" list="rf-bank-list" placeholder="ör. Garanti USD">
+                        <datalist id="rf-bank-list"></datalist>
+                    </div>
+                </div>
+                <div class="grid-2" style="margin-top:12px;">
+                    <div class="pt-field">
+                        <label>Dekont / SWIFT referansı</label>
+                        <input id="rf-ref" class="pt-input">
+                    </div>
+                    <div class="pt-field">
+                        <label>Not</label>
+                        <input id="rf-notes" class="pt-input" placeholder="ör. müşterinin talebi, 12.10 tarihli e-posta">
+                    </div>
+                </div>
+
+                <div class="section-title" style="margin:20px 0 8px;"><i class="fa-solid fa-arrow-right-from-bracket"></i> Neyin iadesi?</div>
+                <div class="pt-table-wrap" id="rf-sources"></div>
+                <div class="alloc-summary" id="rf-summary"></div>
+                <div class="hint" style="margin-top:8px;">
+                    <b>Müşteri avansı</b>: hiçbir siparişe dağıtılmamış tahsilat — fazla ödeme ya da siparişe henüz mahsup edilmemiş depozito. İade bu tutardan düşer.
+                    <b>Sipariş</b>: siparişe yatırılmış tutarın iadesi (ör. iptal edilen siparişin avansı). Siparişin tahsil edilen tutarı iade kadar azalır;
+                    sipariş iptal değilse kalan bakiyesi yeniden açılır.
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="pt-btn" data-close="refund-modal">Vazgeç</button>
+                <button class="pt-btn primary" id="rf-save"><i class="fa-solid fa-check"></i> İadeyi kaydet</button>
             </div>
         </div>
     </div>
