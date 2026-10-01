@@ -22,6 +22,13 @@ export const DEFECTS = [
         group: 'Bünye',
     },
     {
+        id: 'dokum-boslugu',
+        name: 'Döküm Boşluğu',
+        en: 'Casting Hole',
+        definition: 'Üretim sürecinde ürünün içindeki çamuru akıtmak için kullanılan boşluk/delik.',
+        group: 'Bünye',
+    },
+    {
         id: 'pinhol',
         name: 'Pinhol',
         en: 'Pinhole',
