@@ -71,6 +71,13 @@ export const DEFECTS = [
         group: 'Kırılma',
     },
     {
+        id: 'cizik',
+        name: 'Çizik',
+        en: 'Scratch',
+        definition: 'Temas sonucu çizilmiş yüzey.',
+        group: 'Yüzey',
+    },
+    {
         id: 'sok',
         name: 'Şok',
         en: 'Thermal Shock',
