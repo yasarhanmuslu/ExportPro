@@ -92,6 +92,54 @@
         }
         .defect-upload-btn:hover { background: #F0EDE4; }
 
+        /* ── Ürün / Müşteri sıralama tabloları ──
+           Liste uzadıkça sayfayı uzatmasın: kutu sabit yükseklikte, kendi içinde
+           kayar, başlık satırı üstte sabit kalır. */
+        .ranking-scroll {
+            max-height: 460px; overflow: auto;
+            border: 1px solid #EFEAE0; border-radius: 8px;
+        }
+        .ranking-scroll thead th { position: sticky; top: 0; z-index: 1; }
+
+        /* ── Şikayet Detay Modal tablosu ──
+           7 sütun dar pencereye sığsın diye hücreler sıkılaştırıldı; açıklama
+           tek satıra zorlanmıyor, en fazla 3 satır gösterip tamamını title'da veriyor. */
+        .detail-table th, .detail-table td { padding: 10px 10px !important; vertical-align: top; }
+        .detail-table td { font-size: 12px !important; }
+        .detail-desc {
+            min-width: 140px; max-width: 320px; white-space: normal; word-break: break-word;
+            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+        }
+
+        /* ── Hata Kategorisi Dağılımı ── */
+        .defect-dist-layout { display: grid; gap: 20px; grid-template-columns: 1fr; }
+        @media (min-width: 1024px) { .defect-dist-layout { grid-template-columns: 1fr 260px; } }
+        .defect-dist-row {
+            display: grid; grid-template-columns: 170px 1fr 92px; align-items: center; gap: 12px;
+            padding: 6px 8px; border-radius: 6px; cursor: pointer;
+            font-family: Verdana, Geneva, sans-serif;
+        }
+        .defect-dist-row:hover { background: #FBF8F1; }
+        .defect-dist-row.active { background: #F3E5D2; }
+        .defect-dist-row.muted .defect-dist-name { color: #968B7A; }
+        .defect-dist-name { font-size: 12px; font-weight: 600; color: #1C1A17; }
+        .defect-dist-group { font-size: 10px; color: #968B7A; font-weight: 400; }
+        .defect-dist-num { font-size: 12px; color: #6B655B; text-align: right; white-space: nowrap; }
+        .defect-dist-num strong { color: #1C1A17; font-size: 13px; }
+        .defect-dist-sep { border-top: 1px dashed #E4DDCE; margin: 8px 0; }
+        .defect-coverage {
+            border: 1px solid #EFEAE0; border-radius: 10px; background: #FBF8F1; padding: 14px;
+            font-family: Verdana, Geneva, sans-serif; align-self: start;
+        }
+        .defect-chip {
+            display: inline-block; font-size: 10px; padding: 1px 7px; border-radius: 999px;
+            background: #F3E5D2; color: #B26B33; margin: 3px 4px 0 0; white-space: nowrap;
+        }
+        .defect-chip.none { background: #FBF8F1; color: #968B7A; border: 1px dashed #E4DDCE; }
+        @media (max-width: 640px) {
+            .defect-dist-row { grid-template-columns: 110px 1fr 70px; gap: 8px; }
+        }
+
         .progress-bar-bg {
             background: #EFEAE0; border-radius: 999px; height: 6px; overflow: hidden;
         }
@@ -243,6 +291,20 @@
             </div>
         </section>
 
+        <!-- ── A2) Hata Kategorisi Dağılımı ── -->
+        <section class="section-card mb-6">
+            <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                <h3 class="card-title">
+                    <i class="fa-solid fa-layer-group" style="color:#B26B33;font-size:16px;"></i> Hata Kategorisi Dağılımı
+                </h3>
+                <span style="font-size:10px;color:#968B7A;font-family:Verdana, Geneva, sans-serif;">Tıkla → Detayları Gör</span>
+            </div>
+            <div class="defect-dist-layout">
+                <div id="defect-dist-list"></div>
+                <div id="defect-dist-coverage" class="defect-coverage"></div>
+            </div>
+        </section>
+
         <!-- ── B + C: Sıralamalar (yan yana) ── -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
 
@@ -254,7 +316,7 @@
                     </h3>
                     <span style="font-size:10px;color:#968B7A;font-family:Verdana, Geneva, sans-serif;">Tıkla → Detayları Gör</span>
                 </div>
-                <div style="overflow-x:auto;">
+                <div class="ranking-scroll">
                     <table class="data-table">
                         <thead>
                             <tr>
@@ -277,9 +339,9 @@
                     <h3 class="card-title">
                         <i class="fa-solid fa-users" style="color:#2D4A3E;font-size:16px;"></i> Müşteri Bazında Şikayet
                     </h3>
-                    <span style="font-size:10px;color:#968B7A;font-family:Verdana, Geneva, sans-serif;">En çok şikayet → Üstte</span>
+                    <span style="font-size:10px;color:#968B7A;font-family:Verdana, Geneva, sans-serif;">Tıkla → Detayları Gör</span>
                 </div>
-                <div style="overflow-x:auto;">
+                <div class="ranking-scroll">
                     <table class="data-table">
                         <thead>
                             <tr>
@@ -327,37 +389,29 @@
 
     </main>
 
-    <!-- ── Ürün Detay Modal ── -->
-    <div id="product-detail-modal" class="modal-backdrop hidden">
-        <div class="modal-content">
+    <!-- ── Şikayet Detay Modal (ürün / müşteri / hata kategorisi) ── -->
+    <div id="detail-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width:80rem;">
             <div class="flex items-center justify-between p-5" style="border-bottom:1px solid #EFEAE0;">
-                <h3 id="product-modal-title" class="modal-title">
-                    <i class="fa-solid fa-box" style="color:#B26B33;"></i> Ürün Şikayet Detayları
-                </h3>
-                <button id="btn-close-product-modal" style="background:none;border:none;cursor:pointer;color:#968B7A;font-size:18px;">
+                <div>
+                    <h3 id="detail-modal-title" class="modal-title"></h3>
+                    <div id="detail-modal-sub" style="margin-top:4px;"></div>
+                </div>
+                <button id="btn-close-detail-modal" style="background:none;border:none;cursor:pointer;color:#968B7A;font-size:18px;">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
             <div class="flex-1 overflow-y-auto p-5">
                 <div style="overflow-x:auto;">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>CN Tarihi</th>
-                                <th>Müşteri</th>
-                                <th>Ürün ID / Müşteri Ref</th>
-                                <th>Karar</th>
-                                <th>Hata</th>
-                                <th>Sipariş</th>
-                                <th>Açıklama</th>
-                            </tr>
-                        </thead>
-                        <tbody id="product-modal-table-body"></tbody>
+                    <table class="data-table detail-table">
+                        <!-- Sütunlar açılan bağlama göre (ürün / müşteri / hata) JS'te kurulur -->
+                        <thead id="detail-modal-table-head"></thead>
+                        <tbody id="detail-modal-table-body"></tbody>
                     </table>
                 </div>
             </div>
             <div class="flex justify-end p-5" style="border-top:1px solid #EFEAE0;">
-                <button id="btn-close-product-modal-footer" style="padding:8px 20px;border-radius:6px;border:1px solid #E4DDCE;background:#FBF8F1;color:#6B655B;font-family:Verdana, Geneva, sans-serif;font-size:13px;cursor:pointer;">Kapat</button>
+                <button id="btn-close-detail-modal-footer" style="padding:8px 20px;border-radius:6px;border:1px solid #E4DDCE;background:#FBF8F1;color:#6B655B;font-family:Verdana, Geneva, sans-serif;font-size:13px;cursor:pointer;">Kapat</button>
             </div>
         </div>
     </div>

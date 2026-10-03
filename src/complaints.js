@@ -6,11 +6,12 @@ import { showAlertDialog } from './utils/dialogs.js';
 import {
     DECISIONS, getDecision, isCredited, lineAmount, formatMoney,
 } from './utils/creditNoteRules.js';
-import { DEFECTS, defectLabel, DEFECT_IMAGE_BUCKET, defectImagePrefix } from './utils/defectCatalog.js';
+import { DEFECTS, getDefect, defectLabel, DEFECT_IMAGE_BUCKET, defectImagePrefix } from './utils/defectCatalog.js';
 
 // ── Global veri depoları ──────────────────────────────────────────────────────
 let rawData = [];          // Tüm credit_notes (items + customers dahil)
 let filteredItems = [];    // Aktif filtreye göre credit_note_items (düzleştirilmiş)
+let lastBaseItems = [];    // Aynısı, hata kategorisi filtresi hariç (dağılım bölümü)
 let decisionChart = null;
 let monthlyChart  = null;
 let ctx = null;
@@ -149,14 +150,14 @@ function applyFiltersAndRender() {
         return true;
     });
 
-    // Sonra item'ları düzleştir ve filtrele
-    filteredItems = filteredNotes.flatMap(cn =>
+    // Sonra item'ları düzleştir ve filtrele. Hata kategorisi filtresi en sona
+    // bırakılıyor: dağılım bölümü onun dışındaki filtrelerle hesaplanır, böylece
+    // bir kategori seçiliyken de bütün tablo görünmeye devam eder.
+    const baseItems = filteredNotes.flatMap(cn =>
         (cn.credit_note_items || [])
             .filter(item => {
                 if (productCode && item.product_code !== productCode) return false;
                 if (decision    && item.decision      !== decision)    return false;
-                if (defect === '__none__' && item.defect_category)     return false;
-                if (defect && defect !== '__none__' && item.defect_category !== defect) return false;
                 return true;
             })
             .map(item => ({
@@ -172,6 +173,12 @@ function applyFiltersAndRender() {
             }))
     );
 
+    filteredItems = baseItems.filter(item => {
+        if (defect === '__none__') return !getDefect(item.defect_category);
+        if (defect) return item.defect_category === defect;
+        return true;
+    });
+
     // Bekleyen CN sayısı: kararı verilmiş olsun olmasın, henüz bir siparişte
     // uygulanmamış (ya da iptal edilmemiş) Credit Note'lar.
     const pendingCNCount = filteredNotes.filter(
@@ -182,6 +189,8 @@ function applyFiltersAndRender() {
     document.getElementById('filter-result-count').textContent = filteredItems.length.toLocaleString('tr-TR');
 
     renderKPIs(pendingCNCount);
+    lastBaseItems = baseItems;
+    renderDefectDistribution(baseItems, defect);
     renderProductRanking();
     renderCustomerRanking();
     renderDecisionChart();
@@ -208,6 +217,108 @@ function renderKPIs(pendingCNCount) {
     const rejectRate = total > 0 ? ((rejected / total) * 100).toFixed(1) : '0.0';
     document.getElementById('kpi-accepted-rate').textContent = `%${acceptRate} kabul oranı`;
     document.getElementById('kpi-rejected-rate').textContent = `%${rejectRate} red oranı`;
+}
+
+// ── A2) Hata Kategorisi Dağılımı ──────────────────────────────────────────────
+// Kategoriler kalem kalem girildiği için tablo her zaman kısmi olabilir:
+// yüzdeler yalnızca kategorisi girilmiş kalemler üzerinden hesaplanır, girilmemiş
+// olanlar ayrı satırda ve kapsama kartında gösterilir. Veri her yüklemede
+// credit_note_items'tan okunduğu için yeni girilen kategoriler Yenile ile yansır.
+function renderDefectDistribution(items, activeDefect) {
+    const list = document.getElementById('defect-dist-list');
+    const coverage = document.getElementById('defect-dist-coverage');
+
+    const stats = new Map(DEFECTS.map(d => [d.id, { kalem: 0, adet: 0 }]));
+    const none = { kalem: 0, adet: 0 };
+    items.forEach(i => {
+        const s = getDefect(i.defect_category) ? stats.get(i.defect_category.trim()) : none;
+        s.kalem += 1;
+        s.adet  += Number(i.quantity) || 1;
+    });
+
+    const total = items.length;
+    const categorized = total - none.kalem;
+    const coveragePct = total > 0 ? Math.round((categorized / total) * 100) : 0;
+
+    const rows = DEFECTS
+        .map(d => ({ ...d, ...stats.get(d.id) }))
+        .filter(r => r.kalem > 0 || r.id === activeDefect)
+        .sort((a, b) => b.kalem - a.kalem || b.adet - a.adet);
+    const max = Math.max(1, ...rows.map(r => r.kalem));
+
+    const numText = s => `<strong>${s.kalem}</strong> kalem` +
+        (s.adet !== s.kalem ? `<div style="font-size:10px;color:#968B7A;">${fmtQty(s.adet)} adet</div>` : '');
+
+    const rowHtml = rows.map(r => {
+        const share = categorized > 0 ? Math.round((r.kalem / categorized) * 100) : 0;
+        return `
+        <div class="defect-dist-row ${r.id === activeDefect ? 'active' : ''}" data-defect="${r.id}"
+             title="${escapeHtml(r.definition)}">
+            <div class="defect-dist-name">${escapeHtml(r.name)}
+                <div class="defect-dist-group">${escapeHtml(r.group)}</div></div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <div class="progress-bar-bg" style="flex:1;">
+                    <div class="progress-bar-fill" style="width:${(r.kalem / max) * 100}%;background:#B26B33;"></div>
+                </div>
+                <span style="font-size:11px;color:#B26B33;font-weight:600;min-width:34px;">%${share}</span>
+            </div>
+            <div class="defect-dist-num">${numText(r)}</div>
+        </div>`;
+    }).join('');
+
+    const noneHtml = none.kalem > 0 || activeDefect === '__none__' ? `
+        <div class="defect-dist-sep"></div>
+        <div class="defect-dist-row muted ${activeDefect === '__none__' ? 'active' : ''}" data-defect="__none__"
+             title="Hata kategorisi henüz girilmemiş kalemler — tıklayınca listelenir">
+            <div class="defect-dist-name"><i class="fa-regular fa-circle-question" style="margin-right:4px;"></i>Kategori girilmemiş</div>
+            <div style="font-size:10.5px;color:#968B7A;">yüzdelere dahil değil</div>
+            <div class="defect-dist-num">${numText(none)}</div>
+        </div>` : '';
+
+    list.innerHTML = total === 0
+        ? '<div style="font-size:12px;color:#968B7A;padding:16px;text-align:center;font-family:Verdana, Geneva, sans-serif;">Gösterilecek veri yok</div>'
+        : (rows.length === 0
+            ? '<div style="font-size:12px;color:#968B7A;padding:12px 8px;font-family:Verdana, Geneva, sans-serif;">Bu filtrede kategorisi girilmiş kalem yok.</div>'
+            : rowHtml) + noneHtml;
+
+    coverage.innerHTML = `
+        <div class="label-caps" style="margin-bottom:8px;">Kategori Girişi</div>
+        <div style="font-size:24px;font-weight:700;color:#1C1A17;">%${coveragePct}</div>
+        <div style="font-size:11px;color:#6B655B;margin:2px 0 10px;">${categorized} / ${total} kalem kategorize edildi</div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${coveragePct}%;"></div></div>
+        <div style="font-size:10.5px;color:#968B7A;margin-top:10px;line-height:1.5;">
+            ${none.kalem > 0
+                ? `${none.kalem} kalemde kategori bekleniyor. Credit Notes'ta girdikçe bu tablo güncellenir.`
+                : 'Tüm kalemlerin kategorisi girilmiş.'}
+        </div>`;
+
+    list.querySelectorAll('.defect-dist-row').forEach(row => {
+        row.addEventListener('click', () => openDefectModal(row.dataset.defect));
+    });
+}
+
+function fmtQty(n) {
+    return Number(n).toLocaleString('tr-TR', { maximumFractionDigits: 2 });
+}
+
+// Ürün satırı altındaki kategori çipleri: en sık 3 kategori + kategorisizler.
+function defectChips(items) {
+    const counts = new Map();
+    let none = 0;
+    items.forEach(i => {
+        const d = getDefect(i.defect_category);
+        if (!d) { none += 1; return; }
+        counts.set(d.name, (counts.get(d.name) || 0) + 1);
+    });
+    const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+    const shown = sorted.slice(0, 3)
+        .map(([name, n]) => `<span class="defect-chip">${escapeHtml(name)} ×${n}</span>`);
+    if (sorted.length > 3) {
+        const rest = sorted.slice(3).reduce((a, [, n]) => a + n, 0);
+        shown.push(`<span class="defect-chip" title="${escapeHtml(sorted.slice(3).map(([k, n]) => `${k} ×${n}`).join(', '))}">+${rest} diğer</span>`);
+    }
+    if (none > 0) shown.push(`<span class="defect-chip none" title="Hata kategorisi girilmemiş">? ×${none}</span>`);
+    return shown.length ? `<div>${shown.join('')}</div>` : '';
 }
 
 // ── B) Ürün Bazında Sıralama ──────────────────────────────────────────────────
@@ -249,6 +360,7 @@ function renderProductRanking() {
             <td>
                 <div style="font-size:12px;font-weight:600;color:#1C1A17;">${escapeHtml(p.code)}</div>
                 <div style="font-size:11px;color:#968B7A;">${escapeHtml(p.name)}</div>
+                ${defectChips(p.items)}
             </td>
             <td class="text-center">
                 <span style="font-weight:700;font-size:15px;color:#1C1A17;">${count}</span>
@@ -283,6 +395,7 @@ function renderCustomerRanking() {
         const key = item.customer_id || item.company_name;
         if (!customerMap[key]) {
             customerMap[key] = {
+                key,
                 name: item.company_name,
                 country: item.country,
                 items: []
@@ -311,7 +424,7 @@ function renderCustomerRanking() {
         const lastDate  = dates[dates.length - 1] || '—';
 
         return `
-        <tr>
+        <tr data-customer-key="${escapeHtml(c.key)}" class="customer-row" style="cursor:pointer;">
             <td>
                 <div style="font-size:12.5px;font-weight:600;color:#1C1A17;">${escapeHtml(c.name)}</div>
                 <div style="font-size:11px;color:#968B7A;">${escapeHtml(c.country)}</div>
@@ -330,6 +443,10 @@ function renderCustomerRanking() {
             </td>
         </tr>`;
     }).join('');
+
+    tbody.querySelectorAll('.customer-row').forEach(row => {
+        row.addEventListener('click', () => openCustomerModal(row.dataset.customerKey));
+    });
 }
 
 // ── D) Karar Dağılımı Doughnut ────────────────────────────────────────────────
@@ -508,43 +625,109 @@ function renderMonthlyChart() {
     }
 }
 
-// ── Ürün Detay Modal ──────────────────────────────────────────────────────────
+// ── Şikayet Detay Modal ───────────────────────────────────────────────────────
+// Ürün, müşteri ve hata kategorisi satırları aynı pencereyi açar. Açıldığı
+// bağlamın sütunu (ör. müşteri detayında "Müşteri") tekrar gösterilmez.
 function openProductModal(productCode) {
     const items = filteredItems.filter(i => (i.product_code || '(Belirsiz)') === productCode);
-    const productName = items[0]?.product_name || productCode;
+    openDetailModal({
+        icon: 'fa-box', iconColor: '#B26B33',
+        title: `${productCode} — ${items[0]?.product_name || productCode}`,
+        items, hide: 'product',
+    });
+}
 
-    document.getElementById('product-modal-title').innerHTML = `
-        <i class="fa-solid fa-box" style="color:#B26B33;"></i>
-        <span>${escapeHtml(productCode)} — ${escapeHtml(productName)}</span>
-        <span style="font-size:13px;background:#F3E5D2;color:#B26B33;padding:2px 10px;border-radius:999px;margin-left:6px;">${items.length} şikayet</span>
-    `;
+function openCustomerModal(customerKey) {
+    const items = filteredItems.filter(i => (i.customer_id || i.company_name) === customerKey);
+    const first = items[0];
+    const country = first?.country && first.country !== '—' ? ` — ${first.country}` : '';
+    openDetailModal({
+        icon: 'fa-users', iconColor: '#2D4A3E',
+        title: first ? first.company_name + country : '—',
+        items, hide: 'customer',
+    });
+}
 
-    const tbody = document.getElementById('product-modal-table-body');
-    tbody.innerHTML = items.map(item => {
-        // Bizim barkod ID'miz ve müşterinin kendi referansı ayrı alanlarda tutulur;
-        // ikisi de dolu olabiliyor (ör. "3106976654" + "IDVT11032023080").
-        const ids = [item.product_serial, item.customer_ref].filter(Boolean);
-        const amount = lineAmount(item);
-        return `
-        <tr>
-            <td style="font-size:12px;white-space:nowrap;">${formatDate(item.cn_date)}
-                ${item.cn_no ? `<div style="font-size:10px;color:#968B7A;">CN ${item.cn_no}</div>` : ''}</td>
-            <td style="font-size:12px;">${escapeHtml(item.company_name)}</td>
-            <td style="font-size:11.5px;color:#6B655B;font-family:ui-monospace,Consolas,monospace;">
-                ${ids.length ? ids.map(escapeHtml).join('<br>') : '<span style="color:#968B7A;">—</span>'}</td>
-            <td>${decisionBadge(item.decision)}</td>
-            <td style="font-size:12px;color:#6B655B;">${escapeHtml(item.defect_category ? defectLabel(item.defect_category) : '—')}</td>
-            <td style="font-size:12px;color:#6B655B;white-space:nowrap;">
+// Dağılım bölümü hata kategorisi filtresinden bağımsız hesaplandığı için
+// detay da aynı küme (lastBaseItems) üzerinden açılır.
+function openDefectModal(defectId) {
+    const items = defectId === '__none__'
+        ? lastBaseItems.filter(i => !getDefect(i.defect_category))
+        : lastBaseItems.filter(i => getDefect(i.defect_category)?.id === defectId);
+    openDetailModal({
+        icon: 'fa-layer-group', iconColor: '#B26B33',
+        title: defectId === '__none__' ? 'Kategori girilmemiş kalemler' : defectLabel(defectId),
+        items, hide: 'defect',
+    });
+}
+
+const DETAIL_COLUMNS = [
+    { key: 'date',     th: 'CN Tarihi' },
+    { key: 'customer', th: 'Müşteri' },
+    { key: 'product',  th: 'Ürün' },
+    { key: 'ids',      th: 'Ürün ID / Müşteri Ref' },
+    { key: 'decision', th: 'Karar' },
+    { key: 'defect',   th: 'Hata' },
+    { key: 'order',    th: 'Sipariş' },
+    { key: 'desc',     th: 'Açıklama' },
+];
+
+function detailCell(key, item) {
+    switch (key) {
+        case 'date':
+            return `<td style="font-size:12px;white-space:nowrap;">${formatDate(item.cn_date)}
+                ${item.cn_no ? `<div style="font-size:10px;color:#968B7A;">CN ${escapeHtml(item.cn_no)}</div>` : ''}</td>`;
+        case 'customer':
+            return `<td style="font-size:12px;">${escapeHtml(item.company_name)}</td>`;
+        case 'product':
+            return `<td style="font-size:12px;">
+                <div style="font-weight:600;color:#1C1A17;white-space:nowrap;">${escapeHtml(item.product_code || '—')}</div>
+                ${item.product_name ? `<div style="font-size:10.5px;color:#968B7A;">${escapeHtml(item.product_name)}</div>` : ''}</td>`;
+        case 'ids': {
+            // Bizim barkod ID'miz ve müşterinin kendi referansı ayrı alanlarda tutulur;
+            // ikisi de dolu olabiliyor (ör. "3106976654" + "IDVT11032023080").
+            const ids = [item.product_serial, item.customer_ref].filter(Boolean);
+            return `<td style="font-size:11.5px;color:#6B655B;font-family:ui-monospace,Consolas,monospace;">
+                ${ids.length ? ids.map(escapeHtml).join('<br>') : '<span style="color:#968B7A;">—</span>'}</td>`;
+        }
+        case 'decision':
+            return `<td>${decisionBadge(item.decision)}</td>`;
+        case 'defect':
+            return `<td style="font-size:12px;color:#6B655B;">${escapeHtml(item.defect_category ? defectLabel(item.defect_category) : '—')}</td>`;
+        case 'order': {
+            const amount = lineAmount(item);
+            return `<td style="font-size:12px;color:#6B655B;white-space:nowrap;">
                 ${escapeHtml(item.target_order_text_override || item.target_order || '—')}
                 ${amount > 0 ? `<div style="font-size:10px;color:#968B7A;">${escapeHtml(formatMoney(amount, item.currency))}</div>` : ''}
                 ${item.compensation_type === 'Bedelsiz' && isCredited(item.decision)
-                    ? `<div style="font-size:10px;color:#B26B33;">${item.quantity} ad. bedelsiz</div>` : ''}</td>
-            <td style="font-size:12px;color:#6B655B;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
-                title="${escapeHtml(item.description || '')}">${escapeHtml(item.description || '—')}</td>
-        </tr>`;
-    }).join('');
+                    ? `<div style="font-size:10px;color:#B26B33;">${item.quantity} ad. bedelsiz</div>` : ''}</td>`;
+        }
+        case 'desc':
+            return `<td style="font-size:12px;color:#6B655B;" title="${escapeHtml(item.description || '')}">
+                <div class="detail-desc">${escapeHtml(item.description || '—')}</div></td>`;
+    }
+    return '<td></td>';
+}
 
-    document.getElementById('product-detail-modal').classList.remove('hidden');
+function openDetailModal({ icon, iconColor, title, items, hide }) {
+    items = [...items].sort((a, b) => (b.cn_date || '').localeCompare(a.cn_date || ''));
+
+    document.getElementById('detail-modal-title').innerHTML = `
+        <i class="fa-solid ${icon}" style="color:${iconColor};"></i>
+        <span>${escapeHtml(title)}</span>
+        <span style="font-size:13px;background:#F3E5D2;color:#B26B33;padding:2px 10px;border-radius:999px;margin-left:6px;">${items.length} şikayet</span>
+    `;
+    // Ürün ve müşteri detayında başlığın altında hata kırılımı özetlenir.
+    document.getElementById('detail-modal-sub').innerHTML = hide === 'defect' ? '' : defectChips(items);
+
+    const cols = DETAIL_COLUMNS.filter(c => c.key !== hide);
+    document.getElementById('detail-modal-table-head').innerHTML =
+        `<tr>${cols.map(c => `<th>${c.th}</th>`).join('')}</tr>`;
+    document.getElementById('detail-modal-table-body').innerHTML = items.length
+        ? items.map(item => `<tr>${cols.map(c => detailCell(c.key, item)).join('')}</tr>`).join('')
+        : `<tr><td colspan="${cols.length}" style="text-align:center;color:#968B7A;padding:24px;">Gösterilecek kalem yok</td></tr>`;
+
+    document.getElementById('detail-modal').classList.remove('hidden');
 }
 
 // ── Hata Kataloğu ─────────────────────────────────────────────────────────────
@@ -715,15 +898,15 @@ function initEventListeners() {
     });
 
     // Modal kapat
-    document.getElementById('btn-close-product-modal')?.addEventListener('click', closeProductModal);
-    document.getElementById('btn-close-product-modal-footer')?.addEventListener('click', closeProductModal);
-    document.getElementById('product-detail-modal')?.addEventListener('click', e => {
-        if (e.target === document.getElementById('product-detail-modal')) closeProductModal();
+    document.getElementById('btn-close-detail-modal')?.addEventListener('click', closeDetailModal);
+    document.getElementById('btn-close-detail-modal-footer')?.addEventListener('click', closeDetailModal);
+    document.getElementById('detail-modal')?.addEventListener('click', e => {
+        if (e.target === document.getElementById('detail-modal')) closeDetailModal();
     });
 }
 
-function closeProductModal() {
-    document.getElementById('product-detail-modal').classList.add('hidden');
+function closeDetailModal() {
+    document.getElementById('detail-modal').classList.add('hidden');
 }
 
 // ── Yardımcılar ───────────────────────────────────────────────────────────────
