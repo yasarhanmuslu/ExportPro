@@ -63,6 +63,27 @@
         .score-table tbody tr:hover { background: #F6F3EC; }
         .score-table td { padding: 11px 14px; color: #1C1A17; }
 
+        /* Tablo kendi içinde kayar; başlık satırı sabit kalır */
+        .score-scroll { max-height: min(690px, calc(100vh - 140px)); min-height: 320px; overflow: auto; }
+        .score-table thead th { position: sticky; top: 0; z-index: 1; background: #fff; box-shadow: inset 0 -2px 0 #EFEAE0; }
+        .dark .score-table thead th { background: var(--surface); box-shadow: inset 0 -2px 0 var(--border-soft); }
+
+        /* Top Müşteriler (Dashboard ile aynı sıralama — src/utils/topCustomers.js) */
+        .top-cur-tabs { display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; }
+        .top-cur-tab {
+            font-size: 10px; font-weight: 600; letter-spacing: 0.06em; color: #968B7A;
+            background: #F6F3EC; border: 1px solid #EFEAE0; border-radius: 5px;
+            padding: 2px 8px; cursor: pointer; font-family: Verdana, Geneva, sans-serif;
+            transition: background .15s, color .15s, border-color .15s;
+        }
+        .top-cur-tab:hover { border-color: #D9D0C2; }
+        .top-cur-tab.is-active { background: #2D4A3E; border-color: #2D4A3E; color: #fff; }
+        .top-row { padding: 6px 4px; border-radius: 6px; }
+        .top-row.clickable { cursor: pointer; }
+        .top-row.clickable:hover { background: #F6F3EC; }
+        .top-bar { height: 4px; border-radius: 99px; background: #F0EBE0; overflow: hidden; margin-top: 4px; }
+        .top-bar > div { height: 100%; border-radius: 99px; }
+
         /* Score bar */
         .score-bar-wrap { width: 80px; height: 6px; background: #EFEAE0; border-radius: 99px; overflow: hidden; }
         .score-bar-fill { height: 100%; border-radius: 99px; transition: width 0.4s; }
@@ -196,7 +217,7 @@
                         </h3>
                         <span id="table-count" style="font-size:11px;color:#968B7A;"></span>
                     </div>
-                    <div style="overflow-x:auto;">
+                    <div class="score-scroll">
                         <table class="score-table">
                             <thead>
                                 <tr>
@@ -222,26 +243,41 @@
                 </div>
             </div>
 
-            <!-- Grafik (1/3) -->
+            <!-- Sağ sütun (1/3) -->
             <div class="xl:col-span-1 flex flex-col gap-4">
+                <!-- Top Müşteriler -->
+                <div style="background:#fff;border:1px solid #EFEAE0;border-radius:12px;padding:20px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                        <h3 class="label-caps" style="margin:0;">
+                            <i class="fa-solid fa-trophy" style="color:#B58858;"></i> Top Müşteriler
+                        </h3>
+                        <span style="font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#968B7A;background:#F6F3EC;border:1px solid #EFEAE0;border-radius:4px;padding:1px 5px;">Tüm yıllar</span>
+                    </div>
+                    <div id="top-customers-widget">
+                        <div style="font-size:11px;color:#968B7A;"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Yükleniyor...</div>
+                    </div>
+                    <div style="font-size:10px;color:#968B7A;margin-top:8px;line-height:1.5;">Sipariş tutarı, para birimi bazında ayrı sıralı · iptal ve bedelsiz hariç · Dashboard ile aynı hesap.</div>
+                </div>
+
                 <div style="background:#fff;border:1px solid #EFEAE0;border-radius:12px;padding:20px;">
                     <h3 class="label-caps">
                         <i class="fa-solid fa-chart-pie" style="color:#B58858;"></i> A/B/C Dağılımı
                     </h3>
-                    <div style="position:relative;height:220px;">
+                    <div style="position:relative;height:180px;">
                         <canvas id="chart-abc"></canvas>
                     </div>
                     <div id="chart-legend" style="margin-top:12px;display:flex;flex-direction:column;gap:6px;"></div>
                 </div>
-
-                <!-- Metodoloji Kartı -->
-                <div style="background:#F6F3EC;border:1px solid #EFEAE0;border-radius:12px;padding:18px;">
-                    <h3 class="label-caps">
-                        <i class="fa-solid fa-circle-info" style="color:#2D4A3E;"></i> Skor Metodolojisi
-                    </h3>
-                    <div id="method-list" style="display:flex;flex-direction:column;gap:10px;font-size:11px;color:#6B655B;line-height:1.5;"></div>
-                </div>
             </div>
+        </div>
+
+        <!-- Metodoloji Kartı (tam genişlik) -->
+        <div style="background:#F6F3EC;border:1px solid #EFEAE0;border-radius:12px;padding:18px;margin-top:24px;">
+            <h3 class="label-caps">
+                <i class="fa-solid fa-circle-info" style="color:#2D4A3E;"></i> Skor Metodolojisi
+            </h3>
+            <div id="method-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" style="font-size:11px;color:#6B655B;line-height:1.5;"></div>
+            <div id="method-foot" style="margin-top:10px;padding-top:8px;border-top:1px solid #E4DDCE;font-size:10px;color:#968B7A;"></div>
         </div>
     </main>
 

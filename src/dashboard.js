@@ -3,6 +3,7 @@ import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
 import { getAccessContext } from './utils/permissions.js';
 import { buildReceivables, isCancelled, isFreeShipment, round2 } from './utils/receivables.js';
+import { buildTopCustomers } from './utils/topCustomers.js';
 
 let monthlyChartInstance = null;
 let currencyChartInstance = null;
@@ -464,9 +465,8 @@ function renderPaymentStatus(orders, recv) {
 }
 
 // ── TOP MÜŞTERİLER ─────────────────────────────────────────────────────────────
-// Ciro para birimine göre AYRI sıralanır. Karışık toplandığında TRY tutarları
-// büyüklük olarak her zaman öne geçiyor ve EUR/USD müşteriler listeye hiç
-// giremiyordu — bkz. aynı kural sipariş/kalem toplamlarında da geçerli.
+// Sıralama src/utils/topCustomers.js'ten — Müşteri Skoru'ndaki Top Müşteriler kartı
+// aynı hesabı kullanır. Para birimleri ayrı sıralanır, iptal / bedelsiz hariç.
 let topCustomersData = null;
 let topCustomersCurrency = null;
 
@@ -477,19 +477,7 @@ function renderTopCustomers(orders, customers) {
     const custMap = {};
     customers.forEach(c => { custMap[c.id] = c; });
 
-    // { currency: { customerId: toplam } }
-    const byCurrency = {};
-    const orderCounts = {};
-    orders.forEach(o => {
-        const cid = o.customer_id;
-        if (!cid) return;
-        const c = o.currency || 'EUR';
-        if (!byCurrency[c]) byCurrency[c] = {};
-        byCurrency[c][cid] = (byCurrency[c][cid] || 0) + (parseFloat(o.total_amount) || 0);
-        orderCounts[c] = (orderCounts[c] || 0) + 1;
-    });
-
-    const currencies = Object.keys(byCurrency).sort((a, b) => orderCounts[b] - orderCounts[a]);
+    const { currencies, byCurrency } = buildTopCustomers(orders);
     if (currencies.length === 0) {
         el.innerHTML = `<div class="text-xs text-[#968B7A]">Veri yok</div>`;
         return;
@@ -521,9 +509,7 @@ function renderTopCustomersList() {
     const el = document.getElementById('top-customers-list');
     if (!el || !topCustomersData) return;
     const { byCurrency, custMap } = topCustomersData;
-    const totals = byCurrency[topCustomersCurrency] || {};
-
-    const sorted = Object.entries(totals).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    const sorted = (byCurrency[topCustomersCurrency] || []).slice(0, 3).map(r => [r.customerId, r.total]);
     if (sorted.length === 0) {
         el.innerHTML = `<div class="text-xs text-[#968B7A]">Veri yok</div>`;
         return;

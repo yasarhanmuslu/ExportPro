@@ -3,6 +3,7 @@ import { renderNavbar } from './components/navbar.js';
 import { requireAuth } from './auth/auth.js';
 import { getAccessContext, guardModuleAccess } from './utils/permissions.js';
 import { buildReceivables, isCancelled, isFreeShipment, addDays, daysBetween, todayIso } from './utils/receivables.js';
+import { buildTopCustomers } from './utils/topCustomers.js';
 
 // ─── Skor modeli (patron kararı 18.09.2026) ──────────────────────────────────
 // Dönem: son 24 ay. Ancak siparişler sisteme fiilen Kasım 2025'ten itibaren
@@ -78,6 +79,8 @@ let activeClass = 'all';  // 'all' = yalnız puanlananlar
 let activeCountry = '';
 let ctx = null;
 let windowStart = null;
+let topData = null;       // Top Müşteriler: { currencies, byCurrency }
+let topCurrency = null;
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -116,6 +119,7 @@ async function loadAndComputeScores() {
             creditNotes: cnRes.data || [],
             invoices: invRes.error ? [] : (invRes.data || []),
         });
+        topData = buildTopCustomers(orderRes.data || []);
 
         const fmtD = iso => iso.split('-').reverse().join('.');
         document.getElementById('score-window').textContent =
@@ -124,6 +128,7 @@ async function loadAndComputeScores() {
         populateCountryFilter();
         applyFilters();
         renderChart();
+        renderTopCustomers();
     } catch (err) {
         console.error('Skor hesaplama hatası:', err.message);
         document.getElementById('score-tbody').innerHTML = `
@@ -259,12 +264,9 @@ function renderMethodology() {
                 <span style="font-weight:600;color:#2D4A3E;">${pts} puan</span>
             </div>
             <div style="font-size:10px;color:#968B7A;">${hint}</div>
-        </div>`).join('') + `
-        <div style="border-top:1px solid #E4DDCE;padding-top:8px;display:flex;justify-content:space-between;">
-            <span style="font-size:12px;font-weight:600;color:#1C1A17;">Toplam</span>
-            <span style="font-size:12px;font-weight:600;color:#1C1A17;">100 puan</span>
-        </div>
-        <div style="font-size:10px;color:#968B7A;">A sınıfı için dönemde en az ${A_MIN_ORDERS} sipariş gerekir. Ayrıntı: Yardım &amp; Kılavuz › Müşteri Skoru.</div>`;
+        </div>`).join('');
+    document.getElementById('method-foot').innerHTML =
+        `Toplam 100 puan · A sınıfı için dönemde en az ${A_MIN_ORDERS} sipariş gerekir. Ayrıntı: Yardım &amp; Kılavuz › Müşteri Skoru.`;
 }
 
 // ─── Filtreler ────────────────────────────────────────────────────────────────
@@ -381,6 +383,68 @@ function updateKPIs() {
     document.getElementById('kpi-b').textContent = c.B;
     document.getElementById('kpi-c').textContent = c.C;
     document.getElementById('kpi-none').textContent = c.none;
+}
+
+// ─── Top Müşteriler ───────────────────────────────────────────────────────────
+// Dashboard'daki kartın aynısı (src/utils/topCustomers.js); burada ilk 5 ve sınıf rozeti.
+// Kapsam tüm yıllar — skor dönemi değil — Dashboard'la aynı rakamı göstersin diye.
+const TOP_N = 5;
+const TOP_COLORS = ['#2D4A3E', '#B58858', '#3F5C7A', '#6B655B', '#968B7A'];
+
+function renderTopCustomers() {
+    const el = document.getElementById('top-customers-widget');
+    if (!el || !topData) return;
+    const { currencies } = topData;
+    if (!currencies.length) {
+        el.innerHTML = `<div style="font-size:11px;color:#968B7A;">Veri yok</div>`;
+        return;
+    }
+    if (!currencies.includes(topCurrency)) topCurrency = currencies[0];
+
+    el.innerHTML = `
+        <div class="top-cur-tabs">${currencies.map(c =>
+            `<button type="button" class="top-cur-tab${c === topCurrency ? ' is-active' : ''}" data-cur="${c}">${SYMBOLS[c] || ''} ${c}</button>`).join('')}
+        </div>
+        <div id="top-customers-list"></div>`;
+    el.querySelectorAll('.top-cur-tab').forEach(btn => btn.addEventListener('click', () => {
+        topCurrency = btn.dataset.cur;
+        el.querySelectorAll('.top-cur-tab').forEach(b => b.classList.toggle('is-active', b === btn));
+        renderTopCustomersList();
+    }));
+    renderTopCustomersList();
+}
+
+function renderTopCustomersList() {
+    const el = document.getElementById('top-customers-list');
+    if (!el) return;
+    const list = (topData.byCurrency[topCurrency] || []).slice(0, TOP_N);
+    if (!list.length) { el.innerHTML = `<div style="font-size:11px;color:#968B7A;">Veri yok</div>`; return; }
+
+    const byId = new Map(allScores.map(s => [s.id, s]));
+    const max = list[0].total;
+    const sym = SYMBOLS[topCurrency] || topCurrency;
+    el.innerHTML = list.map((r, i) => {
+        const s = byId.get(r.customerId);
+        const scored = s && s.cls !== 'none';
+        const pct = max > 0 ? Math.round((r.total / max) * 100) : 0;
+        const badge = scored
+            ? `<span class="${BADGE[s.cls]}" style="display:inline-block;padding:0 7px;border-radius:99px;font-size:9px;font-weight:700;margin-left:6px;" title="Skor ${s.total}">${s.cls}</span>`
+            : '';
+        return `
+        <div class="top-row${scored ? ' clickable' : ''}" data-cid="${escHtml(r.customerId)}" ${scored ? 'title="Skor detayını aç"' : ''}>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                <span style="font-size:12px;font-weight:500;color:#1C1A17;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${i + 1}. ${escHtml(s?.name || 'Bilinmiyor')}${badge}</span>
+                <span style="font-size:11px;font-family:monospace;color:#2D4A3E;white-space:nowrap;">${r.total.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ${sym}</span>
+            </div>
+            <div style="font-size:10px;color:#968B7A;margin-top:1px;">${escHtml(s?.country || '—')} · ${r.orders} sipariş</div>
+            <div class="top-bar"><div style="width:${pct}%;background:${TOP_COLORS[i]};"></div></div>
+        </div>`;
+    }).join('');
+
+    el.querySelectorAll('.top-row.clickable').forEach(row => row.addEventListener('click', () => {
+        const s = byId.get(row.dataset.cid);
+        if (s) openDetailModal(s);
+    }));
 }
 
 // ─── Grafik ───────────────────────────────────────────────────────────────────

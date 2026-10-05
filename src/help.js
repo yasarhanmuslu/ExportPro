@@ -471,6 +471,8 @@ const pages = [
             </ul>
             <h4>Hariç tutulanlar</h4>
             <p>İptal ve bedelsiz siparişler ile iptal edilmiş Credit Note'lar hesaba girmez. İskonto oranı artık bir kriter değildir; iskonto riski değil anlaşılan fiyat seviyesini gösterir.</p>
+            <h4>Ekran</h4>
+            <p>Skor tablosu kendi içinde kayar, başlık satırı sabit kalır. Sağdaki <strong>Top Müşteriler</strong> kartı Dashboard'dakiyle aynı hesaptır: tüm yıllar, sipariş tutarı para birimi bazında ayrı sıralı, iptal ve bedelsiz hariç; ilk 5 müşteri sınıf rozetiyle gösterilir, tıklayınca skor detayı açılır.</p>
             <h4>Bilinen sınırlama</h4>
             <p>Çekle ödeyen ve faturasında vade olmayan müşterilerde (ör. Insteel) gecikme hesaplanamaz; ödeme puanları tam görünür.</p>
         `
@@ -516,15 +518,25 @@ const pages = [
         color: '#2A6B5A',
         short: 'Ülke bazlı ihracat görünümü',
         desc: `
-            <p>Müşteri, sipariş ve credit note verilerinden ülke bazlı bir görünüm çıkarır.</p>
-            <h4>Görebilecekleriniz</h4>
+            <p>Satışları müşterinin ülkesine göre toplar. Soru: <em>hangi pazarlara, kaç müşteriye, ne kadar satıyoruz; hangi ürün türleri nereye gidiyor; müşterisi olup sipariş gelmeyen pazarlar hangileri?</em></p>
+            <h4>Filtreler</h4>
             <ul>
-                <li><strong>Kartlar:</strong> İhracat yapılan ülke sayısı, en yüksek cirolu ülke, en yüksek şikayet oranlı ülke, bu yıl yeni eklenen ülkeler.</li>
-                <li><strong>Ülke Performans Tablosu:</strong> Ülke başına müşteri, sipariş, ciro, şikayet, şikayet oranı ve yıllık büyüme.</li>
-                <li><strong>Grafikler:</strong> İlk 15 ülke ve seçilen ülkenin son 3 yıllık aylık trendi.</li>
+                <li><strong>Yıl</strong> — sipariş tarihine göre (Credit Note'larda CN tarihine göre).</li>
+                <li><strong>Para Birimi</strong> — Tümü ya da tek para birimi. Credit Note sayısına uygulanmaz.</li>
+                <li><strong>Gruplama</strong> — Ülke ya da Bölge → Ülke. Bölgeler Müşteriler modülündeki haritadan gelir; yalnız Türkiye burada <em>İç Piyasa</em> olarak ayrı tutulur.</li>
+                <li><strong>İç piyasayı hariç tut</strong> — Türkiye'deki müşterilere satışları (TL ve ihraç kayıtlı USD) çıkarır.</li>
             </ul>
-            <h4>Bilinen sınırlama</h4>
-            <p>Ciro tutarları şu an <strong>para birimi ayrılmadan</strong> toplanıyor ve "USD" etiketiyle gösteriliyor (EUR, USD ve TL siparişler aynı toplamda). Ülke sıralamasını kaba bir fikir olarak kullanın; tutarlar için Dashboard ve Satış &amp; Fiyat Analizi esas alınır. Modül gözden geçirilecek.</p>
+            <h4>Kartlar</h4>
+            <ul>
+                <li><strong>Aktif Pazar:</strong> dönemde siparişi olan ülke / müşterisi kayıtlı ülke. "Yeni pazar" sayısı 2027'den itibaren görünür (siparişler Kasım 2025'ten beri girildiği için 2026'da her pazar yeni sayılırdı).</li>
+                <li><strong>Sipariş / Müşteri, Ciro, En Büyük Pazar</strong> (her para biriminde ayrı), <strong>Credit Note</strong>.</li>
+            </ul>
+            <h4>Pazar Tablosu</h4>
+            <p><strong>Ciro</strong> sipariş tutarıdır — Dashboard'daki Toplam Ciro ile aynı kapsam (iptal ve bedelsiz hariç); aynı yıl seçilince toplamlar kuruşu kuruşuna eşittir. Para birimleri ayrı yazılır, kur çevrimi yapılmaz; tutarın yanındaki yüzde o para birimindeki toplamdaki paydır. <strong>Adet</strong> sipariş kalemlerinden gelir (kalemi girilmemiş siparişlerde 0). <strong>Pay</strong> çubuğu "Tümü"de adede, tek para birimi seçiliyken o para birimindeki ciroya göredir. <strong>Müşteri</strong>: dönemde sipariş veren / o ülkede kayıtlı müşteri.</p>
+            <h4>Tıklayınca</h4>
+            <p>Ülke satırı pazar kartını açar: aylık sipariş sayısı, müşteriler (durum, grup, ciro, CN), <strong>ürün türleri</strong> (katalogdaki Ürün Türü alanına göre, Ürün Analizi ile aynı eşleştirme), siparişler ve o dönemde siparişi olmayan kayıtlı müşteriler. Müşteriye tıklayınca müşterinin ürün türü, sipariş ve Credit Note listesi açılır. Bölge satırı ülkelere açılır; <em>Detay</em> butonu bölge kartını gösterir. "Geri" oku bir önceki pencereye döner.</p>
+            <h4>Siparişsiz pazarlar</h4>
+            <p>Tablonun altındaki katlanır liste: müşterisi kayıtlı olduğu hâlde seçili dönemde siparişi olmayan ülkeler; müşteri durumları (Aktif / Potansiyel / Pasif) ve tüm yıllar içindeki son sipariş tarihiyle. Satıra tıklayınca o ülkenin müşteri listesi açılır.</p>
         `
     },
     {
