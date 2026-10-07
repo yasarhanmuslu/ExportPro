@@ -551,16 +551,18 @@ const pages = [
             <h4>Adımlar</h4>
             <ol>
                 <li><strong>Araç seçin:</strong> Standart Tenteli Tır, Mega Tenteli Tır, 40' HQ, 20' DC, 10 Teker Kamyon ya da ölçüleri elle girilen özel araç.</li>
-                <li><strong>Operasyonel payı girin:</strong> Sağ, sol, ön ve arkada bırakılacak boşluk (cm).</li>
+                <li><strong>Duvar payını girin:</strong> Araç duvarlarına (sol, sağ, ön, arka) bırakılacak boşluk (cm). Gerekirse palet arası boşluk da girilebilir. 245 cm tırda 120 + 120 dizilimi için sol + sağ toplamı en fazla 5 cm olmalı.</li>
+                <li><strong>Yükleme seçenekleri:</strong> <em>İstif yapma</em> ve parsiyel yüklemeler için <em>Tek sıra</em> (yük sol duvara yaslanır, aracın kalanı boş kalır).</li>
                 <li><strong>Paletleri ve adetlerini seçin.</strong></li>
                 <li><strong>Hesaplama türünü seçin:</strong>
                     <ul>
-                        <li><em>Kusursuz Denge Hesabı</em> — ağırlık merkezini dengeler ve boşluğu azaltır.</li>
-                        <li><em>En Az Boşluk Hesabı</em> — ağırlığı dikkate almaz, yalnızca hacim doluluğunu en üste çıkarır.</li>
+                        <li><em>Kusursuz Denge Hesabı</em> — yükü tabana yayar, yalnızca gerektiği kadar istif yapar.</li>
+                        <li><em>En Az Boşluk Hesabı</em> — olabildiğince yüksek istifler, yükü öne toplar; kapı tarafında boş yer kalır.</li>
                     </ul>
                 </li>
             </ol>
-            <p>Sonuçta doluluk ve ağırlık özetleri ile ağır / orta / hafif renkli 3D görünüm çıkar. Sığmayan paletler ayrıca listelenir.</p>
+            <p>Paletler sahadaki gibi sıra sıra dizilir: tırda 120 + 120 (kısa kenar boyuna), konteynerde 120 + 120 sığmazsa bir ters bir düz (120 + 80 ya da 120 + 100). Ağır paletler öne, ön dingil tarafına konur.</p>
+            <p>Sonuçta doluluk ve ağırlık özetleri ile ağır / orta / hafif renkli 3D görünüm çıkar. Yüklenemeyen paletler nedeniyle listelenir: yer yetmedi, araçtan yüksek ya da ağırlık sınırı aşılıyor.</p>
             <p>İstif kuralları (istiflenebilir mi, hangi katman) Palet Tanımları'ndan gelir.</p>
         `
     },
