@@ -96,11 +96,15 @@ async function loadProducts() {
 function populateFilterDropdowns() {
     const grupSel = document.getElementById('fil-grup');
     const seriSel = document.getElementById('fil-seri');
+    // Yeniden doldurma kayıt sonrası da çalışır; seçili filtreyi koru
+    const prevGrup = grupSel.value, prevSeri = seriSel.value;
 
     grupSel.innerHTML = '<option value="">Tüm Gruplar</option>' +
         distinctGruplar.map(g => `<option>${g}</option>`).join('');
     seriSel.innerHTML = '<option value="">Tüm Seriler</option>' +
         distinctSeriler.map(s => `<option>${s}</option>`).join('');
+    if (distinctGruplar.includes(prevGrup)) grupSel.value = prevGrup;
+    if (distinctSeriler.includes(prevSeri)) seriSel.value = prevSeri;
 }
 
 function populateFormDropdowns() {

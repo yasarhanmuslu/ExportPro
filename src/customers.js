@@ -93,7 +93,7 @@ async function fetchCustomers() {
         globalCustomers = customers || [];
         populateCountryFilter(globalCustomers);
         populateOwnerFilter(globalCustomers);
-        renderCustomersList(globalCustomers);
+        applyFilters();   // kayıt sonrası yenilemede aktif filtreler korunur
 
     } catch (error) {
         console.error("Müşteri listesi çekilemedi:", error.message);

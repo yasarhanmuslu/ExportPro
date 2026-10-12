@@ -112,7 +112,7 @@ async function fetchQuotationsData() {
             }
             return q;
         });
-        renderQuotationsList(globalQuotations);
+        applyFilters();   // kayıt sonrası yenilemede aktif filtreler korunur
     } catch (err) {
         console.error('Teklif verileri yüklenemedi:', err.message);
         document.getElementById('quotations-card-list').innerHTML =

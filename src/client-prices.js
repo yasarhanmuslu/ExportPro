@@ -414,7 +414,7 @@ async function fetchClientPrices() {
         });
 
         globalClientPrices = Object.values(grouped);
-        renderClientPriceCards(globalClientPrices);
+        applySearch();   // kayıt sonrası yenilemede arama korunur
     } catch (err) {
         console.error("Müşteri fiyatları yüklenemedi:", err.message);
     }

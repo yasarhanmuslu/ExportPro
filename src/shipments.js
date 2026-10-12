@@ -116,7 +116,7 @@ async function loadData(session) {
         populateOrderDropdown(custMap);
         populateFilterDropdowns();
         renderKPIs();
-        renderTable(globalShipments);
+        applyFilters();   // kayıt sonrası yenilemede aktif filtreler korunur
 
     } catch (err) {
         console.error('Sevkiyat veri hatası:', err.message);

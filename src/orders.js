@@ -217,7 +217,7 @@ async function fetchOrdersData() {
         globalOrders = data || [];
         await autoApplyGecikmeTags(globalOrders);
         await fetchCreditNotesForOrders();
-        renderOrdersList(globalOrders);
+        applyFilters();   // kayıt sonrası yenilemede aktif filtreler korunur
     } catch (err) {
         console.error('Sipariş verileri yüklenemedi:', err.message);
         document.getElementById('orders-card-list').innerHTML =

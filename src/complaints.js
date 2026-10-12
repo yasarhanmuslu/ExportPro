@@ -110,6 +110,8 @@ function populateFilterOptions() {
             .map(cn => [cn.customer_id, cn.customers.company_name])
     ).entries()].sort((a, b) => a[1].localeCompare(b[1]));
 
+    // Yeniden doldurma kayıt sonrası da çalışır; seçili filtreyi koru
+    const prevCustomer = customerSelect.value;
     customerSelect.innerHTML = '<option value="">Tüm Müşteriler</option>';
     customers.forEach(([id, name]) => {
         const opt = document.createElement('option');
@@ -117,6 +119,7 @@ function populateFilterOptions() {
         opt.textContent = name;
         customerSelect.appendChild(opt);
     });
+    if (customers.some(([id]) => String(id) === prevCustomer)) customerSelect.value = prevCustomer;
 
     // Ürün kodu listesi
     const productSelect = document.getElementById('filter-product-code');
@@ -124,6 +127,7 @@ function populateFilterOptions() {
         rawData.flatMap(cn => (cn.credit_note_items || []).map(i => i.product_code).filter(Boolean))
     )].sort();
 
+    const prevCode = productSelect.value;
     productSelect.innerHTML = '<option value="">Tüm Ürünler</option>';
     codes.forEach(code => {
         const opt = document.createElement('option');
@@ -131,6 +135,7 @@ function populateFilterOptions() {
         opt.textContent = code;
         productSelect.appendChild(opt);
     });
+    if (codes.includes(prevCode)) productSelect.value = prevCode;
 }
 
 // ── Filtreleri uygula ve render ───────────────────────────────────────────────
