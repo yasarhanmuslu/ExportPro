@@ -156,6 +156,7 @@
             <div class="flex items-center gap-2">
                 <button id="btn-refresh" class="pt-btn"><i class="fa-solid fa-rotate-right"></i> Yenile</button>
                 <button id="btn-new-refund" class="pt-btn" data-requires-edit title="Müşteriye geri ödeme: fazla ödeme ya da avans/depozito iadesi"><i class="fa-solid fa-rotate-left"></i> İade Gir</button>
+                <button id="btn-new-cheque" class="pt-btn" data-requires-edit title="Müşteriden alınan çeki portföye kaydet"><i class="fa-solid fa-money-check"></i> Çek Gir</button>
                 <button id="btn-new-payment" class="pt-btn primary" data-requires-edit><i class="fa-solid fa-plus"></i> Tahsilat Gir</button>
             </div>
         </header>
@@ -164,6 +165,7 @@
             <button class="pt-tab active" data-tab="dashboard"><i class="fa-solid fa-gauge"></i> Genel Bakış</button>
             <button class="pt-tab" data-tab="open"><i class="fa-solid fa-file-invoice-dollar"></i> Açık Alacaklar <span class="cnt" id="cnt-open">0</span></button>
             <button class="pt-tab" data-tab="payments"><i class="fa-solid fa-money-bill-transfer"></i> Tahsilatlar</button>
+            <button class="pt-tab" data-tab="cheques"><i class="fa-solid fa-money-check"></i> Çek Portföyü <span class="cnt" id="cnt-cheques">0</span></button>
             <button class="pt-tab" data-tab="eximbank"><i class="fa-solid fa-shield-halved"></i> Eximbank <span class="cnt" id="cnt-exim">0</span></button>
             <button class="pt-tab" data-tab="manual"><i class="fa-solid fa-book"></i> Manuel Alacaklar <span class="cnt" id="cnt-manual">0</span></button>
         </nav>
@@ -241,7 +243,7 @@
                 <div class="pt-table-wrap" id="open-table"></div>
                 <div class="hint" style="margin-top:10px;">
                     Alacak <b>faturayla</b> doğar. Henüz faturalanmamış (sevk edilmemiş) sipariş bakiyeleri bu listede değil, aşağıda ayrı gösterilir.
-                    "Vadesiz": peşin / mal mukabili faturalar ve Insteel gibi çekle ödeyen müşteriler — süre fatura tarihinden sayılır.
+                    "Vadesiz": peşin / mal mukabili faturalar — süre fatura tarihinden sayılır. Çeke bağlanmış siparişlerde (Insteel) vade <b>çekin vadesidir</b>.
                 </div>
             </div>
 
@@ -279,6 +281,35 @@
                     </div>
                 </div>
                 <div class="pt-table-wrap" id="payments-table"></div>
+            </div>
+        </section>
+
+        <!-- ═══════════ ÇEK PORTFÖYÜ ═══════════ -->
+        <section class="pt-panel" id="panel-cheques" hidden>
+            <div class="kpi-grid" id="chq-kpis"></div>
+            <div class="section-card">
+                <div class="filter-bar">
+                    <div class="pt-field" style="min-width:240px;flex:1;">
+                        <label>Ara</label>
+                        <input id="chq-search" class="pt-input" placeholder="Müşteri, çek no, banka, sipariş no…">
+                    </div>
+                    <div class="pt-field">
+                        <label>Durum</label>
+                        <div class="chip-group" id="chq-status">
+                            <button data-v="active" class="active">Portföyde / bankada</button>
+                            <button data-v="collected">Tahsil edilen</button>
+                            <button data-v="problem">Karşılıksız / iade</button>
+                            <button data-v="">Tümü</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="pt-table-wrap" id="cheque-table"></div>
+                <div class="hint" style="margin-top:10px;">
+                    Çek alındığı gün <b>Çek Gir</b> ile kaydedilir ve kapsadığı siparişlere bağlanır; bu siparişlerin vadesi çekin vadesi olur.
+                    Para hesaba geçince <b>Tahsil edildi</b> deyin — tahsilat kaydı (ödeme yolu Çek) kendiliğinden açılır.
+                    Vadesi geçtiği hâlde tahsil edilmemiş çek kırmızı görünür. Karşılıksız ya da iade edilen çek siparişleri yeniden açık bırakır.
+                    Tahsil işaretini geri almak için Tahsilatlar'dan çekin tahsilat kaydını silin; çek portföye döner.
+                </div>
             </div>
         </section>
 
@@ -822,6 +853,121 @@
     </div>
 
     <!-- ═══════════ PANEL DETAY MODALI ═══════════ -->
+    <!-- ═══════════ ÇEK MODALI ═══════════ -->
+    <div id="cheque-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width:60rem;">
+            <div class="modal-head">
+                <h3 id="cq-title"><i class="fa-solid fa-money-check" style="color:var(--accent);"></i> Çek Gir</h3>
+                <button class="pt-btn icon sm" data-close="cheque-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="grid-3">
+                    <div class="pt-field" style="grid-column:span 2;">
+                        <label>Müşteri *</label>
+                        <div class="cb">
+                            <input id="cq-customer-input" class="pt-input" placeholder="Firma adının herhangi bir kısmını yazın…" autocomplete="off">
+                            <div class="cb-list" id="cq-customer-list" hidden></div>
+                        </div>
+                    </div>
+                    <div class="pt-field">
+                        <label>Durum</label>
+                        <select id="cq-status" class="pt-select">
+                            <option>Portföyde</option><option>Bankaya Verildi</option><option>Karşılıksız</option><option>İade Edildi</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid-4" style="margin-top:12px;">
+                    <div class="pt-field">
+                        <label>Çek no</label>
+                        <input id="cq-no" class="pt-input">
+                    </div>
+                    <div class="pt-field">
+                        <label>Banka / şube</label>
+                        <input id="cq-bank" class="pt-input" list="cq-bank-list">
+                        <datalist id="cq-bank-list"></datalist>
+                    </div>
+                    <div class="pt-field">
+                        <label>Keşide tarihi</label>
+                        <input id="cq-issue" type="date" class="pt-input">
+                    </div>
+                    <div class="pt-field">
+                        <label>Vade *</label>
+                        <input id="cq-due" type="date" class="pt-input">
+                    </div>
+                </div>
+                <div class="grid-4" style="margin-top:12px;">
+                    <div class="pt-field">
+                        <label>Para birimi *</label>
+                        <select id="cq-currency" class="pt-select">
+                            <option>TRY</option><option>EUR</option><option>USD</option><option>GBP</option>
+                        </select>
+                    </div>
+                    <div class="pt-field">
+                        <label>Tutar *</label>
+                        <input id="cq-amount" class="pt-input num" placeholder="0,00">
+                    </div>
+                    <div class="pt-field" style="grid-column:span 2;">
+                        <label>Not</label>
+                        <input id="cq-notes" class="pt-input">
+                    </div>
+                </div>
+
+                <div style="display:flex;align-items:center;justify-content:space-between;margin:20px 0 8px;">
+                    <div class="section-title" style="margin:0;"><i class="fa-solid fa-link"></i> Kapsadığı siparişler</div>
+                    <div class="flex gap-2">
+                        <button class="pt-btn sm" id="cq-fifo"><i class="fa-solid fa-wand-magic-sparkles"></i> En eski siparişten dağıt</button>
+                        <button class="pt-btn sm" id="cq-clear">Temizle</button>
+                    </div>
+                </div>
+                <div class="pt-table-wrap" id="cq-alloc"></div>
+                <div class="alloc-summary" id="cq-summary"></div>
+                <div class="hint" style="margin-top:8px;">
+                    Henüz sevk edilmemiş siparişler de çeke bağlanabilir. Bağlanan siparişlerin vadesi çekin vadesi olur;
+                    para siparişlere çek <b>tahsil edildiğinde</b> işlenir.
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="pt-btn danger" id="cq-delete" style="margin-right:auto;" hidden><i class="fa-solid fa-trash"></i> Çeki sil</button>
+                <button class="pt-btn" data-close="cheque-modal">Vazgeç</button>
+                <button class="pt-btn primary" id="cq-save"><i class="fa-solid fa-check"></i> Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════ ÇEK TAHSİL MODALI ═══════════ -->
+    <div id="cheque-collect-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width:44rem;">
+            <div class="modal-head">
+                <h3><i class="fa-solid fa-circle-check" style="color:var(--ok);"></i> Çek tahsil edildi</h3>
+                <button class="pt-btn icon sm" data-close="cheque-collect-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="cc-context" class="alloc-summary" style="margin:0 0 12px;"></div>
+                <div class="grid-2">
+                    <div class="pt-field">
+                        <label>Hesaba geçtiği tarih *</label>
+                        <input id="cc-date" type="date" class="pt-input">
+                    </div>
+                    <div class="pt-field">
+                        <label>Banka hesabı</label>
+                        <input id="cc-bank" class="pt-input" list="cc-bank-list" placeholder="ör. Garanti TL">
+                        <datalist id="cc-bank-list"></datalist>
+                    </div>
+                </div>
+                <div class="pt-field" style="margin-top:12px;">
+                    <label>Not</label>
+                    <input id="cc-notes" class="pt-input">
+                </div>
+                <div class="section-title" style="margin:18px 0 8px;"><i class="fa-solid fa-diagram-project"></i> Siparişlere işlenecek</div>
+                <div class="pt-table-wrap" id="cc-rows"></div>
+            </div>
+            <div class="modal-foot">
+                <button class="pt-btn" data-close="cheque-collect-modal">Vazgeç</button>
+                <button class="pt-btn primary" id="cc-save"><i class="fa-solid fa-check"></i> Tahsilatı kaydet</button>
+            </div>
+        </div>
+    </div>
+
     <div id="kpi-modal" class="modal-backdrop hidden">
         <div class="modal-content" style="max-width:74rem;">
             <div class="modal-head">

@@ -26,8 +26,8 @@ const TODAY = todayIso();
 
 const S = {
     customers: [], orders: [], invoices: [], payments: [], allocations: [],
-    notices: [], plans: [], reminders: [],
-    items: [], pending: [],
+    notices: [], plans: [], reminders: [], cheques: [], chequeAllocs: [],
+    items: [], pending: [], chequeByOrder: new Map(),
     custById: new Map(), orderById: new Map(),
 };
 
@@ -111,7 +111,14 @@ function dueCell(item) {
     else if (d >= -7) pill = `<span class="pill warn">${-d} gün kaldı</span>`;
     else pill = `<span class="pill neutral">${-d} gün kaldı</span>`;
     const plan = item.planNote ? `<div class="muted" style="font-size:10.5px;margin-top:3px;">${esc(item.planNote)}</div>` : '';
-    return `<div class="nowrap">${dateTr(item.dueDate)}</div><div style="margin-top:3px;">${pill}</div>${plan}`;
+    return `<div class="nowrap">${dateTr(item.dueDate)}</div><div style="margin-top:3px;">${pill}</div>${plan}${chequeNote(item)}`;
+}
+
+// Siparişi kapsayan aktif çekler: "Çek 123 · 17.12.2026 · 1.000.000,00 ₺"
+function chequeNote(item) {
+    if (!item.cheques?.length) return '';
+    return item.cheques.map(({ cheque: c }) => `<div class="muted nowrap" style="font-size:10.5px;margin-top:3px;" title="${esc(c.status)}">
+        <i class="fa-solid fa-money-check"></i> Çek${c.cheque_no ? ' ' + esc(c.cheque_no) : ''} · ${dateTr(c.due_date)} · ${money(c.amount, c.currency)}</div>`).join('');
 }
 
 function docCell(item) {
@@ -152,11 +159,13 @@ async function loadData() {
             supabase.from('eximbank_notices').select('*').eq('user_id', owner).order('notice_date', { ascending: false }),
             supabase.from('payment_plans').select('*, payment_plan_installments(*)').eq('user_id', owner),
             supabase.from('collection_reminders').select('*').eq('user_id', owner).order('reminder_date', { ascending: false }),
+            supabase.from('cheques').select('*').eq('user_id', owner).order('due_date'),
+            supabase.from('cheque_allocations').select('*'),
         ]);
         const err = results.find(r => r.error)?.error;
         if (err) throw err;
 
-        [S.customers, S.orders, S.invoices, S.payments, S.allocations, S.notices, S.plans, S.reminders] =
+        [S.customers, S.orders, S.invoices, S.payments, S.allocations, S.notices, S.plans, S.reminders, S.cheques, S.chequeAllocs] =
             results.map(r => r.data || []);
 
         S.custById = new Map(S.customers.map(c => [c.id, c]));
@@ -168,6 +177,7 @@ async function loadData() {
         S.items = built.items;
         S.pending = built.pending;
         applyPaymentPlans();
+        applyCheques();
         splitManualTracking();
 
         renderAll();
@@ -198,6 +208,32 @@ function applyPaymentPlans() {
     });
 }
 
+// Insteel modeli (023): çek yazılınca kapsadığı siparişlerin vadesi çekin vadesidir.
+// Bir siparişi birden çok çek kapsıyorsa en yakın vadeli çek esas alınır. Çek tahsil
+// edilmeden vadesi geçerse alacak gecikmiş görünür — "Tahsil edildi" unutulmasın.
+// Karşılıksız / iade edilen çek siparişi kapsamaz.
+function applyCheques() {
+    S.chequeByOrder = new Map();
+    S.cheques.filter(isActiveCheque).forEach(ch => {
+        chequeAllocations(ch.id).filter(a => a.order_id && Number(a.amount) > 0).forEach(a => {
+            if (!S.chequeByOrder.has(a.order_id)) S.chequeByOrder.set(a.order_id, []);
+            S.chequeByOrder.get(a.order_id).push({ cheque: ch, amount: Number(a.amount) });
+        });
+    });
+    S.chequeByOrder.forEach(list => list.sort((a, b) => a.cheque.due_date.localeCompare(b.cheque.due_date)));
+    [...S.items, ...S.pending].forEach(item => {
+        const list = S.chequeByOrder.get(item.orderId);
+        if (!list) return;
+        item.cheques = list;
+        if (!item.kind) return; // faturalanmamış bakiye: vadesi yok, sadece işaretlenir
+        const due = list[0].cheque.due_date;
+        item.dueDate = due;
+        item.overdueDays = daysBetween(due, TODAY);
+        item.bucket = agingBucket(due, TODAY);
+        item.planNote = null;
+    });
+}
+
 // Manuel takibe alınmış siparişler (SQL 034) Açık Alacaklar'dan ve vade panellerinden çıkar,
 // Manuel Alacaklar sekmesinde izlenir. Eximbank sekmesi sigorta süreleri kaçmasın diye hepsini görür.
 function splitManualTracking() {
@@ -212,6 +248,7 @@ function renderAll() {
     renderDashboard();
     renderOpen();
     renderPayments();
+    renderCheques();
     renderEximbank();
     renderManual();
     fillCurrencyFilter();
@@ -238,6 +275,7 @@ const F = {
     openSearch: '', openCurrency: '', openKind: '', openBucket: '', openSort: 'overdue',
     paySearch: '', payFrom: '', payTo: '', payShowOpening: false, payExpanded: new Set(),
     manSearch: '', manExpanded: new Set(),
+    chqSearch: '', chqStatus: 'active',
 };
 
 function initFilters() {
@@ -248,6 +286,8 @@ function initFilters() {
     chipGroup('open-bucket', v => { F.openBucket = v; renderOpen(); });
     on('open-sort', 'change', e => { F.openSort = e.target.value; renderOpen(); });
     on('man-search', 'input', e => { F.manSearch = e.target.value.toLocaleLowerCase('tr-TR'); renderManual(); });
+    on('chq-search', 'input', e => { F.chqSearch = norm(e.target.value.trim()); renderCheques(); });
+    chipGroup('chq-status', v => { F.chqStatus = v; renderCheques(); });
 
     on('pay-search', 'input', e => { F.paySearch = norm(e.target.value.trim()); renderPayments(); });
     on('pay-toggle-all', 'click', () => {
@@ -266,6 +306,7 @@ function initFilters() {
     });
     on('btn-new-payment', 'click', () => openPaymentModal({}));
     on('btn-new-refund', 'click', () => openRefundModal());
+    on('btn-new-cheque', 'click', () => openChequeModal());
 
     // Tablo içi butonlar (event delegation)
     document.body.addEventListener('click', e => {
@@ -292,6 +333,8 @@ function initFilters() {
         if (act === 'date-pay')    { closeModal('payment-modal'); openDateModal(id); }
         if (act === 'edit-pay')    openPayEditModal(id);
         if (act === 'order-note')  openOrderNoteModal(id);
+        if (act === 'cheque-edit')    openChequeModal(S.cheques.find(c => c.id === id));
+        if (act === 'cheque-collect') openCollectModal(id);
         if (act === 'toggle-plan') { F.manExpanded.has(id) ? F.manExpanded.delete(id) : F.manExpanded.add(id); renderManual(); }
     });
 }
@@ -342,7 +385,7 @@ function renderDashboard() {
     // Panel detay penceresi (openKpiModal) aynı listeleri kullanır.
     S.kpi = { open: live, overdue, upcoming, month: monthMoves, pending: S.openPending };
 
-    const kpi = (id, title, icon, color, body, sub, accent = '') => `
+    const kpi = (id, title, icon, color, body, sub, accent = '', more = 'Siparişleri göster →') => `
         <div class="kpi-card ${accent}" data-kpi="${id}" title="Detay için tıklayın">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
                 <i class="fa-solid ${icon}" style="color:${color};font-size:13px;"></i>
@@ -350,7 +393,7 @@ function renderDashboard() {
             </div>
             <div class="kpi-lines">${body}</div>
             <div class="kpi-sub">${sub}</div>
-            <div class="kpi-more">Siparişleri göster →</div>
+            <div class="kpi-more">${more}</div>
         </div>`;
 
     document.getElementById('kpi-grid').innerHTML = [
@@ -366,6 +409,7 @@ function renderDashboard() {
             `${S.openPending.length} sipariş · alacak değil`),
         kpi('manual', 'Manuel takip', 'fa-book', 'var(--bronze)', currencyLines(sumByCurrency([...S.manualItems, ...S.manualPending])),
             `${new Set([...S.manualItems, ...S.manualPending].map(i => i.orderId)).size} sipariş · serbest takip`),
+        chequeKpi(kpi),
     ].join('');
 
     document.getElementById('cnt-open').textContent = live.length;
@@ -412,7 +456,7 @@ function renderDashboard() {
 
 // Üstteki panellere tıklanınca: panelin rakamını oluşturan siparişlerin listesi.
 function openKpiModal(id) {
-    if (id === 'manual') { window.__showPaymentsTab('manual'); window.scrollTo(0, 0); return; }
+    if (id === 'manual' || id === 'cheques') { window.__showPaymentsTab(id); window.scrollTo(0, 0); return; }
     const list = S.kpi?.[id];
     if (!list) return;
     const title = {
@@ -616,7 +660,7 @@ function renderOpen() {
             <td class="strong">${esc(p.customerName)}</td>
             <td>${esc(p.orderNumber)}</td>
             <td class="nowrap">${dateTr(p.orderDate)}</td>
-            <td>${(p.tags || []).filter(t => t !== 'Gecikme').map(t => `<span class="pill neutral" style="margin:1px;">${esc(t)}</span>`).join('')}</td>
+            <td>${(p.tags || []).filter(t => t !== 'Gecikme').map(t => `<span class="pill neutral" style="margin:1px;">${esc(t)}</span>`).join('')}${chequeNote(p)}</td>
             <td class="num">${money(p.total, p.currency)}</td>
             <td class="num">${money(p.uninvoiced, p.currency)}</td>
             <td class="num strong">${money(p.open, p.currency)}</td>
@@ -977,14 +1021,499 @@ async function deletePayment(id) {
     const ok = await showConfirmDialog(
         `${cust} · ${dateTr(p.payment_date)} · ${money(p.amount, p.currency)}\n\n` + (refund
             ? 'Bu iade kaydı silinecek; iade edilen tutar yeniden siparişin tahsilatı / müşteri avansı sayılacak.'
-            : 'Bu tahsilat ve dağıtımları silinecek; ilgili siparişlerin bakiyesi yeniden açılacak.'),
+            : 'Bu tahsilat ve dağıtımları silinecek; ilgili siparişlerin bakiyesi yeniden açılacak.')
+            + (p.cheque_id ? '\n\nBu tahsilat bir çekten geliyor: çek yeniden "Portföyde" sayılacak.' : ''),
         { title: refund ? 'İadeyi sil' : 'Tahsilatı sil', variant: 'danger', confirmText: 'Sil' });
     if (!ok) return;
     const { error } = await supabase.from('payments').delete().eq('id', id);
     if (error) { await showAlertDialog('Silinemedi: ' + error.message, { variant: 'danger' }); return; }
+    if (p.cheque_id) {
+        const { error: ce } = await supabase.from('cheques').update({ status: 'Portföyde' }).eq('id', p.cheque_id).eq('status', 'Tahsil Edildi');
+        if (ce) await showAlertDialog(`Tahsilat silindi ama çekin durumu güncellenemedi: ${ce.message}\nÇek Portföyü'nden durumu elle düzeltin.`, { variant: 'warn' });
+    }
     logChange({ ctx, moduleId: MODULE, action: 'delete', summary: `${refund ? 'İade' : 'Tahsilat'} silindi: ${cust} ${money(p.amount, p.currency)} (${dateTr(p.payment_date)})`, details: { payment: p } });
     toast(refund ? 'İade silindi.' : 'Tahsilat silindi.');
     await loadData();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ÇEK PORTFÖYÜ
+// Müşteriden alınan çekler (023: cheques / cheque_allocations). Çek alındığı gün
+// kapsadığı siparişlere bağlanır; para ancak çek TAHSİL EDİLDİĞİNDE payments'a
+// method 'Çek' + cheque_id ile yazılıp siparişlere dağıtılır. Insteel her sevkte
+// değil, birkaç sevk birikince çek yazar; henüz sevk edilmemiş sipariş de çeke
+// dahil edilebilir (patron, 19.10.2026).
+// ═══════════════════════════════════════════════════════════════════════════
+const CHEQUE_ACTIVE = ['Portföyde', 'Bankaya Verildi'];
+
+function isActiveCheque(c) { return CHEQUE_ACTIVE.includes(c.status); }
+function chequeAllocations(chequeId) { return S.chequeAllocs.filter(a => a.cheque_id === chequeId); }
+function chequePayment(chequeId) { return S.payments.find(p => p.cheque_id === chequeId) || null; }
+function chequeCustomer(c) { return S.custById.get(c.customer_id)?.company_name || '—'; }
+function chequeLabel(c) { return `Çek${c.cheque_no ? ' ' + c.cheque_no : ''} · vade ${dateTr(c.due_date)} · ${money(c.amount, c.currency)}`; }
+
+function chequeDuePill(c) {
+    if (!isActiveCheque(c)) return '';
+    const d = daysBetween(c.due_date, TODAY);
+    if (d > 0)   return `<span class="pill danger">${d} gün geçti</span>`;
+    if (d === 0) return `<span class="pill warn">Bugün</span>`;
+    return `<span class="pill ${d >= -7 ? 'warn' : 'neutral'}">${-d} gün kaldı</span>`;
+}
+
+function chequeStatusPill(c) {
+    return {
+        'Portföyde':       `<span class="pill accent">Portföyde</span>`,
+        'Bankaya Verildi': `<span class="pill info">Bankaya verildi</span>`,
+        'Tahsil Edildi':   `<span class="pill ok">Tahsil edildi</span>`,
+        'Karşılıksız':     `<span class="pill danger">Karşılıksız</span>`,
+        'İade Edildi':     `<span class="pill neutral">İade edildi</span>`,
+    }[c.status] || `<span class="pill neutral">${esc(c.status)}</span>`;
+}
+
+// Genel Bakış'taki kart
+function chequeKpi(kpi) {
+    const active = S.cheques.filter(isActiveCheque);
+    const late = active.filter(c => c.due_date < TODAY);
+    const next = active.filter(c => c.due_date >= TODAY).sort((a, b) => a.due_date.localeCompare(b.due_date))[0];
+    const sub = !active.length ? 'Portföyde çek yok'
+        : late.length ? `${active.length} çek · ${late.length} tanesinin vadesi geçti`
+        : `${active.length} çek · en yakın vade ${dateTr(next.due_date)}`;
+    return kpi('cheques', 'Portföydeki çekler', 'fa-money-check', 'var(--accent)',
+        currencyLines(sumByCurrency(active, 'amount')), sub, late.length ? 'accent-danger' : '', 'Çek Portföyü →');
+}
+
+function renderCheques() {
+    const active = S.cheques.filter(isActiveCheque);
+    const late = active.filter(c => c.due_date < TODAY);
+    const soon = active.filter(c => c.due_date >= TODAY && daysBetween(TODAY, c.due_date) <= 30);
+    const cnt = document.getElementById('cnt-cheques');
+    cnt.textContent = active.length;
+    cnt.classList.toggle('danger', late.length > 0);
+
+    const card = (title, icon, color, rows, sub, accent = '') => `
+        <div class="kpi-card ${accent}">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                <i class="fa-solid ${icon}" style="color:${color};font-size:13px;"></i>
+                <div class="label-caps">${title}</div>
+            </div>
+            <div class="kpi-lines">${currencyLines(sumByCurrency(rows, 'amount'))}</div>
+            <div class="kpi-sub">${sub}</div>
+        </div>`;
+    document.getElementById('chq-kpis').innerHTML = [
+        card('Portföyde / bankada', 'fa-money-check', 'var(--accent)', active, `${active.length} çek`),
+        card('30 gün içinde vadesi gelecek', 'fa-calendar-day', 'var(--warn)', soon, `${soon.length} çek`, 'accent-warn'),
+        card('Vadesi geçti, tahsil işaretlenmedi', 'fa-circle-exclamation', 'var(--danger)', late,
+            late.length ? 'Para hesaba geçtiyse "Tahsil edildi" deyin' : 'Yok', 'accent-danger'),
+    ].join('');
+
+    let list = S.cheques.slice();
+    if (F.chqStatus === 'active')    list = list.filter(isActiveCheque);
+    if (F.chqStatus === 'collected') list = list.filter(c => c.status === 'Tahsil Edildi');
+    if (F.chqStatus === 'problem')   list = list.filter(c => ['Karşılıksız', 'İade Edildi'].includes(c.status));
+    if (F.chqSearch) list = list.filter(c => {
+        const hay = norm([chequeCustomer(c), c.cheque_no, c.bank_name, c.notes,
+            ...chequeAllocations(c.id).map(a => S.orderById.get(a.order_id)?.order_number)].join(' '));
+        return F.chqSearch.split(/\s+/).every(t => hay.includes(t));
+    });
+    // Aktif çekler yakın vadeden, kapanmışlar en yeniden
+    list.sort((a, b) => F.chqStatus === 'active' ? a.due_date.localeCompare(b.due_date) : b.due_date.localeCompare(a.due_date));
+
+    const el = document.getElementById('cheque-table');
+    if (!list.length) {
+        el.innerHTML = `<div class="empty">${S.cheques.length ? 'Kriterlere uyan çek yok.' : 'Henüz çek girilmedi. Müşteriden çek alındığında üstteki "Çek Gir" ile kaydedin.'}</div>`;
+        return;
+    }
+    el.innerHTML = `<table class="data-table">
+        <thead><tr><th>Müşteri</th><th>Çek</th><th>Keşide</th><th>Vade</th><th class="num">Tutar</th><th>Kapsadığı siparişler</th><th>Durum</th><th></th></tr></thead>
+        <tbody>${list.map(c => {
+            const allocs = chequeAllocations(c.id);
+            const linked = round2(allocs.reduce((s, a) => s + (Number(a.amount) || 0), 0));
+            const rest = round2(Number(c.amount) - linked);
+            const pay = chequePayment(c.id);
+            const d = daysBetween(c.due_date, TODAY);
+            const sev = isActiveCheque(c) ? (d > 0 ? 'sev-danger' : d >= -7 ? 'sev-warn' : '') : '';
+            const orders = allocs.map(a => `<div class="nowrap" style="font-size:12px;">Sipariş ${esc(S.orderById.get(a.order_id)?.order_number || '—')}
+                <span class="muted">${money(a.amount, c.currency)}</span></div>`).join('');
+            return `<tr class="${sev}">
+                <td class="strong">${esc(chequeCustomer(c))}</td>
+                <td><div class="strong">${esc(c.cheque_no || '—')}</div><div class="muted" style="font-size:11px;">${esc(c.bank_name || '')}</div></td>
+                <td class="nowrap">${dateTr(c.issue_date)}</td>
+                <td class="nowrap">${dateTr(c.due_date)}<div style="margin-top:3px;">${chequeDuePill(c)}</div></td>
+                <td class="num strong">${money(c.amount, c.currency)}</td>
+                <td>${orders || '<span class="muted">bağlanmadı</span>'}${rest > 0.005 && allocs.length ? `<div class="muted" style="font-size:11px;">bağlanmayan ${money(rest, c.currency)}</div>` : ''}</td>
+                <td>${chequeStatusPill(c)}${pay ? `<div class="muted" style="font-size:11px;margin-top:3px;">hesaba geçti ${dateTr(pay.payment_date)}</div>` : ''}
+                    ${c.notes ? `<div class="muted" style="font-size:11px;margin-top:3px;">${esc(c.notes)}</div>` : ''}</td>
+                <td class="nowrap" style="text-align:right;">${EDIT && isActiveCheque(c)
+                    ? `<button class="pt-btn sm" data-act="cheque-collect" data-id="${c.id}" title="Para hesaba geçti"><i class="fa-solid fa-circle-check"></i> Tahsil edildi</button>` : ''}
+                    ${EDIT && c.status !== 'Tahsil Edildi' ? `<button class="pt-btn sm icon" data-act="cheque-edit" data-id="${c.id}" title="Düzenle / durum değiştir"><i class="fa-solid fa-pen"></i></button>` : ''}</td>
+            </tr>`;
+        }).join('')}</tbody>
+        <tfoot><tr><td colspan="4">${list.length} çek</td><td class="num">${currencyLines(sumByCurrency(list, 'amount'))}</td><td colspan="3"></td></tr></tfoot>
+    </table>`;
+}
+
+// ── Çek giriş / düzenleme ────────────────────────────────────────────────────
+const CQ = { cheque: null, customerId: null, currency: 'TRY', rows: [] };
+
+function initChequeModals() {
+    initCustomerCombo({
+        inputId: 'cq-customer-input', listId: 'cq-customer-list', getId: () => CQ.customerId,
+        onChoose: id => setCqCustomer(id, true),
+        badges: () => new Map(S.orders.filter(o => !isCancelled(o) && Number(o.remaining_balance) > 0.005).map(o => [o.customer_id, 'açık bakiye'])),
+    });
+    document.getElementById('cq-currency').addEventListener('change', e => { CQ.currency = e.target.value; cqBuildRows(); });
+    document.getElementById('cq-amount').addEventListener('input', cqSummary);
+    document.getElementById('cq-amount').addEventListener('blur', e => { const n = parseNum(e.target.value); if (!isNaN(n)) e.target.value = fmtNum(n); cqSummary(); });
+    document.getElementById('cq-fifo').addEventListener('click', cqFifo);
+    document.getElementById('cq-clear').addEventListener('click', () => { CQ.rows.forEach(r => { r.alloc = 0; }); cqRenderRows(); });
+    document.getElementById('cq-save').addEventListener('click', cqSave);
+    document.getElementById('cq-delete').addEventListener('click', cqDelete);
+    document.getElementById('cc-save').addEventListener('click', ccSave);
+}
+
+function setCqCustomer(id, rebuild) {
+    CQ.customerId = id || null;
+    document.getElementById('cq-customer-input').value = S.custById.get(CQ.customerId)?.company_name || '';
+    if (!rebuild) return;
+    // Müşterinin açık bakiyeli siparişlerinde en çok görülen para birimi
+    const counts = {};
+    S.orders.filter(o => o.customer_id === CQ.customerId && !isCancelled(o) && Number(o.remaining_balance) > 0.005)
+        .forEach(o => { counts[o.currency] = (counts[o.currency] || 0) + 1; });
+    const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+    if (best) { CQ.currency = best; document.getElementById('cq-currency').value = best; }
+    cqBuildRows();
+}
+
+function openChequeModal(cheque = null) {
+    if (!EDIT) return;
+    if (cheque?.status === 'Tahsil Edildi') {
+        showAlertDialog('Tahsil edilmiş çek değiştirilemez. Geri almak için Tahsilatlar sekmesinden çekin tahsilat kaydını silin; çek portföye döner.', { variant: 'warn' });
+        return;
+    }
+    CQ.cheque = cheque;
+    CQ.currency = cheque?.currency || 'TRY';
+    const v = (id, val) => { document.getElementById(id).value = val ?? ''; };
+    setCqCustomer(cheque?.customer_id || null, false);
+    v('cq-no', cheque?.cheque_no);
+    v('cq-bank', cheque?.bank_name);
+    v('cq-issue', cheque?.issue_date || (cheque ? '' : TODAY));
+    v('cq-due', cheque?.due_date);
+    v('cq-currency', CQ.currency);
+    v('cq-amount', cheque ? fmtNum(cheque.amount) : '');
+    v('cq-status', cheque?.status || 'Portföyde');
+    v('cq-notes', cheque?.notes);
+    document.getElementById('cq-delete').hidden = !cheque;
+    document.getElementById('cq-title').innerHTML = `<i class="fa-solid fa-money-check" style="color:var(--accent);"></i> ${cheque ? 'Çeki düzenle' : 'Çek Gir'}`;
+    const banks = [...new Set(S.cheques.map(c => c.bank_name).filter(Boolean))];
+    document.getElementById('cq-bank-list').innerHTML = banks.map(b => `<option value="${esc(b)}">`).join('');
+    cqBuildRows();
+    openModal('cheque-modal');
+    if (!cheque) setTimeout(() => document.getElementById('cq-customer-input').focus(), 50);
+}
+
+function cqBuildRows() {
+    const own = new Map(CQ.cheque && CQ.cheque.currency === CQ.currency
+        ? chequeAllocations(CQ.cheque.id).map(a => [a.order_id, Number(a.amount) || 0]) : []);
+    const rows = [];
+    if (CQ.customerId) {
+        S.orders
+            .filter(o => o.customer_id === CQ.customerId && o.currency === CQ.currency && !isCancelled(o)
+                && (Number(o.remaining_balance) > 0.005 || own.has(o.id)))
+            .forEach(o => {
+                // Bu sipariş için başka aktif çeklere bağlanmış tutar
+                const other = round2((S.chequeByOrder.get(o.id) || [])
+                    .filter(x => x.cheque.id !== CQ.cheque?.id).reduce((s, x) => s + x.amount, 0));
+                const its = S.items.filter(i => i.orderId === o.id);
+                const pend = S.pending.find(p => p.orderId === o.id);
+                const sub = [its.length ? `${its.filter(i => i.docNo).length || its.length} fatura` : '',
+                    pend ? (its.length ? 'kalanı faturalanmadı' : 'henüz faturalanmadı') : ''].filter(Boolean).join(' · ');
+                rows.push({
+                    orderId: o.id, label: `Sipariş ${o.order_number || '—'}`, sub, date: o.order_date,
+                    open: round2(Number(o.remaining_balance) || 0), other, alloc: round2(own.get(o.id) || 0),
+                });
+            });
+    }
+    rows.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    CQ.rows = rows;
+    cqRenderRows();
+}
+
+function cqRoom(r) { return Math.max(0, round2(r.open - r.other)); }
+
+function cqRenderRows() {
+    const el = document.getElementById('cq-alloc');
+    if (!CQ.customerId) { el.innerHTML = `<div class="empty">Önce müşteri seçin.</div>`; cqSummary(); return; }
+    if (!CQ.rows.length) {
+        el.innerHTML = `<div class="empty">Bu müşterinin ${CQ.currency} cinsinden açık siparişi yok. Çek siparişe bağlanmadan kaydedilebilir.</div>`;
+        cqSummary();
+        return;
+    }
+    el.innerHTML = `<table class="data-table alloc-table">
+        <thead><tr><th>Sipariş</th><th>Sipariş tarihi</th><th class="num">Açık bakiye</th><th class="num">Başka çeklerde</th><th class="num" style="width:150px;">Bu çekle</th><th class="num">Çeksiz kalan</th></tr></thead>
+        <tbody>${CQ.rows.map((r, idx) => {
+            const left = round2(r.open - r.other - r.alloc);
+            return `<tr>
+                <td><div class="strong">${esc(r.label)}</div>${r.sub ? `<div class="muted" style="font-size:11px;">${esc(r.sub)}</div>` : ''}</td>
+                <td class="nowrap">${dateTr(r.date)}</td>
+                <td class="num">${fmtNum(r.open)}</td>
+                <td class="num ${r.other ? '' : 'muted'}">${r.other ? fmtNum(r.other) : '—'}</td>
+                <td><input class="pt-input num" data-cq="${idx}" value="${r.alloc ? fmtNum(r.alloc) : ''}" placeholder="0,00"></td>
+                <td class="num ${left < -0.005 ? '' : 'muted'}" style="${left < -0.005 ? 'color:var(--danger);font-weight:600;' : ''}" data-cq-left="${idx}">${fmtNum(left)}</td>
+            </tr>`;
+        }).join('')}</tbody>
+    </table>`;
+    el.querySelectorAll('[data-cq]').forEach(inp => {
+        inp.addEventListener('input', () => {
+            const r = CQ.rows[Number(inp.dataset.cq)];
+            const n = parseNum(inp.value);
+            r.alloc = isNaN(n) ? 0 : round2(n);
+            const cell = el.querySelector(`[data-cq-left="${inp.dataset.cq}"]`);
+            const left = round2(r.open - r.other - r.alloc);
+            cell.textContent = fmtNum(left);
+            cell.style.color = left < -0.005 ? 'var(--danger)' : '';
+            cqSummary();
+        });
+        inp.addEventListener('blur', () => { const n = parseNum(inp.value); inp.value = isNaN(n) || !n ? '' : fmtNum(n); });
+    });
+    cqSummary();
+}
+
+function cqAmount() {
+    const n = parseNum(document.getElementById('cq-amount').value);
+    return isNaN(n) ? 0 : round2(n);
+}
+
+function cqSummary() {
+    const amount = cqAmount();
+    const linked = round2(CQ.rows.reduce((s, r) => s + r.alloc, 0));
+    const rest = round2(amount - linked);
+    const cur = CQ.currency;
+    document.getElementById('cq-summary').innerHTML = `
+        <span>Çek tutarı: <b>${money(amount, cur)}</b></span>
+        <span>Siparişlere bağlanan: <b>${money(linked, cur)}</b></span>
+        <span style="${rest < -0.005 ? 'color:var(--danger);' : ''}">Bağlanmayan: <b>${money(rest, cur)}</b></span>`;
+}
+
+function cqFifo() {
+    let left = cqAmount();
+    CQ.rows.forEach(r => {
+        const give = Math.max(0, Math.min(cqRoom(r), left));
+        r.alloc = round2(give);
+        left = round2(left - give);
+    });
+    cqRenderRows();
+}
+
+async function cqSave() {
+    const btn = document.getElementById('cq-save');
+    const val = id => document.getElementById(id).value.trim();
+    const amount = cqAmount();
+    const cur = CQ.currency;
+    const due = val('cq-due');
+    const issue = val('cq-issue');
+    const status = val('cq-status') || 'Portföyde';
+
+    if (!CQ.customerId) return showAlertDialog('Lütfen müşteri seçin.', { variant: 'warn', title: 'Eksik bilgi' });
+    if (!due) return showAlertDialog('Çekin vadesini girin.', { variant: 'warn', title: 'Eksik bilgi' });
+    if (amount <= 0) return showAlertDialog('Çek tutarını girin.', { variant: 'warn', title: 'Eksik bilgi' });
+    if (issue && issue > due) return showAlertDialog('Keşide tarihi vadeden sonra olamaz.', { variant: 'warn', title: 'Tarih hatası' });
+
+    const allocRows = CQ.rows.filter(r => r.alloc > 0.005);
+    if (CQ.rows.some(r => r.alloc < -0.005)) return showAlertDialog('Siparişe bağlanan tutar eksi olamaz.', { variant: 'warn', title: 'Dağıtım hatası' });
+    const over = allocRows.find(r => r.alloc - cqRoom(r) > 0.005);
+    if (over) {
+        return showAlertDialog(`${over.label}: bu çekle bağlanan ${money(over.alloc, cur)}, siparişin çeksiz açık bakiyesini (${money(cqRoom(over), cur)}) aşıyor.`, { variant: 'warn', title: 'Dağıtım hatası' });
+    }
+    const linked = round2(allocRows.reduce((s, r) => s + r.alloc, 0));
+    if (linked - amount > 0.005) {
+        return showAlertDialog(`Siparişlere bağlanan (${money(linked, cur)}) çek tutarını (${money(amount, cur)}) aşıyor.`, { variant: 'warn', title: 'Dağıtım hatası' });
+    }
+    const rest = round2(amount - linked);
+    if (rest > 0.005) {
+        const ok = await showConfirmDialog(`${money(rest, cur)} hiçbir siparişe bağlanmadı.\n\nÇek tahsil edildiğinde bu kısım müşteri avansı olarak bekler; sonra Tahsilatlar'dan "Dağıt" ile siparişe mahsup edilebilir.`,
+            { title: 'Bağlanmayan tutar', variant: 'warn', confirmText: 'Böyle kaydet' });
+        if (!ok) return;
+    }
+    if (CQ.cheque && isActiveCheque(CQ.cheque) && !CHEQUE_ACTIVE.includes(status)) {
+        const ok = await showConfirmDialog(`Çek "${status}" olarak işaretlenecek. Kapsadığı siparişler çeksiz açık alacak olarak yeniden görünür.`,
+            { title: 'Çek durumu', variant: 'danger', confirmText: 'İşaretle' });
+        if (!ok) return;
+    }
+
+    const payload = {
+        user_id: ctx.ownerId,
+        customer_id: CQ.customerId,
+        cheque_no: val('cq-no') || null,
+        bank_name: val('cq-bank') || null,
+        issue_date: issue || null,
+        due_date: due,
+        amount,
+        currency: cur,
+        status,
+        notes: val('cq-notes') || null,
+    };
+
+    btn.disabled = true;
+    try {
+        let id = CQ.cheque?.id;
+        if (id) {
+            const { error } = await supabase.from('cheques').update(payload).eq('id', id);
+            if (error) throw error;
+            const { error: de } = await supabase.from('cheque_allocations').delete().eq('cheque_id', id);
+            if (de) throw de;
+        } else {
+            const { data, error } = await supabase.from('cheques').insert([payload]).select().single();
+            if (error) throw error;
+            id = data.id;
+        }
+        if (allocRows.length) {
+            const { error } = await supabase.from('cheque_allocations')
+                .insert(allocRows.map(r => ({ cheque_id: id, order_id: r.orderId, amount: round2(r.alloc) })));
+            if (error) {
+                // Yeni çekte bağlantılar yazılamadıysa yarım kayıt bırakma.
+                if (!CQ.cheque) await supabase.from('cheques').delete().eq('id', id);
+                throw error;
+            }
+        }
+        const custName = S.custById.get(CQ.customerId)?.company_name || '';
+        const targets = allocRows.map(r => `${r.label} ${fmtNum(r.alloc)}`).join(', ');
+        logChange({
+            ctx, moduleId: MODULE, action: CQ.cheque ? 'update' : 'create',
+            summary: `Çek ${CQ.cheque ? 'güncellendi' : 'girildi'}: ${custName} ${chequeLabel(payload)} (${status})${targets ? ' → ' + targets : ''}`,
+            details: { cheque_id: id, cheque: payload, allocations: allocRows.map(r => ({ order_id: r.orderId, amount: r.alloc })) },
+        });
+        closeModal('cheque-modal');
+        toast(CQ.cheque ? 'Çek güncellendi.' : 'Çek portföye kaydedildi.');
+        await loadData();
+    } catch (e) {
+        console.error(e);
+        showAlertDialog('Kaydedilemedi: ' + e.message, { variant: 'danger', title: 'Hata' });
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function cqDelete() {
+    const c = CQ.cheque;
+    if (!c) return;
+    const ok = await showConfirmDialog(`${chequeCustomer(c)} · ${chequeLabel(c)}\n\nÇek kaydı ve sipariş bağlantıları silinecek. Yanlış girilen çek için kullanın; karşılıksız ya da iade edilen çekte silmek yerine durumunu değiştirin.`,
+        { title: 'Çeki sil', variant: 'danger', confirmText: 'Sil' });
+    if (!ok) return;
+    const { error } = await supabase.from('cheques').delete().eq('id', c.id);
+    if (error) { await showAlertDialog('Silinemedi: ' + error.message, { variant: 'danger' }); return; }
+    logChange({ ctx, moduleId: MODULE, action: 'delete', summary: `Çek silindi: ${chequeCustomer(c)} ${chequeLabel(c)}`, details: { cheque: c, allocations: chequeAllocations(c.id) } });
+    closeModal('cheque-modal');
+    toast('Çek silindi.');
+    await loadData();
+}
+
+// ── Çek tahsil edildi ────────────────────────────────────────────────────────
+// Çekin sipariş bağlantıları tahsilat dağıtımına dönüşür. Sipariş o arada başka
+// yoldan ödendiyse (bakiye çekteki paydan azsa) fazlası müşteri avansı olur.
+const CC = { cheque: null, rows: [] };
+
+function openCollectModal(id) {
+    const c = S.cheques.find(x => x.id === id);
+    if (!EDIT || !c || !isActiveCheque(c)) return;
+    CC.cheque = c;
+    CC.rows = chequeAllocations(c.id).filter(a => a.order_id).map(a => {
+        const o = S.orderById.get(a.order_id);
+        const open = o && !isCancelled(o) ? round2(Math.max(0, Number(o.remaining_balance) || 0)) : 0;
+        const share = round2(Number(a.amount) || 0);
+        return { orderId: a.order_id, label: `Sipariş ${o?.order_number || '—'}`, cancelled: o ? isCancelled(o) : true, share, open, apply: Math.min(share, open) };
+    });
+    document.getElementById('cc-context').innerHTML = `
+        <span>Müşteri: <b>${esc(chequeCustomer(c))}</b></span>
+        <span>Çek: <b>${esc(c.cheque_no || '—')}</b>${c.bank_name ? ` · ${esc(c.bank_name)}` : ''}</span>
+        <span>Vade: <b>${dateTr(c.due_date)}</b></span>
+        <span>Tutar: <b>${money(c.amount, c.currency)}</b></span>`;
+    document.getElementById('cc-date').value = c.due_date <= TODAY ? c.due_date : TODAY;
+    document.getElementById('cc-bank').value = '';
+    document.getElementById('cc-notes').value = '';
+    const banks = [...new Set(S.payments.map(p => p.bank_account).filter(Boolean))];
+    document.getElementById('cc-bank-list').innerHTML = banks.map(b => `<option value="${esc(b)}">`).join('');
+
+    const cur = c.currency;
+    const applied = round2(CC.rows.reduce((s, r) => s + r.apply, 0));
+    const advance = round2(Number(c.amount) - applied);
+    document.getElementById('cc-rows').innerHTML = (CC.rows.length ? `<table class="data-table">
+        <thead><tr><th>Sipariş</th><th class="num">Çekteki pay</th><th class="num">Siparişin açık bakiyesi</th><th class="num">İşlenecek</th></tr></thead>
+        <tbody>${CC.rows.map(r => `<tr>
+            <td class="strong">${esc(r.label)}${r.cancelled ? ' <span class="pill danger">İptal</span>' : ''}</td>
+            <td class="num">${fmtNum(r.share)}</td>
+            <td class="num">${fmtNum(r.open)}</td>
+            <td class="num strong" style="${r.apply < r.share - 0.005 ? 'color:var(--warn);' : ''}">${fmtNum(r.apply)}</td>
+        </tr>`).join('')}</tbody>
+    </table>` : `<div class="empty">Çek hiçbir siparişe bağlı değil.</div>`)
+        + `<div class="alloc-summary">
+            <span>Siparişlere işlenecek: <b>${money(applied, cur)}</b></span>
+            <span style="${advance > 0.005 ? 'color:var(--warn);' : ''}">Müşteri avansı olarak kalacak: <b>${money(advance, cur)}</b></span>
+        </div>`;
+    openModal('cheque-collect-modal');
+}
+
+async function ccSave() {
+    const c = CC.cheque;
+    if (!c) return;
+    const btn = document.getElementById('cc-save');
+    const date = document.getElementById('cc-date').value;
+    if (!date) return showAlertDialog('Paranın hesaba geçtiği tarihi girin.', { variant: 'warn', title: 'Eksik bilgi' });
+    if (date > TODAY) return showAlertDialog('Tahsil tarihi bugünden ileri olamaz. Çek henüz tahsil edilmediyse portföyde bırakın.', { variant: 'warn', title: 'Tarih hatası' });
+
+    const cur = c.currency;
+    const rows = CC.rows.filter(r => r.apply > 0.005);
+    const advance = round2(Number(c.amount) - rows.reduce((s, r) => s + r.apply, 0));
+    if (advance > 0.005) {
+        const ok = await showConfirmDialog(`${money(advance, cur)} hiçbir siparişe işlenmeyecek ve müşteri avansı olarak bekleyecek; sonra Tahsilatlar'dan "Dağıt" ile mahsup edebilirsiniz.`,
+            { title: 'Dağıtılmayan tutar', variant: 'warn', confirmText: 'Böyle kaydet' });
+        if (!ok) return;
+    }
+
+    const userNote = document.getElementById('cc-notes').value.trim();
+    btn.disabled = true;
+    let paymentId = null;
+    try {
+        const { data, error } = await supabase.from('payments').insert([{
+            user_id: ctx.ownerId,
+            customer_id: c.customer_id,
+            payment_date: date,
+            currency: cur,
+            amount: round2(Number(c.amount)),
+            method: 'Çek',
+            bank_account: document.getElementById('cc-bank').value.trim() || null,
+            reference_no: c.cheque_no ? `Çek ${c.cheque_no}` : 'Çek',
+            notes: [`Çek vadesi ${dateTr(c.due_date)}${c.bank_name ? ' · ' + c.bank_name : ''}`, userNote].filter(Boolean).join(' | '),
+            cheque_id: c.id,
+            created_by: ctx.userId,
+        }]).select().single();
+        if (error) throw error;
+        paymentId = data.id;
+
+        if (rows.length) {
+            const { error: ae } = await supabase.from('payment_allocations').insert(rows.map(r => ({
+                payment_id: paymentId, order_id: r.orderId, amount: round2(r.apply), write_off_amount: 0, write_off_type: null,
+            })));
+            if (ae) throw ae;
+        }
+        const { error: se } = await supabase.from('cheques').update({ status: 'Tahsil Edildi' }).eq('id', c.id);
+        if (se) throw se;
+
+        logChange({
+            ctx, moduleId: MODULE, action: 'create',
+            summary: `Çek tahsil edildi: ${chequeCustomer(c)} ${chequeLabel(c)} (${dateTr(date)})${rows.length ? ' → ' + rows.map(r => `${r.label} ${fmtNum(r.apply)}`).join(', ') : ''}`,
+            details: { cheque_id: c.id, payment_id: paymentId, allocations: rows },
+        });
+        closeModal('cheque-collect-modal');
+        toast('Çek tahsil edildi; tahsilat kaydı açıldı.');
+        await loadData();
+    } catch (e) {
+        console.error(e);
+        // Yarım kayıt bırakma: tahsilat açıldıysa geri al (dağıtımlar onunla silinir).
+        if (paymentId) await supabase.from('payments').delete().eq('id', paymentId);
+        showAlertDialog('Kaydedilemedi: ' + e.message, { variant: 'danger', title: 'Hata' });
+    } finally {
+        btn.disabled = false;
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1119,6 +1648,7 @@ function initModals() {
     document.getElementById('rm-save').addEventListener('click', saveReminder);
     initPlanModal();
     initInvoiceModal();
+    initChequeModals();
 }
 
 // ── Müşteri arama kutusu (serbest yazı; select'in "baş harfe atla" davranışı yerine) ──
